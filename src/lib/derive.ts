@@ -1,0 +1,165 @@
+import type { Agreement, AppState, CoachRequest, SportEvent, Task } from '../types'
+import { addDays, weekStart } from './dates'
+
+// ---------- Business/derived logic, kept out of display components ----------
+
+export function orgScoped<T extends { orgId: string }>(state: AppState, rows: T[]): T[] {
+  return rows.filter(r => r.orgId === state.currentOrgId)
+}
+
+export const events = (s: AppState) => orgScoped(s, s.events)
+export const sponsors = (s: AppState) => orgScoped(s, s.sponsors)
+export const agreements = (s: AppState) => orgScoped(s, s.agreements)
+export const requests = (s: AppState) => orgScoped(s, s.requests)
+export const tasks = (s: AppState) => orgScoped(s, s.tasks)
+export const teams = (s: AppState) => orgScoped(s, s.teams)
+export const assets = (s: AppState) => orgScoped(s, s.assets)
+
+export function eventsThisWeek(s: AppState): SportEvent[] {
+  const start = weekStart(s.demoToday)
+  const end = addDays(start, 7)
+  return events(s).filter(e => e.date >= start && e.date < end && e.status !== 'canceled')
+    .sort((a, b) => (a.date + (a.time ?? '99')).localeCompare(b.date + (b.time ?? '99')))
+}
+
+export function upcomingBroadcasts(s: AppState, limit = 6): SportEvent[] {
+  return events(s)
+    .filter(e => e.date >= s.demoToday && (e.broadcastStatus === 'planned' || e.broadcastStatus === 'confirmed'))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, limit)
+}
+
+export function unfilledSlots(s: AppState): { event: SportEvent; count: number }[] {
+  return events(s)
+    .filter(e => e.date >= s.demoToday)
+    .map(e => ({ event: e, count: e.staffSlots.filter(sl => sl.status === 'unfilled' || sl.status === 'declined').length }))
+    .filter(x => x.count > 0)
+    .sort((a, b) => a.event.date.localeCompare(b.event.date))
+}
+
+export function agreementPaid(a: Agreement): number {
+  return a.payments.reduce((sum, p) => sum + p.amount, 0)
+}
+
+export function sponsorshipTotals(s: AppState) {
+  const ags = agreements(s)
+  const total = ags.reduce((sum, a) => sum + a.amount, 0)
+  const collected = ags.reduce((sum, a) => sum + agreementPaid(a), 0)
+  return { total, collected, outstanding: total - collected, count: ags.length }
+}
+
+export function unpaidAgreements(s: AppState): Agreement[] {
+  return agreements(s).filter(a => a.paymentStatus !== 'paid')
+    .sort((a, b) => (b.amount - agreementPaid(b)) - (a.amount - agreementPaid(a)))
+}
+
+export function missingSponsorAssets(s: AppState) {
+  return sponsors(s).filter(sp => sp.logoStatus !== 'received')
+}
+
+export function fulfillmentProgress(a: Agreement): { done: number; total: number } {
+  const items = a.fulfillment.filter(f => f.status !== 'na')
+  return { done: items.filter(f => f.status === 'complete').length, total: items.length }
+}
+
+export function obligationsDue(s: AppState) {
+  const soon = addDays(s.demoToday, 14)
+  const out: { agreement: Agreement; label: string; dueDate: string }[] = []
+  for (const a of agreements(s)) {
+    for (const f of a.fulfillment) {
+      if (f.status === 'pending' && f.dueDate && f.dueDate <= soon) {
+        out.push({ agreement: a, label: f.label, dueDate: f.dueDate })
+      }
+    }
+  }
+  return out.sort((x, y) => x.dueDate.localeCompare(y.dueDate))
+}
+
+export function openRequests(s: AppState): CoachRequest[] {
+  return requests(s).filter(r => r.status !== 'completed')
+    .sort((a, b) => a.neededBy.localeCompare(b.neededBy))
+}
+
+export function overdueTasks(s: AppState): Task[] {
+  return tasks(s).filter(t => t.status !== 'done' && t.dueDate < s.demoToday)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+}
+
+export function upcomingContent(s: AppState, days = 7): Task[] {
+  const end = addDays(s.demoToday, days)
+  return tasks(s).filter(t => t.kind === 'content' && t.status !== 'done' && t.dueDate >= s.demoToday && t.dueDate <= end)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+}
+
+/**
+ * Same-day, same-venue home events within 2h of each other, across different
+ * sports. Same-sport back-to-back games (Freshman/JV/Varsity doubleheaders)
+ * are intentional and not flagged.
+ */
+export function venueConflicts(s: AppState): Map<string, string[]> {
+  const conflicts = new Map<string, string[]>()
+  const byKey = new Map<string, SportEvent[]>()
+  for (const e of events(s)) {
+    if (e.homeAway !== 'home' || !e.time || e.status === 'canceled') continue
+    const key = `${e.date}|${e.venue.toLowerCase()}`
+    byKey.set(key, [...(byKey.get(key) ?? []), e])
+  }
+  for (const group of byKey.values()) {
+    if (group.length < 2) continue
+    for (const a of group) {
+      for (const b of group) {
+        if (a.id >= b.id) continue
+        const mins = Math.abs(toMins(a.time!) - toMins(b.time!))
+        if (mins < 120 && a.sport !== b.sport) {
+          conflicts.set(a.id, [...(conflicts.get(a.id) ?? []), b.id])
+          conflicts.set(b.id, [...(conflicts.get(b.id) ?? []), a.id])
+        }
+      }
+    }
+  }
+  return conflicts
+}
+
+function toMins(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+export function teamRecord(s: AppState, teamId: string): { w: number; l: number; t: number } {
+  const rec = { w: 0, l: 0, t: 0 }
+  for (const e of events(s)) {
+    if (e.teamId !== teamId || !e.score) continue
+    if (e.score.result === 'W') rec.w++
+    else if (e.score.result === 'L') rec.l++
+    else rec.t++
+  }
+  return rec
+}
+
+export function teamCompleteness(s: AppState, teamId: string): number {
+  const t = teams(s).find(x => x.id === teamId)
+  if (!t) return 0
+  let score = 100
+  score -= t.missingInfo.length * 15
+  if (t.rosterStatus === 'in_progress') score -= 15
+  if (t.rosterStatus === 'not_started') score -= 40
+  return Math.max(0, score)
+}
+
+export const ROLE_LABELS: Record<string, string> = {
+  platform_owner: 'Platform Owner',
+  school_admin: 'School Administrator',
+  comms_admin: 'Communications Admin',
+  finance: 'Finance',
+  coach: 'Coach',
+  event_staff: 'Event Staff',
+  read_only: 'Read-only',
+}
+
+/** Simple permission model for the prototype. */
+export function can(role: string, action: 'edit' | 'finance' | 'admin'): boolean {
+  if (role === 'read_only') return false
+  if (action === 'finance') return ['platform_owner', 'school_admin', 'finance'].includes(role)
+  if (action === 'admin') return ['platform_owner', 'school_admin'].includes(role)
+  return ['platform_owner', 'school_admin', 'comms_admin', 'finance', 'coach', 'event_staff'].includes(role)
+}
