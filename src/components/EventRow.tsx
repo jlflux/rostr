@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { Opponent, SportEvent } from '../types'
 import { fmtTime } from '../lib/dates'
-import { visibleScore } from '../lib/derive'
+import { visibleScore, visibleStatus } from '../lib/derive'
 import { useStore } from '../store/store'
 import { Badge, HomeAwayBadge, StatusBadge } from './ui'
 import { I } from './icons'
@@ -58,7 +58,7 @@ export function EventRow({ e, showDate, conflict }: { e: SportEvent; showDate?: 
         {!score && unfilled > 0 && <Badge tone="danger">{unfilled} unfilled</Badge>}
         {!score && e.broadcastStatus !== 'none' && e.broadcastStatus !== 'archived' && <Badge tone="info"><I.broadcast /> Broadcast</Badge>}
         <HomeAwayBadge ha={e.homeAway} />
-        {!score && <StatusBadge status={e.status} />}
+        {!score && <StatusBadge status={visibleStatus(state, e)} />}
       </div>
     </Link>
   )

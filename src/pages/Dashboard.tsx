@@ -10,7 +10,7 @@ import { fmtDate, fmtDateLong, fmtDateTime, fmtMoney, fmtTime, relDue } from '..
 import { I } from '../components/icons'
 
 export default function Dashboard() {
-  const { state, update, toast } = useStore()
+  const { state, update, remove, toast } = useStore()
   const week = eventsThisWeek(state)
   const home = week.filter(e => e.homeAway === 'home')
   const broadcasts = upcomingBroadcasts(state)
@@ -107,6 +107,7 @@ export default function Dashboard() {
                   </span>
                   <PriorityBadge p={t.priority} />
                   <Avatar user={assignee} size="sm" />
+                  <button className="btn sm ghost" aria-label="Delete task" title="Delete task" onClick={() => { remove('tasks', t.id); toast('Task deleted') }}>✕</button>
                 </div>
               )
             })}
@@ -125,6 +126,7 @@ export default function Dashboard() {
                   </span>
                   {t.eventId && <Link className="link small" to={`/events/${t.eventId}`}>Event</Link>}
                   <Avatar user={assignee} size="sm" />
+                  <button className="btn sm ghost" aria-label="Delete reminder" title="Delete reminder" onClick={() => { remove('tasks', t.id); toast('Reminder deleted') }}>✕</button>
                 </div>
               )
             })}

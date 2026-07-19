@@ -82,6 +82,11 @@ export default function AssetsPage() {
       </div>
 
       <div className="toolbar">
+        {!searching && path.type && (
+          <button className="btn" onClick={() => setPath(path.teamId ? { type: path.type } : {})}>
+            <I.left /> {path.teamId ? folder?.label : 'All folders'}
+          </button>
+        )}
         <SearchBox value={q} onChange={setQ} placeholder="Search all assets…" />
         {(searching || path.type) && (
           <select className="inline-select" value={approval} onChange={e => setApproval(e.target.value)} aria-label="Approval filter">

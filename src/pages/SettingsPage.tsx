@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, can } from '../lib/derive'
-import { Avatar, Badge, Card, ConfirmDialog, Field } from '../components/ui'
-import type { Organization } from '../types'
+import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
+import { I } from '../components/icons'
+import type { Organization, Role, User } from '../types'
+
+const AVATAR_COLORS = ['#d60000', '#0e7490', '#15803d', '#b45309', '#7c3aed', '#be185d', '#1d4ed8', '#374151']
 
 export default function SettingsPage() {
-  const { state, update, setState, resetDemo, theme, setTheme, toast } = useStore()
+  const { state, update, add, setState, resetDemo, theme, setTheme, toast } = useStore()
   const [confirmReset, setConfirmReset] = useState(false)
+  const [addingUser, setAddingUser] = useState(false)
   const me = state.users.find(u => u.id === state.currentUserId)!
   const org = state.orgs.find(o => o.id === state.currentOrgId)!
   const isAdmin = can(me.role, 'admin')
@@ -63,7 +67,9 @@ export default function SettingsPage() {
             {!isAdmin && <p className="tiny">Only school administrators can edit branding. Switch to Marcus Cole via the profile menu to try it.</p>}
           </Card>
 
-          <Card title="Users & roles" pad={false}>
+          <Card title="Users & roles" pad={false} action={isAdmin && (
+            <button className="btn sm primary" onClick={() => setAddingUser(true)}><I.plus /> Add user</button>
+          )}>
             <table className="tbl">
               <thead><tr><th>User</th><th>Title</th><th>Role</th></tr></thead>
               <tbody>
@@ -140,6 +146,14 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {addingUser && (
+        <AddUserModal onClose={() => setAddingUser(false)} onSave={u => {
+          add('users', u)
+          toast(`${u.name} added as ${ROLE_LABELS[u.role]}`)
+          setAddingUser(false)
+        }} />
+      )}
+
       {confirmReset && (
         <ConfirmDialog title="Reset demo data?" danger confirmLabel="Reset everything"
           message="This discards every change you've made in the prototype (events, payments, requests, tasks) and restores the original Homewood demo data."
@@ -152,4 +166,66 @@ export default function SettingsPage() {
   function updateOrg(patch: Partial<Organization>) {
     setState({ orgs: state.orgs.map(o => (o.id === org.id ? { ...o, ...patch } : o)) })
   }
+}
+
+function AddUserModal({ onClose, onSave }: { onClose: () => void; onSave: (u: User) => void }) {
+  const { state } = useStore()
+  const [form, setForm] = useState({ name: '', email: '', title: '', role: 'event_staff' as Role, teamIds: [] as string[] })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const submit = () => {
+    const errs: Record<string, string> = {}
+    if (!form.name.trim()) errs.name = 'Full name is required.'
+    if (!form.email.trim()) errs.email = 'Email is required — it becomes their login.'
+    else if (!/^\S+@\S+\.\S+$/.test(form.email)) errs.email = 'Enter a valid email address.'
+    else if (state.users.some(u => u.email.toLowerCase() === form.email.trim().toLowerCase())) errs.email = 'A user with this email already exists.'
+    if (form.role === 'coach' && form.teamIds.length === 0) errs.teams = 'Pick at least one team for a coach.'
+    setErrors(errs)
+    if (Object.keys(errs).length) return
+    const name = form.name.trim()
+    const initials = name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    onSave({
+      id: `u-new-${Date.now()}`, orgId: state.currentOrgId, name, email: form.email.trim(),
+      role: form.role, title: form.title.trim() || ROLE_LABELS[form.role], initials,
+      color: AVATAR_COLORS[state.users.length % AVATAR_COLORS.length],
+      teamIds: form.role === 'coach' ? form.teamIds : undefined,
+    })
+  }
+
+  return (
+    <Modal title="Add user" onClose={onClose} footer={
+      <>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn primary" onClick={submit}>Add user</button>
+      </>
+    }>
+      <p className="small muted" style={{ marginTop: 0 }}>In production this sends an email invitation; in the prototype the user is created immediately and appears in every assignee list and the "View as" switcher.</p>
+      <div className="form-row">
+        <Field label="Full name" required error={errors.name}>
+          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Jamie Carter" />
+        </Field>
+        <Field label="Email" required error={errors.email}>
+          <input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="name@homewood.k12.al.us" />
+        </Field>
+      </div>
+      <div className="form-row">
+        <Field label="Role" required>
+          <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as Role }))}>
+            {Object.entries(ROLE_LABELS).filter(([r]) => r !== 'platform_owner').map(([r, l]) => <option key={r} value={r}>{l}</option>)}
+          </select>
+        </Field>
+        <Field label="Title">
+          <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Ticket Gate Lead" />
+        </Field>
+      </div>
+      {form.role === 'coach' && (
+        <Field label="Teams they coach" required error={errors.teams}>
+          <select multiple size={6} value={form.teamIds}
+            onChange={e => setForm(f => ({ ...f, teamIds: [...e.target.selectedOptions].map(o => o.value) }))}>
+            {state.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </Field>
+      )}
+    </Modal>
+  )
 }

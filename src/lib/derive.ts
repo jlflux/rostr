@@ -1,4 +1,4 @@
-import type { Agreement, AppState, CoachRequest, SportEvent, Task } from '../types'
+import type { Agreement, AppState, CoachRequest, EventStatus, PipelineStage, SportEvent, Task } from '../types'
 import { addDays, weekStart } from './dates'
 
 // ---------- Business/derived logic, kept out of display components ----------
@@ -54,7 +54,7 @@ export function unpaidAgreements(s: AppState): Agreement[] {
 }
 
 export function missingSponsorAssets(s: AppState) {
-  return sponsors(s).filter(sp => sp.logoStatus !== 'received')
+  return sponsors(s).filter(sp => sp.stage === 'committed' && sp.logoStatus !== 'received')
 }
 
 export function fulfillmentProgress(a: Agreement): { done: number; total: number } {
@@ -124,6 +124,23 @@ function toMins(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m
 }
+
+/**
+ * The status to display: with sample results hidden, seed-"completed" games
+ * revert to Scheduled (nothing has actually been played preseason).
+ */
+export function visibleStatus(s: AppState, e: SportEvent): EventStatus {
+  if (!s.showSampleResults && e.status === 'completed' && (!e.score || e.score.sample)) return 'scheduled'
+  return e.status
+}
+
+export const PIPELINE_STAGES: { value: PipelineStage; label: string; hint: string }[] = [
+  { value: 'prospect', label: 'Prospect', hint: 'Talked about internally' },
+  { value: 'contacted', label: 'Reached out', hint: 'Outreach sent, waiting to hear back' },
+  { value: 'maybe', label: 'Maybe', hint: 'Interested but not committed' },
+  { value: 'committed', label: 'Committed', hint: 'Said yes — agreement in place' },
+  { value: 'declined', label: 'Declined', hint: 'Said no this season' },
+]
 
 /** The score to display: hides demo-generated results when sample results are off. */
 export function visibleScore(s: AppState, e: SportEvent) {

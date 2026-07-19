@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { can, venueConflicts, visibleScore } from '../lib/derive'
+import { can, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDateLong, fmtTime, relDue } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, HomeAwayBadge, Modal, PriorityBadge, StatusBadge } from '../components/ui'
 import { EventForm } from './EventsPage'
@@ -72,7 +72,7 @@ export default function EventDetail() {
         </div>
         {editable && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <select className="inline-select" value={e.status} onChange={ev => {
+            <select className="inline-select" value={visibleStatus(state, e)} onChange={ev => {
               if (ev.target.value === 'canceled') { setConfirmCancel(true); return }
               patch({ status: ev.target.value as SportEvent['status'] })
               toast(`Status changed to ${ev.target.value}`)
@@ -255,6 +255,12 @@ function Staffing({ e, editable }: { e: SportEvent; editable: boolean }) {
                 <button className="btn sm ghost" onClick={() => { setSlot(slot.id, { status: 'confirmed' }); toast('Marked confirmed') }}>Confirm</button>
               )}
               <StatusBadge status={slot.status} />
+              {editable && (
+                <button className="btn sm ghost" aria-label={`Remove ${slot.role} slot`} title="Remove this staffing slot" onClick={() => {
+                  update('events', e.id, { staffSlots: e.staffSlots.filter(x => x.id !== slot.id) } as Partial<SportEvent>)
+                  toast(`${slot.role} slot removed`)
+                }}><I.x /></button>
+              )}
             </div>
           )
         })}
@@ -366,7 +372,7 @@ function EventSponsors({ e, editable }: { e: SportEvent; editable: boolean }) {
 }
 
 function EventTasks({ e, tasks, editable }: { e: SportEvent; tasks: Task[]; editable: boolean }) {
-  const { state, update, add, toast } = useStore()
+  const { state, update, add, remove, toast } = useStore()
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<ContentKind | 'task'>('task')
   const [err, setErr] = useState('')
@@ -394,6 +400,12 @@ function EventTasks({ e, tasks, editable }: { e: SportEvent; tasks: Task[]; edit
               </select>
             ) : <span className="tiny">{assignee?.name ?? 'Unassigned'}</span>}
             <Avatar user={assignee} size="sm" />
+            {editable && (
+              <button className="btn sm ghost" aria-label="Delete task" title="Delete this task" onClick={() => {
+                remove('tasks', t.id)
+                toast('Removed from event checklist')
+              }}><I.x /></button>
+            )}
           </div>
         )
       })}

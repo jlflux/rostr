@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { agreementPaid, can, fulfillmentProgress } from '../lib/derive'
+import { PIPELINE_STAGES, agreementPaid, can, fulfillmentProgress, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateTime, fmtMoney, fmtTime } from '../lib/dates'
 import { Avatar, Badge, Card, Check, Empty, Field, Modal, Progress, StatusBadge } from '../components/ui'
-import { TierBadge } from './SponsorsPage'
+import { StageBadge, TierBadge } from './SponsorsPage'
 import { I } from '../components/icons'
-import type { Agreement, FulfillmentItem, Payment, Sponsor } from '../types'
+import type { Agreement, FulfillmentItem, Payment, PipelineStage, Sponsor } from '../types'
 
 export default function SponsorDetail() {
   const { id } = useParams()
@@ -49,14 +49,27 @@ export default function SponsorDetail() {
           <p className="page-sub">{s.contactName}{s.email ? ` · ${s.email}` : ''}{s.phone ? ` · ${s.phone}` : ''}</p>
           <div className="pill-row" style={{ marginTop: 8 }}>
             <TierBadge tier={s.tier} />
+            <StageBadge stage={s.stage} />
             {a && <StatusBadge status={a.paymentStatus} />}
             <StatusBadge status={s.logoStatus} />
             <Badge tone="outline">Renews {fmtDate(s.renewalDate, { month: 'short', day: 'numeric', year: 'numeric' })}</Badge>
           </div>
         </div>
-        {financeOk && a && a.paymentStatus !== 'paid' && (
-          <button className="btn primary" onClick={() => setPaying(true)}>Record payment</button>
-        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {editable && (
+            <select className="inline-select" value={s.stage} aria-label="Pipeline stage" onChange={e => {
+              const stage = e.target.value as PipelineStage
+              update('sponsors', s.id, { stage } as Partial<Sponsor>)
+              logActivity(`moved ${s.name} to ${PIPELINE_STAGES.find(p => p.value === stage)?.label} in the sponsor pipeline`, `/sponsors/${s.id}`)
+              toast(`${s.name} → ${PIPELINE_STAGES.find(p => p.value === stage)?.label}`)
+            }}>
+              {PIPELINE_STAGES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          )}
+          {financeOk && a && a.paymentStatus !== 'paid' && (
+            <button className="btn primary" onClick={() => setPaying(true)}>Record payment</button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 16 }}>
@@ -91,7 +104,7 @@ export default function SponsorDetail() {
                   <strong>{e.sport} vs {e.opponent}</strong>{e.designation && <> <Badge tone="brand">{e.designation}</Badge></>}
                   <div className="tiny">{fmtDate(e.date)} · {fmtTime(e.time)} · {e.venue}</div>
                 </span>
-                <StatusBadge status={e.status} />
+                <StatusBadge status={visibleStatus(state, e)} />
               </Link>
             ))}
           </Card>

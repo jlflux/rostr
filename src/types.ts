@@ -42,6 +42,14 @@ export interface User {
 
 export type RosterStatus = 'complete' | 'in_progress' | 'not_started'
 
+export interface Athlete {
+  id: string
+  number?: string
+  name: string
+  grade?: string // 9–12
+  position?: string
+}
+
 export interface ImportantDate {
   label: string
   date: string
@@ -63,6 +71,7 @@ export interface Team {
   importantDates: ImportantDate[]
   /** e.g. "Region runner-up", "State quarterfinals" — blank until postseason */
   postseasonFinish?: string
+  roster?: Athlete[]
 }
 
 export type HomeAway = 'home' | 'away' | 'neutral' | 'tbd'
@@ -162,10 +171,14 @@ export interface SponsorNote {
   text: string
 }
 
+/** Pre-sale pipeline: idea → outreach → maybe → yes/no */
+export type PipelineStage = 'prospect' | 'contacted' | 'maybe' | 'committed' | 'declined'
+
 export interface Sponsor {
   id: string
   orgId: string
   name: string
+  stage: PipelineStage
   tier: SponsorTier
   contactName: string
   email?: string

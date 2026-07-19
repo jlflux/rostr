@@ -1,6 +1,6 @@
 import rawSchedule from './scheduleEvents.json'
 import type {
-  Activity, Agreement, AppState, Asset, CoachRequest, FulfillmentItem, Opponent, Organization,
+  Activity, Agreement, AppState, Asset, Athlete, CoachRequest, FulfillmentItem, Opponent, Organization,
   SportEvent, Sponsor, StaffRole, StaffSlot, Task, Team, User,
 } from '../types'
 
@@ -132,12 +132,27 @@ const sponsorSeeds: SponsorSeed[] = [
   { id: 'sp-servis', name: 'ServisFirst Bank', tier: 'Patriot Partner', contact: 'David Lee', amount: 475.5, paid: 0, logo: 'needs_update', note: 'Use last year’s logo per David Lee.', benefit: 'Cheer & Football Patriot Partner — video board rotation' },
 ]
 
-export const sponsors: Sponsor[] = sponsorSeeds.map(s => ({
-  id: s.id, orgId: 'org-hhs', name: s.name, tier: s.tier, contactName: s.contact,
+// Pre-sale pipeline prospects — no agreement yet
+const prospectSeeds: Array<{ id: string; name: string; stage: Sponsor['stage']; contact: string; tier: Sponsor['tier']; note?: string }> = [
+  { id: 'sp-pro-regions', name: 'Regions Bank', stage: 'maybe', contact: 'Community sponsorships', tier: 'Red', note: 'Interested in Red tier; wants impression numbers from last season before committing.' },
+  { id: 'sp-pro-steelcity', name: 'Steel City Pops', stage: 'contacted', contact: 'Owner — Edgewood location', tier: 'Blue', note: 'Emailed 9/12, following up at fall festival.' },
+  { id: 'sp-pro-dentistry', name: 'Homewood Family Dentistry', stage: 'contacted', contact: 'Office manager', tier: 'Blue', note: 'Left voicemail 9/18.' },
+  { id: 'sp-pro-vulcan', name: 'Vulcan Termite & Pest', stage: 'prospect', contact: 'TBD', tier: 'White', note: 'Suggested by booster board — no outreach yet.' },
+  { id: 'sp-pro-bagels', name: 'Big Blue Bagels', stage: 'prospect', contact: 'TBD', tier: 'Patriot Partner', note: 'Coach Tate has a parent connection.' },
+  { id: 'sp-pro-medical', name: 'Brookwood Urgent Care', stage: 'declined', contact: 'Regional marketing', tier: 'White', note: 'Passed for this year — budget spent; revisit in spring for 2027–28.' },
+]
+
+export const sponsors: Sponsor[] = sponsorSeeds.map<Sponsor>(s => ({
+  id: s.id, orgId: 'org-hhs', name: s.name, stage: 'committed', tier: s.tier, contactName: s.contact,
   email: s.email, phone: s.phone, logoStatus: s.logo, renewalDate: '2027-06-01',
   benefitSummary: s.benefit,
   notes: s.note ? [{ id: `${s.id}-n1`, at: '2026-07-10T09:00:00', authorId: 'u-fin', text: s.note }] : [],
-}))
+})).concat(prospectSeeds.map<Sponsor>(p => ({
+  id: p.id, orgId: 'org-hhs', name: p.name, stage: p.stage, tier: p.tier, contactName: p.contact,
+  email: undefined, phone: undefined, logoStatus: 'missing', renewalDate: '2027-06-01',
+  benefitSummary: `${p.tier} tier (proposed)`,
+  notes: p.note ? [{ id: `${p.id}-n1`, at: '2026-09-15T10:00:00', authorId: 'u-ad', text: p.note }] : [],
+})))
 
 export const agreements: Agreement[] = sponsorSeeds.map(s => {
   const done = new Set(s.done ?? [])
@@ -455,6 +470,39 @@ const activity: Activity[] = [
   { id: 'act-08', orgId: 'org-hhs', at: '2026-09-21T10:00:00', userId: 'u-ad', text: 'confirmed staffing for Friday vs Calera', link: '/events/ev-079' },
 ]
 
+// ---------- Roster generation (deterministic sample athletes) ----------
+
+const FIRST_NAMES = ['Jack', 'Will', 'Sam', 'Eli', 'Mason', 'Carter', 'Owen', 'Luke', 'Henry', 'Miles', 'Ava', 'Ella', 'Mary', 'Anna', 'Kate', 'Lily', 'Nora', 'Ruby', 'Sadie', 'Tess', 'Jordan', 'Riley', 'Avery', 'Quinn', 'Reese']
+const LAST_NAMES = ['Adams', 'Baker', 'Cooper', 'Davis', 'Ellis', 'Foster', 'Grant', 'Hayes', 'Ingram', 'Jones', 'Kelly', 'Lawson', 'Mitchell', 'Norris', 'Owens', 'Parker', 'Reed', 'Sanders', 'Turner', 'Vance', 'Walker', 'Young']
+const POSITIONS: Record<string, string[]> = {
+  Football: ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K'],
+  Volleyball: ['S', 'OH', 'MB', 'RS', 'L', 'DS'],
+  'Flag Football': ['QB', 'WR', 'C', 'RSH', 'DB', 'S'],
+  'Cross Country': ['Distance'],
+  Cheerleading: ['Base', 'Flyer', 'Back spot', 'Tumbler'],
+}
+
+function buildRoster(t: Team): Athlete[] {
+  const count = Math.min(t.rosterCount, 60)
+  const boys = t.gender !== 'Girls'
+  const girls = t.gender === 'Girls' || t.gender === 'Coed'
+  const firsts = FIRST_NAMES.filter((_, i) => (boys && i < 10) || (girls && i >= 10))
+  const grades = t.level === 'Freshman' ? ['9'] : t.level === 'JV' ? ['9', '10', '10'] : ['10', '11', '11', '12', '12']
+  const positions = POSITIONS[t.sport] ?? ['—']
+  const out: Athlete[] = []
+  for (let i = 0; i < count; i++) {
+    const key = `${t.id}-${i}`
+    out.push({
+      id: `ath-${key}`,
+      number: t.sport === 'Cross Country' || t.sport === 'Cheerleading' ? undefined : String(1 + Math.floor(hash(key + 'n') * 98)),
+      name: `${pick(firsts, key + 'f')} ${pick(LAST_NAMES, key + 'l')}`,
+      grade: pick(grades, key + 'g'),
+      position: pick(positions, key + 'p'),
+    })
+  }
+  return out.sort((a, b) => (Number(a.number) || 999) - (Number(b.number) || 999) || a.name.localeCompare(b.name))
+}
+
 const OPPONENT_LOGOS: Record<string, string> = {
   'Hoover': 'as-014',
   'Mountain Brook': 'as-015',
@@ -480,14 +528,14 @@ export function buildSeedState(): AppState {
   const byName = new Map(opponents.map(o => [o.name, o.id]))
   for (const e of events) e.opponentId = byName.get(e.opponent)
   return {
-    version: 5,
+    version: 6,
     orgs,
     currentOrgId: 'org-hhs',
     currentUserId: 'u-ad',
     demoToday,
     showSampleResults: true,
     users,
-    teams,
+    teams: teams.map(t => ({ ...t, roster: t.id === 't-ffb-jv' ? [] : buildRoster(t) })),
     events,
     opponents,
     sponsors,

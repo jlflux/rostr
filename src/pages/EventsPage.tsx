@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { events as allEvents, can, visibleScore } from '../lib/derive'
+import { events as allEvents, can, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime } from '../lib/dates'
 import { Badge, Field, HomeAwayBadge, Modal, SearchBox, Seg, StatusBadge } from '../components/ui'
 import { OpponentMark } from '../components/EventRow'
@@ -94,7 +94,7 @@ export default function EventsPage() {
                     {e.staffSlots.length === 0 ? <span className="tiny">—</span>
                       : open > 0 ? <Badge tone="danger">{open} open</Badge> : <Badge tone="ok">Covered</Badge>}
                   </td>
-                  <td>{score ? <Badge tone={score.result === 'W' ? 'ok' : 'danger'}>{score.result} {score.us}–{score.them}</Badge> : <StatusBadge status={e.status} />}</td>
+                  <td>{score ? <Badge tone={score.result === 'W' ? 'ok' : 'danger'}>{score.result} {score.us}–{score.them}</Badge> : <StatusBadge status={visibleStatus(state, e)} />}</td>
                 </tr>
               )
             })}
@@ -285,7 +285,7 @@ interface ParsedRow {
 }
 
 /** Minimal CSV line parser that handles quoted fields. */
-function splitCsvLine(line: string): string[] {
+export function splitCsvLine(line: string): string[] {
   const out: string[] = []
   let cur = ''
   let inQ = false
