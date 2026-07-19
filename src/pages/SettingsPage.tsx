@@ -28,7 +28,7 @@ export default function SettingsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card title="Organization branding">
             <p className="small muted" style={{ marginTop: 0 }}>
-              Each school configures its own identity — HeadQtrs is multi-tenant, and theme colors flow through the whole app.
+              Each school configures its own identity — team colors drive home/away accents and badges, while the HeadQtrs chrome (sidebar, buttons) stays consistent for every school.
             </p>
             <div className="form-row">
               <Field label="Organization name">
@@ -43,7 +43,7 @@ export default function SettingsPage() {
                 <input type="color" value={org.theme.primary} disabled={!isAdmin} style={{ height: 40, padding: 3 }}
                   onChange={e => updateOrg({ theme: { ...org.theme, primary: e.target.value } })} />
               </Field>
-              <Field label="Navy / sidebar color">
+              <Field label="Secondary color (badges)">
                 <input type="color" value={org.theme.navy} disabled={!isAdmin} style={{ height: 40, padding: 3 }}
                   onChange={e => updateOrg({ theme: { ...org.theme, navy: e.target.value } })} />
               </Field>

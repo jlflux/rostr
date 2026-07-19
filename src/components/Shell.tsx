@@ -37,7 +37,7 @@ function GlobalSearch() {
     }
     for (const s of state.sponsors) if (match(s.name) || match(s.contactName)) out.push({ kind: 'Sponsor', label: s.name, sub: `${s.tier} tier`, to: `/sponsors/${s.id}` })
     for (const t of state.teams) if (match(t.name) || match(t.sport)) out.push({ kind: 'Team', label: t.name, sub: t.seasonLabel, to: `/teams/${t.id}` })
-    for (const o of state.opponents) if (match(o.name) || match(o.mascot)) out.push({ kind: 'Opponent', label: o.name, sub: o.mascot ?? 'Opponent', to: `/opponents?open=${o.id}` })
+    for (const o of state.opponents) if (!o.deletedAt && (match(o.name) || match(o.mascot))) out.push({ kind: 'Opponent', label: o.name, sub: o.mascot ?? 'Opponent', to: `/opponents?open=${o.id}` })
     for (const r of state.requests) if (match(r.title)) out.push({ kind: 'Request', label: r.title, sub: r.type, to: `/requests/${r.id}` })
     for (const a of state.assets) if (match(a.name)) out.push({ kind: 'Asset', label: a.name, sub: a.type, to: '/assets' })
     for (const u of state.users) if (match(u.name)) out.push({ kind: 'Person', label: u.name, sub: u.title, to: '/settings' })
@@ -206,7 +206,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     document.documentElement.style.setProperty('--brand', org.theme.primary)
     document.documentElement.style.setProperty('--brand-navy', org.theme.navy)
-    document.documentElement.style.setProperty('--sidebar-bg', org.theme.navy)
   }, [org])
 
   return (

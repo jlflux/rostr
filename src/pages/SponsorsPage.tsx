@@ -150,38 +150,44 @@ function PipelineBoard({ editable }: { editable: boolean }) {
         Track sponsors before the sale: prospects you've talked about, outreach in flight, maybes, and passes.
         Moving one to <strong>Committed</strong> promotes it to the sponsor directory.
       </p>
-      <div className="grid grid-4" style={{ alignItems: 'start' }}>
-        {PIPELINE_STAGES.filter(st => st.value !== 'committed').map(st => {
-          const items = pipeline.filter(s => s.stage === st.value)
-          return (
-            <div key={st.value} className="card" style={{ overflow: 'hidden' }}>
-              <div className="card-head"><h3>{st.label}</h3><Badge>{items.length}</Badge></div>
-              <div style={{ padding: '6px 0' }}>
-                {items.length === 0 && <p className="tiny" style={{ padding: '6px 16px' }}>{st.hint}</p>}
-                {items.map(sp => (
-                  <div key={sp.id} className="notif-item" style={{ cursor: 'pointer' }} onClick={() => navigate(`/sponsors/${sp.id}`)}>
-                    <span style={{ flex: 1 }}>
-                      <strong>{sp.name}</strong>
-                      <div className="tiny">{sp.tier} tier target · {sp.contactName}</div>
-                      {sp.notes[0] && <div className="tiny" style={{ marginTop: 2 }}>{sp.notes[0].text}</div>}
-                    </span>
-                    {editable && (
-                      <select className="inline-select" value={sp.stage} onClick={e => e.stopPropagation()} onChange={e => {
-                        const stage = e.target.value as PipelineStage
-                        update('sponsors', sp.id, { stage })
-                        logActivity(`moved ${sp.name} to ${PIPELINE_STAGES.find(p => p.value === stage)?.label} in the sponsor pipeline`, `/sponsors/${sp.id}`)
-                        toast(stage === 'committed' ? `${sp.name} committed — now in the sponsor directory` : `${sp.name} → ${PIPELINE_STAGES.find(p => p.value === stage)?.label}`)
-                      }} aria-label="Pipeline stage">
-                        {PIPELINE_STAGES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                      </select>
-                    )}
-                  </div>
-                ))}
-              </div>
+      {PIPELINE_STAGES.filter(st => st.value !== 'committed').map(st => {
+        const items = pipeline.filter(s => s.stage === st.value)
+        return (
+          <div key={st.value} style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 750, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              {st.label} <span className="tiny">{items.length} · {st.hint}</span>
+            </h2>
+            <div className="card tbl-wrap">
+              <table className="tbl">
+                <thead><tr><th>Business</th><th>Contact</th><th>Target tier</th><th>Latest note</th><th style={{ width: 150 }}>Stage</th></tr></thead>
+                <tbody>
+                  {items.length === 0 && <tr><td colSpan={5}><div className="empty" style={{ padding: '18px' }}><p style={{ margin: 0 }}>No sponsors in this stage.</p></div></td></tr>}
+                  {items.map(sp => (
+                    <tr key={sp.id} className="clickable" onClick={() => navigate(`/sponsors/${sp.id}`)}>
+                      <td><span className="primary">{sp.name}</span></td>
+                      <td className="muted small">{sp.contactName}</td>
+                      <td><TierBadge tier={sp.tier} /></td>
+                      <td className="muted small" style={{ maxWidth: 380 }}>{sp.notes[0]?.text ?? '—'}</td>
+                      <td onClick={e => e.stopPropagation()}>
+                        {editable ? (
+                          <select className="inline-select" value={sp.stage} onChange={e => {
+                            const stage = e.target.value as PipelineStage
+                            update('sponsors', sp.id, { stage })
+                            logActivity(`moved ${sp.name} to ${PIPELINE_STAGES.find(p => p.value === stage)?.label} in the sponsor pipeline`, `/sponsors/${sp.id}`)
+                            toast(stage === 'committed' ? `${sp.name} committed — now in the sponsor directory` : `${sp.name} → ${PIPELINE_STAGES.find(p => p.value === stage)?.label}`)
+                          }} aria-label="Pipeline stage">
+                            {PIPELINE_STAGES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                          </select>
+                        ) : <StageBadge stage={sp.stage} />}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )
-        })}
-      </div>
+          </div>
+        )
+      })}
     </>
   )
 }

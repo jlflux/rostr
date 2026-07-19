@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { broadcastState, can, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
@@ -108,47 +108,48 @@ export function TeamDetail() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card title="Season schedule" pad={false} action={<Link className="card-link" to="/calendar">Calendar →</Link>}>
             {events.length === 0 && <Empty title="No events scheduled" />}
-            {events.length > 0 && (
-              <div className="tbl-wrap">
-              <table className="tbl">
-                <thead><tr><th>Date</th><th>Event</th><th>H/A</th><th>Venue</th><th>Result / status</th></tr></thead>
-                <tbody>
-                  {events.map(e => {
-                    const score = visibleScore(state, e)
-                    const rowCls = score ? (score.result === 'W' ? 'sched-row win' : score.result === 'L' ? 'sched-row loss' : 'sched-row') : 'sched-row'
-                    const unfilledCount = e.staffSlots.filter(sl => sl.status === 'unfilled' || sl.status === 'declined').length
-                    return (
-                      <tr key={e.id} className={rowCls}>
-                        <td style={{ whiteSpace: 'nowrap' }}>
-                          <div style={{ fontWeight: 750 }}>{fmtDate(e.date)}</div>
-                          <div className="tiny">{fmtTime(e.time)}</div>
-                        </td>
-                        <td>
-                          <Link className="link" to={`/events/${e.id}`}>{e.opponent}</Link>
-                          {(e.gameType === 'region' || e.gameType === 'area') && <> <Badge tone="navy">{e.gameType === 'region' ? 'Region' : 'Area'}</Badge></>}
-                          {e.designation && <> <Badge tone="brand">{e.designation}</Badge></>}
-                        </td>
-                        <td><HomeAwayBadge ha={e.homeAway} /></td>
-                        <td className={e.homeAway === 'home' ? '' : 'muted'} style={e.homeAway === 'home' ? { fontWeight: 700 } : undefined}>{e.venue}</td>
-                        <td>
-                          {score ? (
-                            <Badge tone={score.result === 'W' ? 'ok' : 'danger'}>{score.result} {score.us}–{score.them}</Badge>
-                          ) : (
-                            <span className="pill-row">
-                              <StatusBadge status={visibleStatus(state, e)} />
-                              {broadcastState(e) === 'in_progress' && <Badge tone="warn"><I.broadcast /></Badge>}
-                              {broadcastState(e) === 'confirmed' && <Badge tone="info"><I.broadcast /></Badge>}
-                              {unfilledCount > 0 && <Badge tone="danger">{unfilledCount} unfilled</Badge>}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              </div>
-            )}
+            {events.map(e => {
+              const score = visibleScore(state, e)
+              const unfilledCount = e.staffSlots.filter(sl => sl.status === 'unfilled' || sl.status === 'declined').length
+              const bcast = broadcastState(e)
+              const subBits: React.ReactNode[] = []
+              subBits.push(<span key="ha">{e.homeAway === 'home' ? 'Home' : e.homeAway === 'away' ? 'Away' : e.homeAway === 'neutral' ? 'Neutral' : 'Site TBD'}</span>)
+              subBits.push(<span key="venue" style={e.homeAway === 'home' ? { fontWeight: 700, color: 'var(--text)' } : undefined}>{e.venue}</span>)
+              if (e.gameType === 'region' || e.gameType === 'area') subBits.push(<span key="gt">{e.gameType === 'region' ? 'Region' : 'Area'}</span>)
+              if (e.designation) subBits.push(<span key="des" className="flag">{e.designation}</span>)
+              return (
+                <Link key={e.id} to={`/events/${e.id}`} className={`tsched-row sched-row ${score ? (score.result === 'W' ? 'win' : score.result === 'L' ? 'loss' : '') : ''}`}>
+                  <div className="tsched-date">
+                    <div className="dow">{fmtDate(e.date, { weekday: 'short' })}</div>
+                    <div className="day">{fmtDate(e.date, { month: 'short', day: 'numeric' })}</div>
+                    <div className="time">{fmtTime(e.time)}</div>
+                  </div>
+                  <div className="tsched-main">
+                    <div className="tsched-name">{e.eventKind === 'single' && e.homeAway !== 'tbd' ? `${e.homeAway === 'home' ? 'vs' : 'at'} ${e.opponent}` : e.opponent}</div>
+                    <div className="tsched-sub">
+                      {subBits.map((bit, i) => <span key={i}>{i > 0 && <span className="sep">·</span>}{bit}</span>)}
+                    </div>
+                  </div>
+                  <div className="tsched-right">
+                    {score ? (
+                      <>
+                        <div className={`tsched-result ${score.result === 'W' ? 'win' : score.result === 'L' ? 'loss' : ''}`}>
+                          {score.result} {score.us}–{score.them}
+                        </div>
+                        <div className="tsched-status">Final</div>
+                      </>
+                    ) : (
+                      <div className="tsched-status">
+                        {visibleStatus(state, e) === 'scheduled' ? 'Scheduled' : visibleStatus(state, e)[0].toUpperCase() + visibleStatus(state, e).slice(1)}
+                        {bcast === 'confirmed' && <> · Broadcast</>}
+                        {bcast === 'in_progress' && <> · <span className="alert">Broadcast setup</span></>}
+                        {unfilledCount > 0 && <> · <span className="alert">{unfilledCount} staff needed</span></>}
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              )
+            })}
           </Card>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

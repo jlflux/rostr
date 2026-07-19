@@ -81,7 +81,6 @@ export default function CalendarPage() {
         {sel('type', 'Event type', [{ v: 'special', l: 'Special / tournament' }, { v: 'regular', l: 'Regular' }])}
         {sel('ha', 'Home & away', [{ v: 'home', l: 'Home' }, { v: 'away', l: 'Away' }, { v: 'neutral', l: 'Neutral' }])}
         {sel('venue', 'All venues', venues.map(v => ({ v, l: v })))}
-        {sel('broadcast', 'Broadcast', [{ v: 'yes', l: 'Broadcast' }, { v: 'no', l: 'No broadcast' }])}
         {sel('staffing', 'Staffing', [{ v: 'gaps', l: 'Has gaps' }, { v: 'covered', l: 'Covered' }])}
         {activeFilterCount > 0 && <button className="btn sm ghost" onClick={() => setFilters(NO_FILTERS)}>Clear ({activeFilterCount})</button>}
       </div>

@@ -1,11 +1,10 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { broadcastState, events as allEvents, can, eventTitle, visibleScore, visibleStatus } from '../lib/derive'
+import { activeOpponents, events as allEvents, can, eventTitle, matchupLabel, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime } from '../lib/dates'
 import { Badge, Field, HomeAwayBadge, Modal, SearchBox, Seg, StatusBadge } from '../components/ui'
-import { OpponentMark } from '../components/EventRow'
-import { I } from '../components/icons'
+import { I, SportIcon } from '../components/icons'
 import type { EventKind, GameType, Opponent, SportEvent } from '../types'
 
 const OPP_TINTS = ['#b45309', '#166534', '#1d4ed8', '#7c3aed', '#be185d', '#0e7490', '#ca8a04', '#4d7c0f']
@@ -73,7 +72,6 @@ export default function EventsPage() {
             {list.map(e => {
               const open = e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length
               const score = visibleScore(state, e)
-              const opp = state.opponents.find(o => o.id === e.opponentId)
               return (
                 <tr key={e.id} className="clickable" onClick={() => navigate(`/events/${e.id}`)}>
                   <td style={{ whiteSpace: 'nowrap' }}>
@@ -82,9 +80,9 @@ export default function EventsPage() {
                   </td>
                   <td>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <OpponentMark opponent={opp} size={22} />
+                      <SportIcon sport={e.sport} />
                       <span>
-                        <span className="primary">{eventTitle(e)}</span>
+                        <span className="primary">{matchupLabel(e)}</span>
                         {(e.gameType === 'region' || e.gameType === 'area') && <> <Badge tone="navy">{e.gameType === 'region' ? 'Region' : 'Area'}</Badge></>}
                         {e.designation && <> <Badge tone="brand">{e.designation}</Badge></>}
                       </span>
@@ -128,7 +126,7 @@ function OpponentPicker({ value, name, onPick, error }: {
   const { state, add } = useStore()
   const [addingNew, setAddingNew] = useState(false)
   const [newName, setNewName] = useState('')
-  const opponents = [...state.opponents].sort((a, b) => a.name.localeCompare(b.name))
+  const opponents = activeOpponents(state).sort((a, b) => a.name.localeCompare(b.name))
   const current = state.opponents.find(o => o.id === value)
 
   const createOpponent = () => {
@@ -153,7 +151,6 @@ function OpponentPicker({ value, name, onPick, error }: {
     <Field label="Opponent / event name" required error={error}>
       {!addingNew ? (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <OpponentMark opponent={current} size={24} />
           <select style={{ flex: 1 }} value={value ?? (name && !current ? '__freetext' : '')} onChange={e => {
             if (e.target.value === '__new') { setAddingNew(true); return }
             const opp = state.opponents.find(o => o.id === e.target.value)
@@ -389,7 +386,7 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
       const typeRaw = get(ci.type).toLowerCase()
       const gameType: GameType = typeRaw.includes('region') ? 'region' : typeRaw.includes('area') ? 'area' : 'non'
       const isTourney = /tournament|invitational|classic|jamboree|play date/i.test(opponentName)
-      const existing = state.opponents.find(o => o.name.toLowerCase() === opponentName.toLowerCase())
+      const existing = activeOpponents(state).find(o => o.name.toLowerCase() === opponentName.toLowerCase())
       out.push({
         line: idx + 2, raw,
         newOpponent: existing || isTourney ? undefined : opponentName,

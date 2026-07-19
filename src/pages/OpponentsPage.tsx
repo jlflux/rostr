@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { can, eventTitle } from '../lib/derive'
-import { fmtDate, fmtTime } from '../lib/dates'
+import { activeOpponents, can, eventTitle, trashedOpponents } from '../lib/derive'
+import { addDays, fmtDate, fmtTime } from '../lib/dates'
 import { Badge, Card, Empty, Field, Modal, SearchBox } from '../components/ui'
-import { OpponentMark } from '../components/EventRow'
 import { I } from '../components/icons'
 import type { Opponent } from '../types'
 
@@ -25,15 +24,17 @@ export default function OpponentsPage() {
   const [q, setQ] = useState('')
   const [openId, setOpenId] = useState<string | null>(params.get('open'))
   const [creating, setCreating] = useState(false)
+  const [showTrash, setShowTrash] = useState(false)
   const me = state.users.find(u => u.id === state.currentUserId)!
   const editable = can(me.role, 'edit')
+  const trash = trashedOpponents(state)
 
   useEffect(() => {
     if (params.get('open')) setParams({}, { replace: true })
   }, [params, setParams])
 
   const rows = useMemo(() => {
-    let list = state.opponents.filter(o => o.orgId === state.currentOrgId)
+    let list = activeOpponents(state)
     const term = q.trim().toLowerCase()
     if (term) list = list.filter(o => o.name.toLowerCase().includes(term) || o.mascot?.toLowerCase().includes(term) || o.city?.toLowerCase().includes(term))
     return list.sort((a, b) => a.name.localeCompare(b.name))
@@ -56,7 +57,12 @@ export default function OpponentsPage() {
         <SearchBox value={q} onChange={setQ} placeholder="Search opponents…" />
         <div className="spacer" />
         <span className="tiny">{rows.filter(o => !profileComplete(o)).length} of {rows.length} profiles incomplete</span>
+        <button className={`chip ${showTrash ? 'active' : ''}`} onClick={() => setShowTrash(v => !v)}>
+          Trash ({trash.length})
+        </button>
       </div>
+
+      {showTrash && <TrashPanel />}
 
       <div className="card tbl-wrap">
         <table className="tbl">
@@ -67,12 +73,7 @@ export default function OpponentsPage() {
               const games = gamesFor(o.id)
               return (
                 <tr key={o.id} className="clickable" onClick={() => setOpenId(o.id)}>
-                  <td>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <OpponentMark opponent={o} size={24} />
-                      <span className="primary">{o.name}</span>
-                    </span>
-                  </td>
+                  <td><span className="primary">{o.name}</span></td>
                   <td className="muted small">{o.mascot ?? '—'}</td>
                   <td className="muted small">{o.city ? `${o.city}, ${o.state ?? ''}` : '—'}</td>
                   <td>{o.logoAssetId ? <Badge tone="ok">On file</Badge> : <Badge tone="danger">Missing</Badge>}</td>
@@ -116,12 +117,12 @@ function OpponentDetailModal({ opponent: o, onClose }: { opponent: Opponent; onC
   return (
     <Modal title={o.name} onClose={onClose} wide footer={
       <>
+        {editable && <DeleteOpponentButton opponent={o} onDeleted={onClose} />}
         {editable && <button className="btn" onClick={() => setEditing(true)}>Edit profile</button>}
         <button className="btn primary" onClick={onClose}>Done</button>
       </>
     }>
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
-        <OpponentMark opponent={o} size={44} />
         <div>
           <div style={{ fontWeight: 750, fontSize: '1.05rem' }}>{o.name} {o.mascot ?? ''}</div>
           <div className="tiny">{o.city ? `${o.city}, ${o.state ?? ''}` : 'Location not entered'}{o.colors ? ` · ${o.colors}` : ''}</div>
@@ -225,5 +226,66 @@ function OpponentEditModal({ title, initial, onClose, onSave }: {
       </Field>
       <p className="tiny">Upload their logo in the Asset Library → Opponent Logos folder and mark it "Primary" to show it on games.</p>
     </Modal>
+  )
+}
+
+function DeleteOpponentButton({ opponent: o, onDeleted }: { opponent: Opponent; onDeleted: () => void }) {
+  const { state, setState, logActivity, toast } = useStore()
+  const [confirming, setConfirming] = useState(false)
+  const games = state.events.filter(e => e.opponentId === o.id).length
+  if (!confirming) {
+    return <button className="btn danger" style={{ marginRight: 'auto' }} onClick={() => setConfirming(true)}>Delete opponent</button>
+  }
+  return (
+    <span style={{ marginRight: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span className="small">Move to trash? {games > 0 ? `${games} game${games === 1 ? '' : 's'} will show “vs TBD”.` : ''} Kept 30 days.</span>
+      <button className="btn danger sm" onClick={() => {
+        setState({
+          opponents: state.opponents.map(x => (x.id === o.id ? { ...x, deletedAt: state.demoToday } : x)),
+          events: state.events.map(e => (e.opponentId === o.id ? { ...e, opponent: 'TBD' } : e)),
+        })
+        logActivity(`moved opponent ${o.name} to the trash`)
+        toast(`${o.name} moved to trash — restore within 30 days`)
+        onDeleted()
+      }}>Yes, delete</button>
+      <button className="btn sm ghost" onClick={() => setConfirming(false)}>Keep</button>
+    </span>
+  )
+}
+
+function TrashPanel() {
+  const { state, setState, remove, toast } = useStore()
+  const trash = trashedOpponents(state)
+  return (
+    <Card title="Trash" pad={false}>
+      <p className="small muted" style={{ margin: '12px 18px 4px' }}>
+        Deleted opponents are kept for 30 days, then removed permanently. Their games show “vs TBD” until restored.
+      </p>
+      {trash.length === 0 && <Empty icon="🗑" title="Trash is empty" />}
+      {trash.map(o => {
+        const purgeDate = addDays(o.deletedAt!, 30)
+        const games = state.events.filter(e => e.opponentId === o.id).length
+        return (
+          <div key={o.id} className="notif-item" style={{ alignItems: 'center' }}>
+            <span style={{ flex: 1 }}>
+              <strong>{o.name}</strong>
+              <div className="tiny">Deleted {fmtDate(o.deletedAt!)} · auto-removes {fmtDate(purgeDate)} · {games} linked game{games === 1 ? '' : 's'}</div>
+            </span>
+            <button className="btn sm" onClick={() => {
+              setState({
+                opponents: state.opponents.map(x => (x.id === o.id ? { ...x, deletedAt: undefined } : x)),
+                events: state.events.map(e => (e.opponentId === o.id ? { ...e, opponent: o.name } : e)),
+              })
+              toast(`${o.name} restored — games show the matchup again`)
+            }}>Restore</button>
+            <button className="btn sm danger" onClick={() => {
+              setState({ events: state.events.map(e => (e.opponentId === o.id ? { ...e, opponentId: undefined } : e)) })
+              remove('opponents', o.id)
+              toast(`${o.name} permanently deleted`, 'error')
+            }}>Delete forever</button>
+          </div>
+        )
+      })}
+    </Card>
   )
 }

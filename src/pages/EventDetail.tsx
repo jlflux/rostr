@@ -5,8 +5,7 @@ import { broadcastState, can, defaultBroadcastChecklist, eventTitle, venueConfli
 import { fmtDateLong, fmtTime, relDue } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, HomeAwayBadge, Modal, PriorityBadge, StatusBadge } from '../components/ui'
 import { EventForm } from './EventsPage'
-import { OpponentMark } from '../components/EventRow'
-import { I } from '../components/icons'
+import { I, SportIcon } from '../components/icons'
 import type { BroadcastCheckItem, ContentKind, GameMoment, RunOfShowItem, SponsorActivation, SportEvent, StaffRole, StaffSlot, Task } from '../types'
 
 const TABS = ['overview', 'staffing', 'runofshow', 'sponsors', 'tasks', 'assets', 'results'] as const
@@ -55,7 +54,7 @@ export default function EventDetail() {
             <Link to="/events" className="tiny link">← Events</Link>
           </div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <OpponentMark opponent={opp} size={34} />
+            <SportIcon sport={e.sport} size={26} />
             <span>{eventTitle(e)}</span>
           </h1>
           <p className="page-sub">
@@ -154,7 +153,7 @@ export default function EventDetail() {
 function Overview({ e, teamName, editable }: { e: SportEvent; teamName?: string; editable: boolean }) {
   const { state } = useStore()
   const score = visibleScore(state, e)
-  const opp = state.opponents.find(o => o.id === e.opponentId)
+  const opp = state.opponents.find(o => o.id === e.opponentId && !o.deletedAt)
   return (
     <div className="detail-grid">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

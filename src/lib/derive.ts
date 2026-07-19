@@ -134,6 +134,24 @@ export function eventTitle(e: SportEvent, opts?: { short?: boolean }): string {
   return `${base} ${e.homeAway === 'home' ? 'vs' : e.homeAway === 'away' ? 'at' : '·'} ${e.opponent}`
 }
 
+/** Matchup text without the sport word — used next to a sport icon. */
+export function matchupLabel(e: SportEvent): string {
+  const lvl = e.level !== 'Varsity' ? ` (${e.level})` : ''
+  if (e.eventKind === 'noncomp') return `${e.opponent}${lvl}`
+  if (e.eventKind === 'tournament') return `${e.homeAway === 'home' ? 'Hosts' : 'at'} ${e.opponent}${lvl}`
+  const w = e.homeAway === 'home' ? 'vs ' : e.homeAway === 'away' ? 'at ' : ''
+  return `${w}${e.opponent}${lvl}`
+}
+
+/** Opponents not in the trash. */
+export function activeOpponents(s: AppState) {
+  return s.opponents.filter(o => o.orgId === s.currentOrgId && !o.deletedAt)
+}
+
+export function trashedOpponents(s: AppState) {
+  return s.opponents.filter(o => o.orgId === s.currentOrgId && !!o.deletedAt)
+}
+
 export const BROADCAST_CHECK_ITEMS: { id: string; label: string }[] = [
   { id: 'crew', label: 'Broadcast crew assigned' },
   { id: 'location', label: 'Setup location confirmed' },

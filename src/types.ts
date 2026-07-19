@@ -132,6 +132,8 @@ export interface Opponent {
   website?: string
   colors?: string
   notes?: string
+  /** Set when moved to trash; kept ~30 days before permanent delete */
+  deletedAt?: string
 }
 
 /** How the event's "opponent" field should be interpreted */

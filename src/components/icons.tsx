@@ -26,3 +26,26 @@ export const I = {
   external: () => <svg {...base} width={13} height={13}><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>,
   broadcast: () => <svg {...base} width={14} height={14}><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/></svg>,
 }
+
+const sportBase = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, viewBox: '0 0 24 24' }
+
+const SPORT_SVGS: Record<string, JSX.Element> = {
+  Football: <svg {...sportBase}><ellipse cx="12" cy="12" rx="9.5" ry="6" transform="rotate(-38 12 12)"/><path d="M9.5 13.5l5-3M10.4 11l1 1.4M12.6 9.7l1 1.4"/></svg>,
+  'Flag Football': <svg {...sportBase}><path d="M5 21V4"/><path d="M5 4c3-1.6 6 1.6 9 0v7c-3 1.6-6-1.6-9 0"/></svg>,
+  Volleyball: <svg {...sportBase}><circle cx="12" cy="12" r="9"/><path d="M12 3c1.5 3.5 1.5 8-1 12M3.8 8.5c4 .3 8.4 2 11 6M20.2 8.5c-3 2.7-7.4 4.3-12 3.5"/></svg>,
+  'Cross Country': <svg {...sportBase}><circle cx="15" cy="4.5" r="1.7"/><path d="M13.5 7.5 9.7 11l3 2.6-2.2 5.9M9.7 11 6.5 10M12.7 13.6l4.3 1.9 2.5-1.2M9 17l-3.5 2.5"/></svg>,
+  Cheerleading: <svg {...sportBase}><path d="M4 14 15 4l3 8-9.5 4z"/><path d="M8.5 16.5 10 21M18 12l3-1M17 8.5l2.5-2"/></svg>,
+  Basketball: <svg {...sportBase}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M5.5 5.5c3.5 3.5 3.5 9.5 0 13M18.5 5.5c-3.5 3.5-3.5 9.5 0 13"/></svg>,
+}
+
+const SPORT_FALLBACK = <svg {...sportBase}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+
+/** Small inline icon representing a sport, with an accessible title. */
+export function SportIcon({ sport, size = 20 }: { sport: string; size?: number }) {
+  const svg = SPORT_SVGS[sport] ?? SPORT_FALLBACK
+  return (
+    <span className="sport-svg" title={sport} aria-label={sport} style={{ width: size, height: size, display: 'inline-flex' }}>
+      {svg}
+    </span>
+  )
+}

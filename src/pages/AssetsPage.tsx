@@ -201,7 +201,7 @@ function AssetCard({ a, canApprove, onApprove, onDownload }: {
               }
             }}>
             <option value="">Not assigned to opponent</option>
-            {state.opponents.map(o => <option key={o.id} value={o.id}>Primary for {o.name}</option>)}
+            {state.opponents.filter(o => !o.deletedAt).map(o => <option key={o.id} value={o.id}>Primary for {o.name}</option>)}
           </select>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2, gap: 6, flexWrap: 'wrap' }}>
@@ -273,7 +273,7 @@ function UploadForm({ defaultType, defaultTeamId, onClose, onSave }: {
           <Field label="Opponent">
             <select value={form.opponentId} onChange={e => setForm(f => ({ ...f, opponentId: e.target.value }))}>
               <option value="">None</option>
-              {[...state.opponents].sort((a, b) => a.name.localeCompare(b.name)).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+              {state.opponents.filter(o => !o.deletedAt).sort((a, b) => a.name.localeCompare(b.name)).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </Field>
           <Field label="Use as primary logo?">
