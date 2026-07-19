@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { teamCompleteness, teamRecord, teams as allTeams } from '../lib/derive'
+import { fmtWLT, hasGames, teamCompleteness, teamRecord, teams as allTeams, visibleScore } from '../lib/derive'
 import { fmtDate, fmtTime } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Progress, StatusBadge } from '../components/ui'
 import { EventRow } from '../components/EventRow'
@@ -31,7 +31,12 @@ export default function TeamsPage() {
                   <div style={{ fontWeight: 750, fontSize: '1.02rem' }}>{t.name}</div>
                   <div className="tiny">{t.sport}{t.gender ? ` · ${t.gender}` : ''} · {t.seasonLabel}</div>
                 </div>
-                {(rec.w + rec.l + rec.t) > 0 && <Badge tone={rec.w >= rec.l ? 'ok' : 'danger'}>{rec.w}–{rec.l}</Badge>}
+                {hasGames(rec.overall) && (
+                  <span className="pill-row">
+                    <Badge tone={rec.overall.w >= rec.overall.l ? 'ok' : 'danger'}>{fmtWLT(rec.overall)}</Badge>
+                    {hasGames(rec.conference) && <Badge tone="navy">{rec.conferenceLabel} {fmtWLT(rec.conference)}</Badge>}
+                  </span>
+                )}
               </div>
               <div className="pill-row">
                 <StatusBadge status={t.rosterStatus} label={`Roster: ${t.rosterStatus === 'complete' ? 'complete' : t.rosterStatus === 'in_progress' ? 'in progress' : 'not started'}`} />
@@ -61,7 +66,7 @@ export function TeamDetail() {
 
   const events = state.events.filter(e => e.teamId === t.id).sort((a, b) => a.date.localeCompare(b.date))
   const upcoming = events.filter(e => e.date >= state.demoToday).slice(0, 8)
-  const results = events.filter(e => e.score).sort((a, b) => b.date.localeCompare(a.date))
+  const results = events.filter(e => visibleScore(state, e)).sort((a, b) => b.date.localeCompare(a.date))
   const broadcasts = events.filter(e => e.broadcastStatus !== 'none' && e.date >= state.demoToday)
   const openReqs = state.requests.filter(r => r.teamId === t.id && r.status !== 'completed')
   const teamAssets = state.assets.filter(a => a.teamId === t.id)
@@ -76,7 +81,9 @@ export function TeamDetail() {
           <h1 className="page-title">{t.name}</h1>
           <p className="page-sub">{t.sport}{t.gender ? ` · ${t.gender}` : ''} · {t.level} · {t.seasonLabel} · {t.rosterCount} athletes</p>
           <div className="pill-row" style={{ marginTop: 8 }}>
-            {(rec.w + rec.l + rec.t) > 0 && <Badge tone={rec.w >= rec.l ? 'ok' : 'danger'}>Record {rec.w}–{rec.l}{rec.t ? `–${rec.t}` : ''}</Badge>}
+            {hasGames(rec.overall) && <Badge tone={rec.overall.w >= rec.overall.l ? 'ok' : 'danger'}>Overall {fmtWLT(rec.overall)}</Badge>}
+            {hasGames(rec.conference) && <Badge tone="navy">{rec.conferenceLabel} {fmtWLT(rec.conference)}</Badge>}
+            <Badge tone="outline">Postseason: {t.postseasonFinish ?? 'TBD'}</Badge>
             <StatusBadge status={t.rosterStatus} label={`Roster ${t.rosterStatus.replace('_', ' ')}`} />
           </div>
         </div>
@@ -109,7 +116,12 @@ export function TeamDetail() {
                       <td>{fmtDate(e.date)}</td>
                       <td><Link className="link" to={`/events/${e.id}`}>{e.opponent}</Link></td>
                       <td className="muted small">{e.homeAway === 'home' ? 'Home' : e.homeAway === 'away' ? 'Away' : '—'}</td>
-                      <td><Badge tone={e.score!.result === 'W' ? 'ok' : 'danger'}>{e.score!.result} {e.score!.us}–{e.score!.them}</Badge></td>
+                      <td>
+                        <span className="pill-row">
+                          <Badge tone={visibleScore(state, e)!.result === 'W' ? 'ok' : 'danger'}>{visibleScore(state, e)!.result} {visibleScore(state, e)!.us}–{visibleScore(state, e)!.them}</Badge>
+                          {(e.gameType === 'region' || e.gameType === 'area') && <Badge tone="navy">{e.gameType === 'region' ? 'Region' : 'Area'}</Badge>}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

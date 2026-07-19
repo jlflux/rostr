@@ -1,6 +1,6 @@
 import rawSchedule from './scheduleEvents.json'
 import type {
-  Activity, Agreement, AppState, Asset, CoachRequest, FulfillmentItem, Organization,
+  Activity, Agreement, AppState, Asset, CoachRequest, FulfillmentItem, Opponent, Organization,
   SportEvent, Sponsor, StaffRole, StaffSlot, Task, Team, User,
 } from '../types'
 
@@ -33,7 +33,7 @@ export const orgs: Organization[] = [
 ]
 
 export const users: User[] = [
-  { id: 'u-owner', orgId: 'org-hhs', name: 'Alex Rivera', email: 'alex@rostr.app', role: 'platform_owner', title: 'Rostr Platform Owner', initials: 'AR', color: '#6d28d9' },
+  { id: 'u-owner', orgId: 'org-hhs', name: 'Alex Rivera', email: 'alex@headqtrs.app', role: 'platform_owner', title: 'HeadQtrs Platform Owner', initials: 'AR', color: '#6d28d9' },
   { id: 'u-ad', orgId: 'org-hhs', name: 'Marcus Cole', email: 'mcole@homewood.k12.al.us', role: 'school_admin', title: 'Athletic Director', initials: 'MC', color: '#d60000' },
   { id: 'u-comms', orgId: 'org-hhs', name: 'Katie Bramlett', email: 'kbramlett@homewood.k12.al.us', role: 'comms_admin', title: 'Athletics Communications Director', initials: 'KB', color: '#0e7490' },
   { id: 'u-fin', orgId: 'org-hhs', name: 'Sandra Ellis', email: 'sellis@homewood.k12.al.us', role: 'finance', title: 'Athletics Bookkeeper', initials: 'SE', color: '#15803d' },
@@ -189,6 +189,10 @@ const DESIGNATIONS: Record<string, string> = {
   'ev-084': 'Rivalry Game',
 }
 
+// Region (football) and area (volleyball) opponents for record-keeping
+const FB_REGION = ['Mountain Brook', 'Pelham', 'Helena', 'Chelsea', 'Calera', 'Briarwood', 'Oak Mountain']
+const VB_AREA = ['Chelsea', 'Briarwood', 'Helena']
+
 // Home varsity football sponsor-of-the-game rotation
 const GAME_SPONSORS: Record<string, string[]> = {
   'ev-032': ['sp-oncology', 'sp-firstus'],
@@ -223,14 +227,16 @@ function buildEvents(demoToday: string): SportEvent[] {
           const base = r.sport === 'Football' ? [28, 17] : r.sport === 'Volleyball' ? [3, 1] : [26, 13]
           const us = win ? base[0] + Math.floor(hash(r.id + 'a') * 8) : base[1] - Math.floor(hash(r.id + 'b') * 6)
           const them = win ? base[1] + Math.floor(hash(r.id + 'c') * 6) : base[0] + Math.floor(hash(r.id + 'd') * 7)
-          if (r.sport === 'Volleyball') return { us: win ? 3 : Math.floor(hash(r.id) * 2), them: win ? Math.floor(hash(r.id) * 2) : 3, result: (win ? 'W' : 'L') as 'W' | 'L' }
-          return { us: Math.max(us, 0), them: Math.max(them, 0), result: (win ? 'W' : 'L') as 'W' | 'L' }
+          if (r.sport === 'Volleyball') return { us: win ? 3 : Math.floor(hash(r.id) * 2), them: win ? Math.floor(hash(r.id) * 2) : 3, result: (win ? 'W' : 'L') as 'W' | 'L', sample: true }
+          return { us: Math.max(us, 0), them: Math.max(them, 0), result: (win ? 'W' : 'L') as 'W' | 'L', sample: true }
         })()
       : undefined
     const ev: SportEvent = {
       id: r.id, orgId: 'org-hhs', teamId, sport: r.sport, level: r.level,
       date: r.date, time: r.time, homeAway: r.homeAway as SportEvent['homeAway'],
       opponent: r.opponent, venue: r.venue,
+      gameType: r.sport === 'Football' && FB_REGION.includes(r.opponent) ? 'region'
+        : r.sport === 'Volleyball' && VB_AREA.includes(r.opponent) ? 'area' : 'non',
       status: isPast ? 'completed' : r.date <= addDaysISO(demoToday, 10) ? 'confirmed' : 'scheduled',
       designation: DESIGNATIONS[r.id],
       ticketLink: isHome && (isVarsityFB || r.sport === 'Volleyball') ? 'https://gofan.co/app/school/AL14042' : undefined,
@@ -364,6 +370,8 @@ const assetSeeds: Array<Partial<Asset> & { id: string; name: string; type: Asset
   { id: 'as-001', name: 'Homewood Athletics primary logo', type: 'School Branding', fileType: 'SVG', sizeKB: 84, tint: '#d60000', approvalStatus: 'approved' },
   { id: 'as-002', name: 'Patriots wordmark — white', type: 'School Branding', fileType: 'PNG', sizeKB: 312, tint: '#12223c', approvalStatus: 'approved' },
   { id: 'as-003', name: 'Brand guidelines 2026–27', type: 'Document', fileType: 'PDF', sizeKB: 4820, tint: '#57534e', approvalStatus: 'approved' },
+  { id: 'as-025', name: 'Patriots football helmet mark', type: 'Team Logo', fileType: 'SVG', sizeKB: 96, sport: 'Football', teamId: 't-fb-v', tint: '#d60000', approvalStatus: 'approved' },
+  { id: 'as-026', name: 'Volleyball program crest', type: 'Team Logo', fileType: 'PNG', sizeKB: 210, sport: 'Volleyball', teamId: 't-vb-v', tint: '#12223c', approvalStatus: 'approved' },
   { id: 'as-004', name: 'Varsity football team photo', type: 'Team Photo', fileType: 'JPG', sizeKB: 8214, sport: 'Football', teamId: 't-fb-v', tint: '#b45309', approvalStatus: 'approved' },
   { id: 'as-005', name: 'Volleyball gameday template', type: 'Social Template', fileType: 'PSD', sizeKB: 24880, sport: 'Volleyball', teamId: 't-vb-v', tint: '#be185d', approvalStatus: 'approved' },
   { id: 'as-006', name: 'Football gameday template', type: 'Social Template', fileType: 'PSD', sizeKB: 26340, sport: 'Football', teamId: 't-fb-v', tint: '#d60000', approvalStatus: 'approved' },
@@ -447,18 +455,41 @@ const activity: Activity[] = [
   { id: 'act-08', orgId: 'org-hhs', at: '2026-09-21T10:00:00', userId: 'u-ad', text: 'confirmed staffing for Friday vs Calera', link: '/events/ev-079' },
 ]
 
+const OPPONENT_LOGOS: Record<string, string> = {
+  'Hoover': 'as-014',
+  'Mountain Brook': 'as-015',
+  'Chelsea': 'as-016',
+}
+
+const TINTS = ['#b45309', '#166534', '#1d4ed8', '#7c3aed', '#be185d', '#0e7490', '#ca8a04', '#4d7c0f', '#9d174d', '#ea580c', '#0369a1', '#57534e']
+
+function buildOpponents(events: SportEvent[]): Opponent[] {
+  const names = [...new Set(events.map(e => e.opponent))].filter(n => n && n !== 'TBD').sort()
+  return names.map(name => ({
+    id: 'opp-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+    orgId: 'org-hhs', name,
+    logoAssetId: OPPONENT_LOGOS[name],
+    tint: TINTS[Math.floor(hash('opp' + name) * TINTS.length) % TINTS.length],
+  }))
+}
+
 export function buildSeedState(): AppState {
   const demoToday = DEFAULT_DEMO_TODAY
   const events = buildEvents(demoToday)
+  const opponents = buildOpponents(events)
+  const byName = new Map(opponents.map(o => [o.name, o.id]))
+  for (const e of events) e.opponentId = byName.get(e.opponent)
   return {
-    version: 4,
+    version: 5,
     orgs,
     currentOrgId: 'org-hhs',
     currentUserId: 'u-ad',
     demoToday,
+    showSampleResults: true,
     users,
     teams,
     events,
+    opponents,
     sponsors,
     agreements,
     requests,

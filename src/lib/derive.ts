@@ -125,15 +125,42 @@ function toMins(hhmm: string): number {
   return h * 60 + m
 }
 
-export function teamRecord(s: AppState, teamId: string): { w: number; l: number; t: number } {
-  const rec = { w: 0, l: 0, t: 0 }
+/** The score to display: hides demo-generated results when sample results are off. */
+export function visibleScore(s: AppState, e: SportEvent) {
+  if (!e.score) return undefined
+  if (e.score.sample && !s.showSampleResults) return undefined
+  return e.score
+}
+
+export interface WLT { w: number; l: number; t: number }
+export interface TeamRecords { overall: WLT; conference: WLT; conferenceLabel: string }
+
+/** "Region" for football, "Area" for volleyball/basketball-style sports. */
+export function conferenceLabelFor(sport: string): string {
+  return sport === 'Football' ? 'Region' : 'Area'
+}
+
+export function teamRecord(s: AppState, teamId: string): TeamRecords {
+  const team = teams(s).find(t => t.id === teamId)
+  const overall: WLT = { w: 0, l: 0, t: 0 }
+  const conference: WLT = { w: 0, l: 0, t: 0 }
   for (const e of events(s)) {
-    if (e.teamId !== teamId || !e.score) continue
-    if (e.score.result === 'W') rec.w++
-    else if (e.score.result === 'L') rec.l++
-    else rec.t++
+    if (e.teamId !== teamId) continue
+    const score = visibleScore(s, e)
+    if (!score) continue
+    const key = score.result === 'W' ? 'w' : score.result === 'L' ? 'l' : 't'
+    overall[key]++
+    if (e.gameType === 'region' || e.gameType === 'area') conference[key]++
   }
-  return rec
+  return { overall, conference, conferenceLabel: conferenceLabelFor(team?.sport ?? '') }
+}
+
+export function fmtWLT(r: WLT): string {
+  return `${r.w}–${r.l}${r.t ? `–${r.t}` : ''}`
+}
+
+export function hasGames(r: WLT): boolean {
+  return r.w + r.l + r.t > 0
 }
 
 export function teamCompleteness(s: AppState, teamId: string): number {

@@ -1,4 +1,4 @@
-// ---------- Core domain types for Rostr ----------
+// ---------- Core domain types for HeadQtrs ----------
 
 export type Role =
   | 'platform_owner'
@@ -24,6 +24,8 @@ export interface Organization {
   state: string
   theme: OrgTheme
   initials: string
+  /** Uploaded school logo (data URL in the prototype) */
+  logoUrl?: string
 }
 
 export interface User {
@@ -59,6 +61,8 @@ export interface Team {
   rosterCount: number
   missingInfo: string[]
   importantDates: ImportantDate[]
+  /** e.g. "Region runner-up", "State quarterfinals" — blank until postseason */
+  postseasonFinish?: string
 }
 
 export type HomeAway = 'home' | 'away' | 'neutral' | 'tbd'
@@ -99,6 +103,18 @@ export interface EventScore {
   them: number
   result: 'W' | 'L' | 'T'
   recap?: string
+  /** True for demo-generated results, hidden when "sample results" is off */
+  sample?: boolean
+}
+
+export type GameType = 'non' | 'region' | 'area'
+
+export interface Opponent {
+  id: string
+  orgId: string
+  name: string
+  logoAssetId?: string
+  tint: string
 }
 
 export interface SportEvent {
@@ -111,6 +127,8 @@ export interface SportEvent {
   time: string | null // HH:MM 24h
   homeAway: HomeAway
   opponent: string
+  opponentId?: string
+  gameType?: GameType
   venue: string
   status: EventStatus
   designation?: string // e.g. Homecoming, Senior Night, Region Match
@@ -295,9 +313,12 @@ export interface AppState {
   currentOrgId: string
   currentUserId: string
   demoToday: string
+  /** When false, demo-generated scores are hidden (preseason view) */
+  showSampleResults: boolean
   users: User[]
   teams: Team[]
   events: SportEvent[]
+  opponents: Opponent[]
   sponsors: Sponsor[]
   agreements: Agreement[]
   requests: CoachRequest[]
@@ -310,6 +331,7 @@ export type Collection =
   | 'users'
   | 'teams'
   | 'events'
+  | 'opponents'
   | 'sponsors'
   | 'agreements'
   | 'requests'

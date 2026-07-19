@@ -79,7 +79,6 @@ function OrgSelector() {
   return (
     <div style={{ position: 'relative' }} ref={ref}>
       <button className="org-select" onClick={() => setOpen(v => !v)} aria-haspopup="true" aria-expanded={open}>
-        <span className="org-mark" style={{ background: org.theme.primary }}>{org.initials}</span>
         <span className="org-name">{org.shortName}</span>
         <I.chevron />
       </button>
@@ -93,7 +92,6 @@ function OrgSelector() {
                 setOpen(false)
                 if (o.id !== org.id) toast(`Switched to ${o.name}`)
               }}>
-              <span className="org-mark" style={{ background: o.theme.primary }}>{o.initials}</span>
               <span>
                 <div style={{ fontWeight: 600 }}>{o.name}</div>
                 <div className="tiny">{o.city}, {o.state} · {o.mascot}</div>
@@ -151,7 +149,7 @@ function Notifications() {
 }
 
 function UserMenu() {
-  const { state, setState, theme, setTheme, toast } = useStore()
+  const { state, setState, toast } = useStore()
   const [open, setOpen] = useState(false)
   const ref = useClickOutside(() => setOpen(false))
   const user = state.users.find(u => u.id === state.currentUserId)!
@@ -166,10 +164,6 @@ function UserMenu() {
             <div style={{ fontWeight: 700 }}>{user.name}</div>
             <div className="tiny">{user.title} · {ROLE_LABELS[user.role]}</div>
           </div>
-          <button className="menu-item" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? <I.sun /> : <I.moon />} {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          </button>
-          <div className="menu-sep" />
           <div className="menu-label">View as (demo)</div>
           {state.users.filter(u => u.role !== 'platform_owner' || user.role === 'platform_owner').slice(0, 16).map(u => (
             <button key={u.id} className={`menu-item ${u.id === state.currentUserId ? 'active' : ''}`}
@@ -200,7 +194,7 @@ const NAV = [
 ]
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { state, toasts } = useStore()
+  const { state, toasts, theme, setTheme } = useStore()
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
   useEffect(() => setNavOpen(false), [location.pathname])
@@ -218,8 +212,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {navOpen && <div className="backdrop" onClick={() => setNavOpen(false)} />}
       <aside className={`sidebar ${navOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
-          <span className="mark">R</span>
-          <span>Rostr<small>Athletics Command Center</small></span>
+          <span className="mark">
+            {org.logoUrl ? <img src={org.logoUrl} alt={`${org.shortName} logo`} /> : org.initials}
+          </span>
+          <span>{org.shortName}<small>Athletics Command Center</small></span>
         </div>
         <nav className="nav">
           {NAV.map(n => (
@@ -231,7 +227,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-footer">
-          {org.name}<br />Demo date: {state.demoToday}
+          Powered by HeadQtrs<br />Demo date: {state.demoToday}
         </div>
       </aside>
       <div className="main">
@@ -240,6 +236,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <GlobalSearch />
           <div style={{ flex: 1 }} />
           <OrgSelector />
+          <button className="iconbtn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
+            {theme === 'dark' ? <I.sun /> : <I.moon />}
+          </button>
           <Notifications />
           <UserMenu />
         </header>

@@ -24,7 +24,7 @@ export default function SettingsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card title="Organization branding">
             <p className="small muted" style={{ marginTop: 0 }}>
-              Each school configures its own identity — Rostr is multi-tenant, and theme colors flow through the whole app.
+              Each school configures its own identity — HeadQtrs is multi-tenant, and theme colors flow through the whole app.
             </p>
             <div className="form-row">
               <Field label="Organization name">
@@ -44,6 +44,22 @@ export default function SettingsPage() {
                   onChange={e => updateOrg({ theme: { ...org.theme, navy: e.target.value } })} />
               </Field>
             </div>
+            <Field label="School logo (shown in the sidebar)">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span className="avatar lg" style={{ background: org.theme.primary, overflow: 'hidden' }}>
+                  {org.logoUrl ? <img src={org.logoUrl} alt="School logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : org.initials}
+                </span>
+                <input type="file" accept="image/*" disabled={!isAdmin} onChange={e => {
+                  const f = e.target.files?.[0]
+                  if (!f) return
+                  if (f.size > 400 * 1024) { toast('Logo must be under 400 KB for the prototype', 'error'); return }
+                  const reader = new FileReader()
+                  reader.onload = () => { updateOrg({ logoUrl: String(reader.result) }); toast('School logo updated') }
+                  reader.readAsDataURL(f)
+                }} />
+                {org.logoUrl && isAdmin && <button className="btn sm ghost" onClick={() => { updateOrg({ logoUrl: undefined }); toast('Logo removed') }}>Remove</button>}
+              </div>
+            </Field>
             {!isAdmin && <p className="tiny">Only school administrators can edit branding. Switch to Marcus Cole via the profile menu to try it.</p>}
           </Card>
 
@@ -101,6 +117,18 @@ export default function SettingsPage() {
           </Card>
 
           <Card title="Prototype controls">
+            <Field label="Sample results">
+              <select value={state.showSampleResults ? 'on' : 'off'} onChange={e => {
+                const on = e.target.value === 'on'
+                setState({ showSampleResults: on })
+                toast(on ? 'Sample results are visible' : 'Sample results hidden — preseason view')
+              }}>
+                <option value="on">Show demo-generated scores</option>
+                <option value="off">Hide them (preseason view)</option>
+              </select>
+            </Field>
+            <p className="tiny">Nothing has actually been played yet — scores on past dates are generated for the demo. Turning them off shows the app as it looks before a season starts. Scores you enter yourself always stay visible.</p>
+            <div className="divider" />
             <Field label="Demo date (the app's 'today')">
               <input type="date" value={state.demoToday} onChange={e => { setState({ demoToday: e.target.value }); toast(`Demo clock set to ${e.target.value}`) }} />
             </Field>

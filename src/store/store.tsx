@@ -2,8 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { AppState, Collection } from '../types'
 import { buildSeedState } from '../data/seed'
 
-const STORAGE_KEY = 'rostr:state:v4'
-const THEME_KEY = 'rostr:theme'
+const STORAGE_KEY = 'headqtrs:state:v5'
+const THEME_KEY = 'headqtrs:theme'
 
 type Entity = { id: string }
 type AnyEntity = Entity & Record<string, any>

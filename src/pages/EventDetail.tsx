@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { can, venueConflicts } from '../lib/derive'
+import { can, venueConflicts, visibleScore } from '../lib/derive'
 import { fmtDateLong, fmtTime, relDue } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, HomeAwayBadge, Modal, PriorityBadge, StatusBadge } from '../components/ui'
 import { EventForm } from './EventsPage'
+import { OpponentMark } from '../components/EventRow'
 import { I } from '../components/icons'
 import type { ContentKind, RunOfShowItem, SportEvent, StaffRole, StaffSlot, Task } from '../types'
 
@@ -39,6 +40,8 @@ export default function EventDetail() {
   const eventAssets = state.assets.filter(a => e.sponsorIds.includes(a.sponsorId ?? '') || a.teamId === e.teamId)
   const conflictIds = conflicts.get(e.id) ?? []
   const openSlots = e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length
+  const score = visibleScore(state, e)
+  const opp = state.opponents.find(o => o.id === e.opponentId)
 
   const patch = (p: Partial<SportEvent>) => update('events', e.id, p)
 
@@ -49,8 +52,9 @@ export default function EventDetail() {
           <div className="pill-row" style={{ marginBottom: 6 }}>
             <Link to="/events" className="tiny link">← Events</Link>
           </div>
-          <h1 className="page-title">
-            {e.sport} {e.level !== 'Varsity' ? `(${e.level})` : ''} {e.homeAway === 'home' ? 'vs' : e.homeAway === 'away' ? 'at' : '·'} {e.opponent}
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <OpponentMark opponent={opp} size={34} />
+            <span>{e.sport} {e.level !== 'Varsity' ? `(${e.level})` : ''} {e.homeAway === 'home' ? 'vs' : e.homeAway === 'away' ? 'at' : '·'} {e.opponent}</span>
           </h1>
           <p className="page-sub">
             {fmtDateLong(e.date)} · {fmtTime(e.time)} · {e.venue}
@@ -59,9 +63,10 @@ export default function EventDetail() {
           <div className="pill-row" style={{ marginTop: 8 }}>
             <HomeAwayBadge ha={e.homeAway} />
             <StatusBadge status={e.status} />
+            {(e.gameType === 'region' || e.gameType === 'area') && <Badge tone="navy">{e.gameType === 'region' ? 'Region game' : 'Area game'}</Badge>}
             {e.designation && <Badge tone="brand">{e.designation}</Badge>}
             {e.broadcastStatus !== 'none' && <Badge tone="info"><I.broadcast /> {e.broadcastStatus === 'archived' ? 'Broadcast archived' : `Broadcast ${e.broadcastStatus}`}</Badge>}
-            {e.score && <Badge tone={e.score.result === 'W' ? 'ok' : 'danger'}>Final: {e.score.result} {e.score.us}–{e.score.them}</Badge>}
+            {score && <Badge tone={score.result === 'W' ? 'ok' : 'danger'}>Final: {score.result} {score.us}–{score.them}</Badge>}
             {conflictIds.length > 0 && <Badge tone="warn"><I.warn /> Possible venue conflict</Badge>}
           </div>
         </div>
@@ -140,6 +145,8 @@ export default function EventDetail() {
 }
 
 function Overview({ e, teamName }: { e: SportEvent; teamName?: string }) {
+  const { state } = useStore()
+  const score = visibleScore(state, e)
   return (
     <div className="detail-grid">
       <Card title="Event details">
@@ -151,13 +158,14 @@ function Overview({ e, teamName }: { e: SportEvent; teamName?: string }) {
           <dt>Home / away</dt><dd><HomeAwayBadge ha={e.homeAway} /></dd>
           <dt>Venue</dt><dd>{e.venue}</dd>
           <dt>Status</dt><dd><StatusBadge status={e.status} /></dd>
+          <dt>Game type</dt><dd>{e.gameType === 'region' ? 'Region game' : e.gameType === 'area' ? 'Area game' : 'Non-region'}</dd>
           <dt>Designation</dt><dd>{e.designation ?? <span className="muted">—</span>}</dd>
           <dt>Ticket link</dt>
           <dd>{e.ticketLink ? <a className="link" href={e.ticketLink} target="_blank" rel="noreferrer">GoFan tickets <I.external /></a> : <span className="muted">None</span>}</dd>
           <dt>Broadcast</dt>
           <dd>{e.broadcastLink ? <><a className="link" href={e.broadcastLink} target="_blank" rel="noreferrer">NFHS Network <I.external /></a> <StatusBadge status={e.broadcastStatus} /></> : <span className="muted">Not broadcast</span>}</dd>
           <dt>Result</dt>
-          <dd>{e.score ? <strong>{e.score.result} {e.score.us}–{e.score.them}</strong> : <span className="muted">Not played</span>}</dd>
+          <dd>{score ? <strong>{score.result} {score.us}–{score.them}</strong> : <span className="muted">Not played</span>}</dd>
         </dl>
         {e.notes && (<><div className="divider" /><div className="small"><strong>Notes:</strong> {e.notes}</div></>)}
       </Card>
@@ -417,8 +425,9 @@ function EventTasks({ e, tasks, editable }: { e: SportEvent; tasks: Task[]; edit
 
 function Results({ e, editable }: { e: SportEvent; editable: boolean }) {
   const { state, update, add, logActivity, toast } = useStore()
-  const [us, setUs] = useState(e.score?.us?.toString() ?? '')
-  const [them, setThem] = useState(e.score?.them?.toString() ?? '')
+  const score = visibleScore(state, e)
+  const [us, setUs] = useState(score?.us?.toString() ?? '')
+  const [them, setThem] = useState(score?.them?.toString() ?? '')
   const [err, setErr] = useState('')
   const postgame = state.tasks.filter(t => t.eventId === e.id && ['Final Score', 'Results Post', 'Photo Gallery'].includes(t.contentKind ?? ''))
 
@@ -437,11 +446,11 @@ function Results({ e, editable }: { e: SportEvent; editable: boolean }) {
   return (
     <div className="detail-grid">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {e.score ? (
+        {score ? (
           <div className="score-hero">
-            <span className="big">{e.score.us}–{e.score.them}</span>
+            <span className="big">{score.us}–{score.them}</span>
             <span>
-              <div style={{ fontWeight: 700 }}>{e.score.result === 'W' ? 'Win' : e.score.result === 'L' ? 'Loss' : 'Tie'} {e.homeAway === 'home' ? 'vs' : 'at'} {e.opponent}</div>
+              <div style={{ fontWeight: 700 }}>{score.result === 'W' ? 'Win' : score.result === 'L' ? 'Loss' : 'Tie'} {e.homeAway === 'home' ? 'vs' : 'at'} {e.opponent}</div>
               <div style={{ opacity: 0.75, fontSize: '0.85rem' }}>{fmtDateLong(e.date)} · {e.venue}</div>
             </span>
           </div>
@@ -453,7 +462,7 @@ function Results({ e, editable }: { e: SportEvent; editable: boolean }) {
           </Card>
         )}
         {editable && (
-          <Card title={e.score ? 'Correct the score' : 'Enter final score'}>
+          <Card title={score ? 'Correct the score' : 'Enter final score'}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <Field label={`${state.orgs.find(o => o.id === e.orgId)?.shortName ?? 'Us'}`}>
                 <input type="number" min={0} style={{ width: 90 }} value={us} onChange={ev => setUs(ev.target.value)} />

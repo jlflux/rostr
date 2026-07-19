@@ -32,7 +32,7 @@ export default function Dashboard() {
           <div><h1 className="page-title">Dashboard</h1><p className="page-sub">{fmtDateLong(state.demoToday)}</p></div>
         </div>
         <Card><Empty icon="◎" title="This organization hasn't been set up yet"
-          hint="Riverbend Academy is an empty tenant that shows Rostr is multi-school ready. Switch back to Homewood in the organization selector to explore the full demo." /></Card>
+          hint="Riverbend Academy is an empty tenant that shows HeadQtrs is multi-school ready. Switch back to Homewood in the organization selector to explore the full demo." /></Card>
       </>
     )
   }
@@ -63,6 +63,36 @@ export default function Dashboard() {
               {week.length > 8 && <div style={{ textAlign: 'center', padding: 6 }}><Link className="link small" to="/calendar">+ {week.length - 8} more this week</Link></div>}
             </div>
           </Card>
+
+          <div className="grid grid-2">
+            <Card title="Unfilled staff assignments" pad={false}>
+              {gaps.length === 0 && <Empty icon="✓" title="Fully staffed" />}
+              {gaps.map(g => (
+                <Link key={g.event.id} to={`/events/${g.event.id}?tab=staffing`} className="notif-item">
+                  <span style={{ color: 'var(--danger)' }}><I.warn /></span>
+                  <span style={{ flex: 1 }}>
+                    <strong>{g.event.sport} vs {g.event.opponent}</strong>
+                    <div className="tiny">{fmtDate(g.event.date)} · {fmtTime(g.event.time)}</div>
+                  </span>
+                  <Badge tone="danger">{g.count} open</Badge>
+                </Link>
+              ))}
+            </Card>
+
+            <Card title="Upcoming broadcasts" pad={false}>
+              {broadcasts.length === 0 && <Empty title="No broadcasts scheduled" />}
+              {broadcasts.slice(0, 5).map(e => (
+                <Link key={e.id} to={`/events/${e.id}`} className="notif-item">
+                  <span style={{ color: 'var(--info)' }}><I.broadcast /></span>
+                  <span style={{ flex: 1 }}>
+                    {e.sport} {e.homeAway === 'home' ? 'vs' : 'at'} {e.opponent}
+                    <div className="tiny">{fmtDate(e.date)} · {fmtTime(e.time)}</div>
+                  </span>
+                  <StatusBadge status={e.broadcastStatus} label={e.broadcastStatus === 'confirmed' ? 'Confirmed' : 'Planned'} />
+                </Link>
+              ))}
+            </Card>
+          </div>
 
           <Card title="Overdue tasks" action={<Badge tone={overdue.length ? 'danger' : 'ok'}>{overdue.length}</Badge>} pad={false}>
             {overdue.length === 0 && <Empty icon="✓" title="Nothing overdue" hint="All tasks are on schedule." />}
@@ -102,34 +132,6 @@ export default function Dashboard() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Card title="Unfilled staff assignments" pad={false}>
-            {gaps.length === 0 && <Empty icon="✓" title="Fully staffed" />}
-            {gaps.map(g => (
-              <Link key={g.event.id} to={`/events/${g.event.id}?tab=staffing`} className="notif-item">
-                <span style={{ color: 'var(--danger)' }}><I.warn /></span>
-                <span style={{ flex: 1 }}>
-                  <strong>{g.event.sport} vs {g.event.opponent}</strong>
-                  <div className="tiny">{fmtDate(g.event.date)} · {fmtTime(g.event.time)}</div>
-                </span>
-                <Badge tone="danger">{g.count} open</Badge>
-              </Link>
-            ))}
-          </Card>
-
-          <Card title="Upcoming broadcasts" pad={false}>
-            {broadcasts.length === 0 && <Empty title="No broadcasts scheduled" />}
-            {broadcasts.map(e => (
-              <Link key={e.id} to={`/events/${e.id}`} className="notif-item">
-                <span style={{ color: 'var(--info)' }}><I.broadcast /></span>
-                <span style={{ flex: 1 }}>
-                  {e.sport} {e.homeAway === 'home' ? 'vs' : 'at'} {e.opponent}
-                  <div className="tiny">{fmtDate(e.date)} · {fmtTime(e.time)}</div>
-                </span>
-                <StatusBadge status={e.broadcastStatus} label={e.broadcastStatus === 'confirmed' ? 'Confirmed' : 'Planned'} />
-              </Link>
-            ))}
-          </Card>
-
           <Card title="Unpaid agreements" action={<Link className="card-link" to="/reports">Report →</Link>} pad={false}>
             {unpaid.slice(0, 5).map(a => {
               const sp = sponsorById(a.sponsorId)
