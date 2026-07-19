@@ -1,10 +1,9 @@
 import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { can, fmtWLT, hasGames, teamCompleteness, teamRecord, teams as allTeams, visibleScore } from '../lib/derive'
+import { broadcastState, can, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime } from '../lib/dates'
-import { Avatar, Badge, Card, Empty, Field, Modal, Progress, SearchBox, StatusBadge } from '../components/ui'
-import { EventRow } from '../components/EventRow'
+import { Avatar, Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { splitCsvLine } from './EventsPage'
 import { I } from '../components/icons'
 import type { Athlete, Team } from '../types'
@@ -12,6 +11,8 @@ import type { Athlete, Team } from '../types'
 export default function TeamsPage() {
   const { state } = useStore()
   const teams = allTeams(state)
+  const LEVEL_ORDER: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2 }
+  const sports = [...new Set(teams.map(t => t.sport))]
   return (
     <>
       <div className="page-head">
@@ -20,43 +21,37 @@ export default function TeamsPage() {
           <p className="page-sub">Fall 2026 programs · {teams.length} teams</p>
         </div>
       </div>
-      <div className="grid grid-3">
-        {teams.map(t => {
-          const rec = teamRecord(state, t.id)
-          const upcoming = state.events.filter(e => e.teamId === t.id && e.date >= state.demoToday).length
-          const openReqs = state.requests.filter(r => r.teamId === t.id && r.status !== 'completed').length
-          const complete = teamCompleteness(state, t.id)
-          const coach = state.users.find(u => u.id === t.coachIds[0])
-          return (
-            <Link key={t.id} to={`/teams/${t.id}`} className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontWeight: 750, fontSize: '1.02rem' }}>{t.name}</div>
-                  <div className="tiny">{t.sport}{t.gender ? ` · ${t.gender}` : ''} · {t.seasonLabel}</div>
-                </div>
-                {hasGames(rec.overall) && (
-                  <span className="pill-row">
-                    <Badge tone={rec.overall.w >= rec.overall.l ? 'ok' : 'danger'}>{fmtWLT(rec.overall)}</Badge>
-                    {hasGames(rec.conference) && <Badge tone="navy">{rec.conferenceLabel} {fmtWLT(rec.conference)}</Badge>}
+      {sports.map(sport => {
+        const group = teams.filter(t => t.sport === sport).sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level])
+        return (
+          <div key={sport} className="sport-group">
+            <h2>{sport} <span className="tiny">{group[0].gender && group[0].gender !== 'Coed' ? group[0].gender : ''}</span></h2>
+            {group.map(t => {
+              const rec = teamRecord(state, t.id)
+              const upcoming = state.events.filter(e => e.teamId === t.id && e.date >= state.demoToday).length
+              const openReqs = state.requests.filter(r => r.teamId === t.id && r.status !== 'completed').length
+              const coach = state.users.find(u => u.id === t.coachIds[0])
+              return (
+                <Link key={t.id} to={`/teams/${t.id}`} className="team-bar">
+                  <span className="lvl">{t.level}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 170 }} className="small">
+                    <Avatar user={coach} size="sm" /> {coach?.name}
                   </span>
-                )}
-              </div>
-              <div className="pill-row">
-                <StatusBadge status={t.rosterStatus} label={`Roster: ${t.rosterStatus === 'complete' ? 'complete' : t.rosterStatus === 'in_progress' ? 'in progress' : 'not started'}`} />
-                {openReqs > 0 && <Badge tone="warn">{openReqs} open request{openReqs > 1 ? 's' : ''}</Badge>}
-                {t.missingInfo.length > 0 && <Badge tone="danger">{t.missingInfo.length} missing item{t.missingInfo.length > 1 ? 's' : ''}</Badge>}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ flex: 1 }}><Progress value={complete} /></div>
-                <span className="tiny">{complete}% complete</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="tiny">
-                <Avatar user={coach} size="sm" /> {coach?.name} · {upcoming} upcoming events
-              </div>
-            </Link>
-          )
-        })}
-      </div>
+                  <span className="pill-row" style={{ flex: 1 }}>
+                    {hasGames(rec.overall) && <Badge tone={rec.overall.w >= rec.overall.l ? 'ok' : 'danger'}>{fmtWLT(rec.overall)}</Badge>}
+                    {hasGames(rec.conference) && <Badge tone="navy">{rec.conferenceLabel} {fmtWLT(rec.conference)}</Badge>}
+                    {t.missingInfo.length > 0 && <Badge tone="danger">{t.missingInfo.length} missing</Badge>}
+                    {openReqs > 0 && <Badge tone="warn">{openReqs} request{openReqs > 1 ? 's' : ''}</Badge>}
+                    {(t.roster ?? []).length === 0 && <Badge tone="danger">No roster</Badge>}
+                  </span>
+                  <span className="tiny" style={{ whiteSpace: 'nowrap' }}>{(t.roster ?? []).length} athletes · {upcoming} upcoming</span>
+                  <I.right />
+                </Link>
+              )
+            })}
+          </div>
+        )
+      })}
     </>
   )
 }
@@ -69,8 +64,6 @@ export function TeamDetail() {
   if (!t) return <Card><Empty icon="?" title="Team not found" /></Card>
 
   const events = state.events.filter(e => e.teamId === t.id).sort((a, b) => a.date.localeCompare(b.date))
-  const upcoming = events.filter(e => e.date >= state.demoToday).slice(0, 8)
-  const results = events.filter(e => visibleScore(state, e)).sort((a, b) => b.date.localeCompare(a.date))
   const broadcasts = events.filter(e => e.broadcastStatus !== 'none' && e.date >= state.demoToday)
   const openReqs = state.requests.filter(r => r.teamId === t.id && r.status !== 'completed')
   const teamAssets = state.assets.filter(a => a.teamId === t.id)
@@ -113,33 +106,48 @@ export function TeamDetail() {
       {tab === 'overview' && (
       <div className="detail-grid">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Card title="Upcoming events" pad={false} action={<Link className="card-link" to="/calendar">Calendar →</Link>}>
-            <div style={{ padding: '10px 14px' }}>
-              {upcoming.length === 0 && <Empty title="No upcoming events" />}
-              {upcoming.map(e => <EventRow key={e.id} e={e} showDate />)}
-            </div>
-          </Card>
-          <Card title="Results" pad={false}>
-            {results.length === 0 && <Empty title="No results yet" hint="Scores appear here once games are completed." />}
-            {results.length > 0 && (
+          <Card title="Season schedule" pad={false} action={<Link className="card-link" to="/calendar">Calendar →</Link>}>
+            {events.length === 0 && <Empty title="No events scheduled" />}
+            {events.length > 0 && (
+              <div className="tbl-wrap">
               <table className="tbl">
-                <thead><tr><th>Date</th><th>Opponent</th><th>H/A</th><th>Result</th></tr></thead>
+                <thead><tr><th>Date</th><th>Event</th><th>H/A</th><th>Venue</th><th>Result / status</th></tr></thead>
                 <tbody>
-                  {results.map(e => (
-                    <tr key={e.id}>
-                      <td>{fmtDate(e.date)}</td>
-                      <td><Link className="link" to={`/events/${e.id}`}>{e.opponent}</Link></td>
-                      <td className="muted small">{e.homeAway === 'home' ? 'Home' : e.homeAway === 'away' ? 'Away' : '—'}</td>
-                      <td>
-                        <span className="pill-row">
-                          <Badge tone={visibleScore(state, e)!.result === 'W' ? 'ok' : 'danger'}>{visibleScore(state, e)!.result} {visibleScore(state, e)!.us}–{visibleScore(state, e)!.them}</Badge>
-                          {(e.gameType === 'region' || e.gameType === 'area') && <Badge tone="navy">{e.gameType === 'region' ? 'Region' : 'Area'}</Badge>}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {events.map(e => {
+                    const score = visibleScore(state, e)
+                    const rowCls = score ? (score.result === 'W' ? 'sched-row win' : score.result === 'L' ? 'sched-row loss' : 'sched-row') : 'sched-row'
+                    const unfilledCount = e.staffSlots.filter(sl => sl.status === 'unfilled' || sl.status === 'declined').length
+                    return (
+                      <tr key={e.id} className={rowCls}>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <div style={{ fontWeight: 750 }}>{fmtDate(e.date)}</div>
+                          <div className="tiny">{fmtTime(e.time)}</div>
+                        </td>
+                        <td>
+                          <Link className="link" to={`/events/${e.id}`}>{e.opponent}</Link>
+                          {(e.gameType === 'region' || e.gameType === 'area') && <> <Badge tone="navy">{e.gameType === 'region' ? 'Region' : 'Area'}</Badge></>}
+                          {e.designation && <> <Badge tone="brand">{e.designation}</Badge></>}
+                        </td>
+                        <td><HomeAwayBadge ha={e.homeAway} /></td>
+                        <td className={e.homeAway === 'home' ? '' : 'muted'} style={e.homeAway === 'home' ? { fontWeight: 700 } : undefined}>{e.venue}</td>
+                        <td>
+                          {score ? (
+                            <Badge tone={score.result === 'W' ? 'ok' : 'danger'}>{score.result} {score.us}–{score.them}</Badge>
+                          ) : (
+                            <span className="pill-row">
+                              <StatusBadge status={visibleStatus(state, e)} />
+                              {broadcastState(e) === 'in_progress' && <Badge tone="warn"><I.broadcast /></Badge>}
+                              {broadcastState(e) === 'confirmed' && <Badge tone="info"><I.broadcast /></Badge>}
+                              {unfilledCount > 0 && <Badge tone="danger">{unfilledCount} unfilled</Badge>}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
+              </div>
             )}
           </Card>
         </div>
@@ -151,6 +159,18 @@ export function TeamDetail() {
                 <span style={{ flex: 1 }}><strong>{c!.name}</strong><div className="tiny">{c!.title}</div></span>
               </div>
             ))}
+          </Card>
+          <Card title="Social media" pad={false}>
+            {!t.socials || Object.values(t.socials).every(v => !v) ? (
+              <Empty title="No accounts linked" hint="Add the team's social links so gameday coverage tags the right accounts." />
+            ) : (
+              <>
+                {t.socials.instagram && <a className="notif-item" href={t.socials.instagram} target="_blank" rel="noreferrer"><span style={{ flex: 1 }}>Instagram<div className="tiny">{t.socials.instagram.replace('https://', '')}</div></span><I.external /></a>}
+                {t.socials.x && <a className="notif-item" href={t.socials.x} target="_blank" rel="noreferrer"><span style={{ flex: 1 }}>X (Twitter)<div className="tiny">{t.socials.x.replace('https://', '')}</div></span><I.external /></a>}
+                {t.socials.facebook && <a className="notif-item" href={t.socials.facebook} target="_blank" rel="noreferrer"><span style={{ flex: 1 }}>Facebook<div className="tiny">{t.socials.facebook.replace('https://', '')}</div></span><I.external /></a>}
+              </>
+            )}
+            <SocialsEditor team={t} />
           </Card>
           <Card title="Important dates" pad={false}>
             {t.importantDates.length === 0 && <Empty title="No key dates entered" />}
@@ -365,5 +385,34 @@ function RosterImportModal({ team, onClose, onImport }: {
         </>
       )}
     </Modal>
+  )
+}
+
+function SocialsEditor({ team }: { team: Team }) {
+  const { state, update, toast } = useStore()
+  const me = state.users.find(u => u.id === state.currentUserId)!
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ instagram: team.socials?.instagram ?? '', x: team.socials?.x ?? '', facebook: team.socials?.facebook ?? '' })
+  if (!can(me.role, 'edit')) return null
+  if (!open) {
+    return <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)' }}><button className="btn sm ghost" onClick={() => setOpen(true)}>Edit links</button></div>
+  }
+  return (
+    <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <input className="input" placeholder="Instagram URL" value={form.instagram} onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))} aria-label="Instagram URL" />
+      <input className="input" placeholder="X (Twitter) URL" value={form.x} onChange={e => setForm(f => ({ ...f, x: e.target.value }))} aria-label="X URL" />
+      <input className="input" placeholder="Facebook URL" value={form.facebook} onChange={e => setForm(f => ({ ...f, facebook: e.target.value }))} aria-label="Facebook URL" />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn primary sm" onClick={() => {
+          for (const [k, v] of Object.entries(form)) {
+            if (v && !/^https?:\/\//.test(v)) { toast(`${k} link must start with http(s)://`, 'error'); return }
+          }
+          update('teams', team.id, { socials: { instagram: form.instagram || undefined, x: form.x || undefined, facebook: form.facebook || undefined } } as Partial<Team>)
+          toast('Social links updated')
+          setOpen(false)
+        }}>Save</button>
+        <button className="btn sm ghost" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </div>
   )
 }

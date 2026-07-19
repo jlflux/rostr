@@ -349,7 +349,8 @@ select.inline-select {
   border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px;
 }
 .ev-row:hover { border-color: var(--border-strong); }
-.ev-time { width: 74px; flex-shrink: 0; font-size: 0.8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ev-time { width: 78px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.ev-date { font-size: 0.92rem; font-weight: 750; }
 .ev-main { flex: 1; min-width: 0; }
 .ev-title { font-weight: 650; font-size: 0.92rem; }
 .ev-meta { font-size: 0.82rem; color: var(--text-2); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -437,3 +438,19 @@ select.inline-select {
 .crumbs a { color: var(--info); }
 .crumbs a:hover { text-decoration: underline; }
 .crumbs .sep { color: var(--text-3); }
+
+/* team schedule rows (win/loss tint) */
+.sched-row { border-left: 4px solid transparent; }
+.sched-row.win { background: var(--ok-bg); border-left-color: var(--ok); }
+.sched-row.loss { background: var(--danger-bg); border-left-color: var(--danger); }
+tr.sched-row.win:hover, tr.sched-row.loss:hover { filter: brightness(0.98); }
+
+/* teams list rows */
+.sport-group { margin-bottom: 22px; }
+.sport-group h2 { font-size: 1.02rem; font-weight: 750; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+.team-bar {
+  display: flex; align-items: center; gap: 14px; padding: 11px 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; flex-wrap: wrap;
+}
+.team-bar:hover { border-color: var(--border-strong); }
+.team-bar .lvl { width: 84px; font-weight: 750; flex-shrink: 0; }

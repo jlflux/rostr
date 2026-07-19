@@ -50,7 +50,7 @@ export default function Dashboard() {
       <div className="grid grid-4" style={{ marginBottom: 16 }}>
         <StatCard label="Events this week" value={week.length} hint={`${home.length} at home`} />
         <StatCard label="Unfilled staff roles" value={gaps.reduce((n, g) => n + g.count, 0)} tone={gaps.length ? 'alert' : 'ok'} hint={gaps.length ? `across ${unfilledSlots(state).length} upcoming events` : 'All events covered'} />
-        <StatCard label="Outstanding sponsorship" value={fmtMoney(totals.outstanding)} tone={totals.outstanding > 0 ? 'warn' : 'ok'} hint={`${unpaid.length} agreements not fully paid`} />
+        <StatCard label="Home events this week" value={home.length} hint={home.length ? `Next: ${home[0] ? fmtDate(home[0].date) : ''}` : 'No home events'} />
         <StatCard label="Open coach requests" value={reqs.length} tone={reqs.some(r => r.status === 'submitted') ? 'warn' : undefined} hint={`${reqs.filter(r => r.status === 'submitted').length} awaiting review`} />
       </div>
 
@@ -134,25 +134,6 @@ export default function Dashboard() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Card title="Unpaid agreements" action={<Link className="card-link" to="/reports">Report →</Link>} pad={false}>
-            {unpaid.slice(0, 5).map(a => {
-              const sp = sponsorById(a.sponsorId)
-              return (
-                <Link key={a.id} to={`/sponsors/${a.sponsorId}`} className="notif-item">
-                  <span style={{ flex: 1 }}>
-                    <strong>{sp?.name}</strong>
-                    <div className="tiny">{sp?.tier} · {fmtMoney(a.amount)} agreement</div>
-                  </span>
-                  <span style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 700, color: 'var(--danger)' }}>{fmtMoney(a.amount - agreementPaid(a))}</div>
-                    <StatusBadge status={a.paymentStatus} />
-                  </span>
-                </Link>
-              )
-            })}
-            {unpaid.length > 5 && <div style={{ padding: '8px 14px' }}><Link className="link small" to="/sponsors">+ {unpaid.length - 5} more</Link></div>}
-          </Card>
-
           <Card title="Missing sponsor assets" pad={false}>
             {missingAssets.length === 0 && <Empty icon="✓" title="All sponsor assets in" />}
             {missingAssets.slice(0, 5).map(s => (
@@ -175,6 +156,15 @@ export default function Dashboard() {
                 <Badge tone={o.dueDate < state.demoToday ? 'danger' : 'warn'}>{fmtDate(o.dueDate)}</Badge>
               </Link>
             ))}
+          </Card>
+
+          <Card title="Sponsorship snapshot" pad={false}>
+            <Link to="/sponsors" className="notif-item">
+              <span style={{ flex: 1 }} className="small">
+                <strong>{fmtMoney(totals.outstanding)}</strong> outstanding across {unpaid.length} agreements
+                <div className="tiny">Details live on the Sponsors page and Reports</div>
+              </span>
+            </Link>
           </Card>
 
           <Card title="Recent activity" pad={false}>

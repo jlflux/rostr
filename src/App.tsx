@@ -8,6 +8,7 @@ import EventDetail from './pages/EventDetail'
 import SponsorsPage from './pages/SponsorsPage'
 import SponsorDetail from './pages/SponsorDetail'
 import TeamsPage, { TeamDetail } from './pages/TeamsPage'
+import OpponentsPage from './pages/OpponentsPage'
 import RequestsPage, { RequestDetail } from './pages/RequestsPage'
 import AssetsPage from './pages/AssetsPage'
 import ReportsPage from './pages/ReportsPage'
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/events" element={<EventsPage />} />
             <Route path="/events/:id" element={<EventDetail />} />
+            <Route path="/opponents" element={<OpponentsPage />} />
             <Route path="/sponsors" element={<SponsorsPage />} />
             <Route path="/sponsors/:id" element={<SponsorDetail />} />
             <Route path="/teams" element={<TeamsPage />} />

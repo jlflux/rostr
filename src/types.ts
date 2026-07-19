@@ -64,6 +64,7 @@ export interface Team {
   name: string
   season: 'Fall' | 'Winter' | 'Spring'
   seasonLabel: string
+  socials?: { instagram?: string; x?: string; facebook?: string }
   coachIds: string[]
   rosterStatus: RosterStatus
   rosterCount: number
@@ -124,6 +125,41 @@ export interface Opponent {
   name: string
   logoAssetId?: string
   tint: string
+  mascot?: string
+  city?: string
+  state?: string
+  address?: string
+  website?: string
+  colors?: string
+  notes?: string
+}
+
+/** How the event's "opponent" field should be interpreted */
+export type EventKind = 'single' | 'tournament' | 'noncomp'
+
+/** A sponsor activated for something specific within one game */
+export interface SponsorActivation {
+  id: string
+  sponsorId: string
+  activation: string // e.g. "Presenting sponsor", "Halftime promotion"
+  notes?: string
+}
+
+/** A special in-game moment that needs planning (recognitions, presentations) */
+export interface GameMoment {
+  id: string
+  title: string
+  timing: string // e.g. "Pregame", "Between Q1 & Q2", "Halftime"
+  notes?: string
+  ownerId?: string | null
+}
+
+export type BroadcastCheckStatus = 'pending' | 'ok' | 'na'
+
+export interface BroadcastCheckItem {
+  id: string
+  label: string
+  status: BroadcastCheckStatus
 }
 
 export interface SportEvent {
@@ -135,6 +171,7 @@ export interface SportEvent {
   date: string // YYYY-MM-DD
   time: string | null // HH:MM 24h
   homeAway: HomeAway
+  eventKind: EventKind
   opponent: string
   opponentId?: string
   gameType?: GameType
@@ -149,7 +186,9 @@ export interface SportEvent {
   multiDay?: string
   staffSlots: StaffSlot[]
   runOfShow: RunOfShowItem[]
-  sponsorIds: string[]
+  sponsorActivations: SponsorActivation[]
+  gameMoments: GameMoment[]
+  broadcastChecklist?: BroadcastCheckItem[]
   score?: EventScore
 }
 

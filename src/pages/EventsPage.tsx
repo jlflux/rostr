@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { events as allEvents, can, visibleScore, visibleStatus } from '../lib/derive'
+import { broadcastState, events as allEvents, can, eventTitle, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime } from '../lib/dates'
 import { Badge, Field, HomeAwayBadge, Modal, SearchBox, Seg, StatusBadge } from '../components/ui'
 import { OpponentMark } from '../components/EventRow'
 import { I } from '../components/icons'
-import type { GameType, Opponent, SportEvent } from '../types'
+import type { EventKind, GameType, Opponent, SportEvent } from '../types'
 
 const OPP_TINTS = ['#b45309', '#166534', '#1d4ed8', '#7c3aed', '#be185d', '#0e7490', '#ca8a04', '#4d7c0f']
 
@@ -63,12 +63,12 @@ export default function EventsPage() {
         <table className="tbl">
           <thead>
             <tr>
-              <th>Date</th><th>Time</th><th>Matchup</th><th>Venue</th><th>H/A</th><th>Staffing</th><th>Status</th>
+              <th>Date</th><th>Matchup</th><th>H/A</th><th>Venue</th><th>Staffing</th><th>Status</th>
             </tr>
           </thead>
           <tbody>
             {list.length === 0 && (
-              <tr><td colSpan={7}><div className="empty"><h4>No events match</h4><p>Adjust the search or filters.</p></div></td></tr>
+              <tr><td colSpan={6}><div className="empty"><h4>No events match</h4><p>Adjust the search or filters.</p></div></td></tr>
             )}
             {list.map(e => {
               const open = e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length
@@ -76,20 +76,22 @@ export default function EventsPage() {
               const opp = state.opponents.find(o => o.id === e.opponentId)
               return (
                 <tr key={e.id} className="clickable" onClick={() => navigate(`/events/${e.id}`)}>
-                  <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(e.date)}</td>
-                  <td>{fmtTime(e.time)}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <div style={{ fontWeight: 750 }}>{fmtDate(e.date)}</div>
+                    <div className="tiny">{fmtTime(e.time)}</div>
+                  </td>
                   <td>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <OpponentMark opponent={opp} size={22} />
                       <span>
-                        <span className="primary">{e.sport} {e.level !== 'Varsity' ? `(${e.level})` : ''} {e.homeAway === 'home' ? 'vs' : e.homeAway === 'away' ? 'at' : '·'} {e.opponent}</span>
+                        <span className="primary">{eventTitle(e)}</span>
                         {(e.gameType === 'region' || e.gameType === 'area') && <> <Badge tone="navy">{e.gameType === 'region' ? 'Region' : 'Area'}</Badge></>}
                         {e.designation && <> <Badge tone="brand">{e.designation}</Badge></>}
                       </span>
                     </span>
                   </td>
-                  <td className="muted">{e.venue}</td>
                   <td><HomeAwayBadge ha={e.homeAway} /></td>
+                  <td className={e.homeAway === 'home' ? '' : 'muted'} style={e.homeAway === 'home' ? { fontWeight: 700 } : undefined}>{e.venue}</td>
                   <td>
                     {e.staffSlots.length === 0 ? <span className="tiny">—</span>
                       : open > 0 ? <Badge tone="danger">{open} open</Badge> : <Badge tone="ok">Covered</Badge>}
@@ -181,15 +183,16 @@ export function EventForm({ initial, onClose, onSave }: { initial?: SportEvent; 
   const [form, setForm] = useState(() => initial ?? {
     id: `ev-new-${Date.now()}`, orgId: state.currentOrgId, teamId: state.teams[0]?.id ?? '',
     sport: state.teams[0]?.sport ?? '', level: state.teams[0]?.level ?? 'Varsity',
-    date: state.demoToday, time: '19:00', homeAway: 'home', opponent: '', venue: 'Waldrop Stadium',
-    gameType: 'non', status: 'scheduled', broadcastStatus: 'none', staffSlots: [], runOfShow: [], sponsorIds: [],
+    date: state.demoToday, time: '19:00', homeAway: 'home', eventKind: 'single', opponent: '', venue: 'Waldrop Stadium',
+    gameType: 'non', status: 'scheduled', broadcastStatus: 'none', staffSlots: [], runOfShow: [],
+    sponsorActivations: [], gameMoments: [],
   } as SportEvent)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const set = (patch: Partial<SportEvent>) => setForm(f => ({ ...f, ...patch }))
 
   const submit = () => {
     const errs: Record<string, string> = {}
-    if (!form.opponent.trim()) errs.opponent = 'Select an opponent or add a new one.'
+    if (!form.opponent.trim()) errs.opponent = form.eventKind === 'single' ? 'Select an opponent or add a new one.' : 'Give the event a name.'
     if (!form.date) errs.date = 'Date is required.'
     if (!form.venue.trim()) errs.venue = 'Venue is required.'
     if (form.ticketLink && !/^https?:\/\//.test(form.ticketLink)) errs.ticketLink = 'Must be a full URL starting with http(s)://'
@@ -215,9 +218,26 @@ export function EventForm({ initial, onClose, onSave }: { initial?: SportEvent; 
             {state.teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </Field>
+        <Field label="Event type" required>
+          <select value={form.eventKind} onChange={e => {
+            const eventKind = e.target.value as EventKind
+            set({ eventKind, opponentId: undefined, opponent: '' })
+          }}>
+            <option value="single">Single opponent</option>
+            <option value="tournament">Tournament / multi-team</option>
+            <option value="noncomp">Non-competition event</option>
+          </select>
+        </Field>
+      </div>
+      {form.eventKind === 'single' ? (
         <OpponentPicker value={form.opponentId} name={form.opponent} error={errors.opponent}
           onPick={(opponentId, name) => set({ opponentId, opponent: name })} />
-      </div>
+      ) : (
+        <Field label={form.eventKind === 'tournament' ? 'Tournament / meet name' : 'Event name'} required error={errors.opponent}>
+          <input value={form.opponent} onChange={e => set({ opponent: e.target.value, opponentId: undefined })}
+            placeholder={form.eventKind === 'tournament' ? 'e.g. Coach Wood Invitational' : 'e.g. Fan Day & Media Night'} />
+        </Field>
+      )}
       <div className="form-row">
         <Field label="Date" required error={errors.date}>
           <input type="date" value={form.date} onChange={e => set({ date: e.target.value })} />
@@ -368,18 +388,21 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
       const homeAway = ['home', 'h'].includes(haRaw) ? 'home' : ['away', 'a'].includes(haRaw) ? 'away' : haRaw === 'neutral' ? 'neutral' : 'tbd'
       const typeRaw = get(ci.type).toLowerCase()
       const gameType: GameType = typeRaw.includes('region') ? 'region' : typeRaw.includes('area') ? 'area' : 'non'
+      const isTourney = /tournament|invitational|classic|jamboree|play date/i.test(opponentName)
       const existing = state.opponents.find(o => o.name.toLowerCase() === opponentName.toLowerCase())
       out.push({
         line: idx + 2, raw,
-        newOpponent: existing ? undefined : opponentName,
+        newOpponent: existing || isTourney ? undefined : opponentName,
         event: {
           id: `ev-imp-${Date.now()}-${idx}`, orgId: state.currentOrgId, teamId: team.id,
           sport: team.sport, level: team.level, date, time,
-          homeAway, opponent: opponentName, opponentId: existing?.id, gameType,
+          homeAway,
+          eventKind: /tournament|invitational|classic|jamboree|play date/i.test(opponentName) ? 'tournament' : 'single',
+          opponent: opponentName, opponentId: existing?.id, gameType,
           venue: get(ci.venue) || (homeAway === 'home' ? 'Home venue' : 'TBD'),
           status: 'scheduled', broadcastStatus: 'none',
           notes: get(ci.notes) || undefined,
-          staffSlots: [], runOfShow: [], sponsorIds: [],
+          staffSlots: [], runOfShow: [], sponsorActivations: [], gameMoments: [],
         },
       })
     })
@@ -466,7 +489,7 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
                     {r.event ? (
                       <>
                         <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.event.date)}{r.event.time ? ` · ${fmtTime(r.event.time)}` : ''}</td>
-                        <td>{r.event.sport} {r.event.level !== 'Varsity' ? `(${r.event.level})` : ''} {r.event.homeAway === 'home' ? 'vs' : 'at'} {r.event.opponent}
+                        <td>{eventTitle(r.event)}
                           {r.newOpponent && <> <Badge tone="info">new opponent</Badge></>}
                           {r.event.gameType !== 'non' && <> <Badge tone="navy">{r.event.gameType}</Badge></>}
                         </td>

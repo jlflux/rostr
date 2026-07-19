@@ -1,4 +1,4 @@
-import type { Agreement, AppState, CoachRequest, EventStatus, PipelineStage, SportEvent, Task } from '../types'
+import type { Agreement, AppState, BroadcastCheckItem, CoachRequest, EventStatus, PipelineStage, SportEvent, Task } from '../types'
 import { addDays, weekStart } from './dates'
 
 // ---------- Business/derived logic, kept out of display components ----------
@@ -123,6 +123,41 @@ export function venueConflicts(s: AppState): Map<string, string[]> {
 function toMins(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m
+}
+
+/** "Football vs Hoover" / "Cross Country at Coach Wood Invitational" / "Football Fan Day & Media Night" */
+export function eventTitle(e: SportEvent, opts?: { short?: boolean }): string {
+  const lvl = e.level !== 'Varsity' && !opts?.short ? ` (${e.level})` : ''
+  const base = `${e.sport}${lvl}`
+  if (e.eventKind === 'noncomp') return `${base} ${e.opponent}`
+  if (e.eventKind === 'tournament') return `${base} ${e.homeAway === 'home' ? 'hosts' : 'at'} ${e.opponent}`
+  return `${base} ${e.homeAway === 'home' ? 'vs' : e.homeAway === 'away' ? 'at' : '·'} ${e.opponent}`
+}
+
+export const BROADCAST_CHECK_ITEMS: { id: string; label: string }[] = [
+  { id: 'crew', label: 'Broadcast crew assigned' },
+  { id: 'location', label: 'Setup location confirmed' },
+  { id: 'parking', label: 'Unload / special parking arranged' },
+  { id: 'internet', label: 'Internet availability verified' },
+  { id: 'power', label: 'Power availability verified' },
+  { id: 'link', label: 'Broadcast link published' },
+]
+
+export function defaultBroadcastChecklist(): BroadcastCheckItem[] {
+  return BROADCAST_CHECK_ITEMS.map(i => ({ id: i.id, label: i.label, status: 'pending' }))
+}
+
+export type BroadcastState = 'none' | 'in_progress' | 'confirmed' | 'archived'
+
+/**
+ * A broadcast is only "confirmed" once every checklist item is resolved
+ * (done or marked not-applicable) — a pasted link alone is just "in progress".
+ */
+export function broadcastState(e: SportEvent): BroadcastState {
+  if (e.broadcastStatus === 'none') return 'none'
+  if (e.broadcastStatus === 'archived') return 'archived'
+  const list = e.broadcastChecklist ?? defaultBroadcastChecklist()
+  return list.every(i => i.status !== 'pending') ? 'confirmed' : 'in_progress'
 }
 
 /**

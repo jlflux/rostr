@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, agreementPaid, can, fulfillmentProgress, visibleStatus } from '../lib/derive'
+import { PIPELINE_STAGES, agreementPaid, can, eventTitle, fulfillmentProgress, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateTime, fmtMoney, fmtTime } from '../lib/dates'
 import { Avatar, Badge, Card, Check, Empty, Field, Modal, Progress, StatusBadge } from '../components/ui'
 import { StageBadge, TierBadge } from './SponsorsPage'
@@ -23,7 +23,7 @@ export default function SponsorDetail() {
   const financeOk = can(me.role, 'finance')
   const paid = a ? agreementPaid(a) : 0
   const prog = a ? fulfillmentProgress(a) : { done: 0, total: 0 }
-  const linkedEvents = state.events.filter(e => e.sponsorIds.includes(s.id)).sort((x, y) => x.date.localeCompare(y.date))
+  const linkedEvents = state.events.filter(e => e.sponsorActivations.some(a => a.sponsorId === s.id)).sort((x, y) => x.date.localeCompare(y.date))
   const sponsorAssets = state.assets.filter(x => x.sponsorId === s.id)
   const sponsorTasks = state.tasks.filter(t => t.sponsorId === s.id && t.status !== 'done')
 
@@ -101,7 +101,9 @@ export default function SponsorDetail() {
             {linkedEvents.map(e => (
               <Link key={e.id} to={`/events/${e.id}?tab=sponsors`} className="notif-item">
                 <span style={{ flex: 1 }}>
-                  <strong>{e.sport} vs {e.opponent}</strong>{e.designation && <> <Badge tone="brand">{e.designation}</Badge></>}
+                  <strong>{eventTitle(e, { short: true })}</strong>
+                  {' — '}{e.sponsorActivations.filter(a => a.sponsorId === s.id).map(a => a.activation).join(', ')}
+                  {e.designation && <> <Badge tone="brand">{e.designation}</Badge></>}
                   <div className="tiny">{fmtDate(e.date)} · {fmtTime(e.time)} · {e.venue}</div>
                 </span>
                 <StatusBadge status={visibleStatus(state, e)} />

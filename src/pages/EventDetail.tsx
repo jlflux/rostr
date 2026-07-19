@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { can, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
+import { broadcastState, can, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDateLong, fmtTime, relDue } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, HomeAwayBadge, Modal, PriorityBadge, StatusBadge } from '../components/ui'
 import { EventForm } from './EventsPage'
 import { OpponentMark } from '../components/EventRow'
 import { I } from '../components/icons'
-import type { ContentKind, RunOfShowItem, SportEvent, StaffRole, StaffSlot, Task } from '../types'
+import type { BroadcastCheckItem, ContentKind, GameMoment, RunOfShowItem, SponsorActivation, SportEvent, StaffRole, StaffSlot, Task } from '../types'
 
 const TABS = ['overview', 'staffing', 'runofshow', 'sponsors', 'tasks', 'assets', 'results'] as const
 type Tab = typeof TABS[number]
@@ -33,11 +33,13 @@ export default function EventDetail() {
     return <Card><Empty icon="?" title="Event not found" hint="It may have been removed. Return to the events list." /></Card>
   }
 
-  const tab = (TABS.includes(params.get('tab') as Tab) ? params.get('tab') : 'overview') as Tab
+  const visibleTabs = e.eventKind === 'noncomp' ? TABS.filter(t => t !== 'results') : [...TABS]
+  const tab = (visibleTabs.includes(params.get('tab') as Tab) ? params.get('tab') : 'overview') as Tab
   const setTab = (t: Tab) => setParams(t === 'overview' ? {} : { tab: t }, { replace: true })
   const team = state.teams.find(t => t.id === e.teamId)
   const tasks = state.tasks.filter(t => t.eventId === e.id)
-  const eventAssets = state.assets.filter(a => e.sponsorIds.includes(a.sponsorId ?? '') || a.teamId === e.teamId)
+  const activationSponsorIds = e.sponsorActivations.map(a => a.sponsorId)
+  const eventAssets = state.assets.filter(a => activationSponsorIds.includes(a.sponsorId ?? '') || a.teamId === e.teamId)
   const conflictIds = conflicts.get(e.id) ?? []
   const openSlots = e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length
   const score = visibleScore(state, e)
@@ -54,7 +56,7 @@ export default function EventDetail() {
           </div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <OpponentMark opponent={opp} size={34} />
-            <span>{e.sport} {e.level !== 'Varsity' ? `(${e.level})` : ''} {e.homeAway === 'home' ? 'vs' : e.homeAway === 'away' ? 'at' : '·'} {e.opponent}</span>
+            <span>{eventTitle(e)}</span>
           </h1>
           <p className="page-sub">
             {fmtDateLong(e.date)} · {fmtTime(e.time)} · {e.venue}
@@ -65,7 +67,12 @@ export default function EventDetail() {
             <StatusBadge status={e.status} />
             {(e.gameType === 'region' || e.gameType === 'area') && <Badge tone="navy">{e.gameType === 'region' ? 'Region game' : 'Area game'}</Badge>}
             {e.designation && <Badge tone="brand">{e.designation}</Badge>}
-            {e.broadcastStatus !== 'none' && <Badge tone="info"><I.broadcast /> {e.broadcastStatus === 'archived' ? 'Broadcast archived' : `Broadcast ${e.broadcastStatus}`}</Badge>}
+            {broadcastState(e) !== 'none' && (
+              <Badge tone={broadcastState(e) === 'confirmed' ? 'info' : broadcastState(e) === 'in_progress' ? 'warn' : 'neutral'}>
+                <I.broadcast /> {broadcastState(e) === 'archived' ? 'Broadcast archived' : broadcastState(e) === 'confirmed' ? 'Broadcast confirmed' : 'Broadcast in progress'}
+              </Badge>
+            )}
+            {e.gameMoments.length > 0 && <Badge tone="warn">★ {e.gameMoments.length} special moment{e.gameMoments.length > 1 ? 's' : ''}</Badge>}
             {score && <Badge tone={score.result === 'W' ? 'ok' : 'danger'}>Final: {score.result} {score.us}–{score.them}</Badge>}
             {conflictIds.length > 0 && <Badge tone="warn"><I.warn /> Possible venue conflict</Badge>}
           </div>
@@ -91,14 +98,14 @@ export default function EventDetail() {
             <strong>Venue check:</strong> {e.venue} has {conflictIds.length} other event{conflictIds.length > 1 ? 's' : ''} within 2 hours:{' '}
             {conflictIds.map((cid, i) => {
               const c = state.events.find(x => x.id === cid)
-              return c ? <span key={cid}>{i > 0 && ', '}<Link className="link" to={`/events/${cid}`}>{c.sport} {c.level} vs {c.opponent} ({fmtTime(c.time)})</Link></span> : null
+              return c ? <span key={cid}>{i > 0 && ', '}<Link className="link" to={`/events/${cid}`}>{eventTitle(c)} ({fmtTime(c.time)})</Link></span> : null
             })}
           </span>
         </div>
       )}
 
       <div className="tabs" role="tablist">
-        {TABS.map(t => (
+        {visibleTabs.map(t => (
           <button key={t} className={t === tab ? 'active' : ''} onClick={() => setTab(t)} role="tab" aria-selected={t === tab}>
             {TAB_LABELS[t]}
             {t === 'staffing' && openSlots > 0 && <span className="tab-count" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>{openSlots}</span>}
@@ -107,7 +114,7 @@ export default function EventDetail() {
         ))}
       </div>
 
-      {tab === 'overview' && <Overview e={e} teamName={team?.name} />}
+      {tab === 'overview' && <Overview e={e} teamName={team?.name} editable={editable} />}
       {tab === 'staffing' && <Staffing e={e} editable={editable} />}
       {tab === 'runofshow' && <RunOfShow e={e} editable={editable} />}
       {tab === 'sponsors' && <EventSponsors e={e} editable={editable} />}
@@ -136,7 +143,7 @@ export default function EventDetail() {
       )}
       {confirmCancel && (
         <ConfirmDialog title="Cancel this event?" danger confirmLabel="Cancel event"
-          message={`This marks ${e.sport} vs ${e.opponent} as canceled. Staff assignments and reminders stay attached but the event is flagged across the app.`}
+          message={`This marks ${eventTitle(e)} as canceled. Staff assignments and reminders stay attached but the event is flagged across the app.`}
           onConfirm={() => { patch({ status: 'canceled' }); logActivity(`canceled event vs ${e.opponent}`); toast('Event canceled') }}
           onClose={() => setConfirmCancel(false)} />
       )}
@@ -144,15 +151,18 @@ export default function EventDetail() {
   )
 }
 
-function Overview({ e, teamName }: { e: SportEvent; teamName?: string }) {
+function Overview({ e, teamName, editable }: { e: SportEvent; teamName?: string; editable: boolean }) {
   const { state } = useStore()
   const score = visibleScore(state, e)
+  const opp = state.opponents.find(o => o.id === e.opponentId)
   return (
     <div className="detail-grid">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Card title="Event details">
         <dl className="kv">
           <dt>Team</dt><dd><Link className="link" to={`/teams/${e.teamId}`}>{teamName ?? `${e.sport} ${e.level}`}</Link></dd>
-          <dt>Opponent</dt><dd>{e.opponent}</dd>
+          <dt>{e.eventKind === 'single' ? 'Opponent' : 'Event'}</dt>
+          <dd>{opp ? <Link className="link" to={`/opponents?open=${opp.id}`}>{e.opponent}</Link> : e.opponent}</dd>
           <dt>Date</dt><dd>{fmtDateLong(e.date)}{e.multiDay ? ` (${e.multiDay})` : ''}</dd>
           <dt>Time</dt><dd>{fmtTime(e.time)}{e.checkoutTime ? ` · School checkout ${e.checkoutTime}` : ''}</dd>
           <dt>Home / away</dt><dd><HomeAwayBadge ha={e.homeAway} /></dd>
@@ -164,42 +174,186 @@ function Overview({ e, teamName }: { e: SportEvent; teamName?: string }) {
           <dd>{e.ticketLink ? <a className="link" href={e.ticketLink} target="_blank" rel="noreferrer">GoFan tickets <I.external /></a> : <span className="muted">None</span>}</dd>
           <dt>Broadcast</dt>
           <dd>{e.broadcastLink ? <><a className="link" href={e.broadcastLink} target="_blank" rel="noreferrer">NFHS Network <I.external /></a> <StatusBadge status={e.broadcastStatus} /></> : <span className="muted">Not broadcast</span>}</dd>
+          {e.eventKind !== 'noncomp' && (<>
           <dt>Result</dt>
           <dd>{score ? <strong>{score.result} {score.us}–{score.them}</strong> : <span className="muted">Not played</span>}</dd>
+          </>)}
         </dl>
         {e.notes && (<><div className="divider" /><div className="small"><strong>Notes:</strong> {e.notes}</div></>)}
       </Card>
+      {opp && (opp.mascot || opp.address || opp.website || opp.notes) && (
+        <Card title={`About ${opp.name}`} action={<Link className="card-link" to={`/opponents?open=${opp.id}`}>Full profile →</Link>}>
+          <dl className="kv">
+            {opp.mascot && (<><dt>Mascot</dt><dd>{opp.mascot}</dd></>)}
+            {opp.colors && (<><dt>Colors</dt><dd>{opp.colors}</dd></>)}
+            {e.homeAway !== 'home' && opp.address && (<>
+              <dt>Location</dt>
+              <dd>
+                {opp.address}{' · '}
+                <a className="link" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(opp.address)}`} target="_blank" rel="noreferrer">Google Maps <I.external /></a>
+              </dd>
+            </>)}
+            {opp.website && (<><dt>Website</dt><dd><a className="link" href={opp.website} target="_blank" rel="noreferrer">{opp.website.replace('https://', '')} <I.external /></a></dd></>)}
+          </dl>
+          {opp.notes && <p className="small muted" style={{ marginBottom: 0 }}><strong>Notes:</strong> {opp.notes}</p>}
+        </Card>
+      )}
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Card title="Staffing at a glance">
-          {e.staffSlots.length === 0
-            ? <p className="small muted" style={{ margin: 0 }}>No staff plan for this event{e.homeAway !== 'home' ? ' (away game)' : ''}.</p>
+        <GameMomentsCard e={e} editable={editable} />
+        <Card title="Sponsor activations" action={<Link className="card-link" to={`/events/${e.id}?tab=sponsors`}>Manage →</Link>}>
+          {e.sponsorActivations.length === 0
+            ? <p className="small muted" style={{ margin: 0 }}>No game-specific sponsor activations. Tier benefits (video board, PA rotation) run automatically.</p>
             : (
-              <div className="pill-row">
-                <Badge tone="ok">{e.staffSlots.filter(s => s.status === 'confirmed').length} confirmed</Badge>
-                <Badge tone="warn">{e.staffSlots.filter(s => s.status === 'assigned').length} assigned</Badge>
-                <Badge tone="danger">{e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length} open</Badge>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {e.sponsorActivations.map(a => {
+                  const sp = state.sponsors.find(x => x.id === a.sponsorId)
+                  return (
+                    <div key={a.id} className="small">
+                      <Link className="link" to={`/sponsors/${a.sponsorId}`}><strong>{sp?.name}</strong></Link> — {a.activation}
+                      {a.notes && <div className="tiny">{a.notes}</div>}
+                    </div>
+                  )
+                })}
               </div>
             )}
         </Card>
-        <Card title="Sponsors on this event">
-          {e.sponsorIds.length === 0
-            ? <p className="small muted" style={{ margin: 0 }}>No sponsor activation tied to this event.</p>
-            : <SponsorLinks ids={e.sponsorIds} />}
+        <Card title="Staffing at a glance" action={<Link className="card-link" to={`/events/${e.id}?tab=staffing`}>Manage →</Link>}>
+          {e.staffSlots.length === 0
+            ? <p className="small muted" style={{ margin: 0 }}>No staff plan for this event{e.homeAway !== 'home' ? ' (away game)' : ''}.</p>
+            : <StaffGlance e={e} />}
         </Card>
+        {broadcastState(e) !== 'none' && <BroadcastSetupCard e={e} editable={editable} />}
       </div>
     </div>
   )
 }
 
-function SponsorLinks({ ids }: { ids: string[] }) {
+function StaffGlance({ e }: { e: SportEvent }) {
   const { state } = useStore()
+  const groups: { label: string; tone: 'ok' | 'warn' | 'danger'; slots: StaffSlot[] }[] = [
+    { label: 'Confirmed', tone: 'ok', slots: e.staffSlots.filter(s => s.status === 'confirmed') },
+    { label: 'Assigned', tone: 'warn', slots: e.staffSlots.filter(s => s.status === 'assigned') },
+    { label: 'Open', tone: 'danger', slots: e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined') },
+  ]
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {ids.map(id => {
-        const s = state.sponsors.find(x => x.id === id)
-        return s ? <Link key={id} className="link small" to={`/sponsors/${id}`}>{s.name} · {s.tier}</Link> : null
-      })}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {groups.filter(g => g.slots.length > 0).map(g => (
+        <div key={g.label}>
+          <Badge tone={g.tone}>{g.label} · {g.slots.length}</Badge>
+          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {g.slots.map(slot => {
+              const u = state.users.find(x => x.id === slot.userId)
+              return (
+                <div key={slot.id} className="small" style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                  <span className="muted">{slot.role}</span>
+                  <span style={{ fontWeight: 600 }}>{u?.name ?? '—'}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
+  )
+}
+
+const MOMENT_TIMINGS = ['Pregame', 'End of Q1', 'Between Q1 & Q2', 'Halftime', 'Between Q3 & Q4', 'Between sets', 'Postgame']
+
+function GameMomentsCard({ e, editable }: { e: SportEvent; editable: boolean }) {
+  const { state, update, logActivity, toast } = useStore()
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState({ title: '', timing: 'Halftime', notes: '' })
+  const setMoments = (m: GameMoment[]) => update('events', e.id, { gameMoments: m } as Partial<SportEvent>)
+  return (
+    <Card title="Special moments" action={editable && !adding && (
+      <button className="btn sm" onClick={() => setAdding(true)}><I.plus /> Add</button>
+    )}>
+      {e.gameMoments.length === 0 && !adding && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Nothing special planned in-game. Use this for recognitions, check presentations, honor groups — anything that needs
+          planning and contacts before gameday.
+        </p>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {e.gameMoments.map(m => {
+          const owner = state.users.find(u => u.id === m.ownerId)
+          return (
+            <div key={m.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <Badge tone="warn">{m.timing}</Badge>
+              <span style={{ flex: 1 }} className="small">
+                <strong>{m.title}</strong>
+                {m.notes && <div className="tiny">{m.notes}</div>}
+                {owner && <div className="tiny">Owner: {owner.name}</div>}
+              </span>
+              {editable && <button className="btn sm ghost" aria-label="Remove moment" onClick={() => { setMoments(e.gameMoments.filter(x => x.id !== m.id)); toast('Special moment removed') }}><I.x /></button>}
+            </div>
+          )
+        })}
+      </div>
+      {adding && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <input className="input" autoFocus placeholder="What's happening? e.g. Honor 2016 state championship team" value={draft.title} onChange={ev => setDraft(d => ({ ...d, title: ev.target.value }))} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select className="inline-select" value={draft.timing} onChange={ev => setDraft(d => ({ ...d, timing: ev.target.value }))} aria-label="Timing">
+              {MOMENT_TIMINGS.map(t => <option key={t}>{t}</option>)}
+            </select>
+            <input className="input" style={{ flex: 1 }} placeholder="Notes / contacts (optional)" value={draft.notes} onChange={ev => setDraft(d => ({ ...d, notes: ev.target.value }))} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn primary sm" onClick={() => {
+              if (!draft.title.trim()) { toast('Describe the moment first', 'error'); return }
+              setMoments([...e.gameMoments, { id: `gm-${Date.now()}`, title: draft.title.trim(), timing: draft.timing, notes: draft.notes.trim() || undefined, ownerId: state.currentUserId }])
+              logActivity(`added special moment “${draft.title.trim()}” to ${eventTitle(e)}`, `/events/${e.id}`)
+              toast('Special moment added')
+              setDraft({ title: '', timing: 'Halftime', notes: '' })
+              setAdding(false)
+            }}>Save</button>
+            <button className="btn sm ghost" onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function BroadcastSetupCard({ e, editable }: { e: SportEvent; editable: boolean }) {
+  const { update, toast } = useStore()
+  const list = e.broadcastChecklist ?? defaultBroadcastChecklist()
+  const stateNow = broadcastState(e)
+  const cycle = (item: BroadcastCheckItem) => {
+    if (!editable || e.broadcastStatus === 'archived') return
+    const next: BroadcastCheckItem['status'] = item.status === 'pending' ? 'ok' : item.status === 'ok' ? 'na' : 'pending'
+    const updated = list.map(i => (i.id === item.id ? { ...i, status: next } : i))
+    update('events', e.id, { broadcastChecklist: updated } as Partial<SportEvent>)
+    if (updated.every(i => i.status !== 'pending')) toast('Broadcast fully confirmed')
+  }
+  return (
+    <Card title="Broadcast setup" action={
+      <Badge tone={stateNow === 'confirmed' ? 'ok' : stateNow === 'archived' ? 'neutral' : 'warn'}>
+        {stateNow === 'confirmed' ? 'Confirmed' : stateNow === 'archived' ? 'Archived' : 'In progress'}
+      </Badge>
+    }>
+      <p className="tiny" style={{ marginTop: 0 }}>A link alone doesn't confirm a broadcast — work each item, or mark it N/A. Click to cycle: pending → done → N/A.</p>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {list.map(item => (
+          <button key={item.id} className="checklist-item" style={{ background: 'none', border: 'none', borderBottom: '1px solid var(--border)', textAlign: 'left', cursor: editable ? 'pointer' : 'default', padding: '7px 2px' }}
+            onClick={() => cycle(item)} aria-label={`${item.label}: ${item.status}`}>
+            <span className={`checkbox ${item.status === 'ok' ? 'checked' : ''}`} style={item.status === 'na' ? { background: 'var(--neutral-bg)', borderColor: 'var(--border-strong)' } : undefined}>
+              {item.status === 'ok' && <I.check />}
+              {item.status === 'na' && <span style={{ color: 'var(--text-3)', fontSize: '0.6rem', fontWeight: 700 }}>—</span>}
+            </span>
+            <span className="label small" style={item.status !== 'pending' ? { color: 'var(--text-3)' } : undefined}>{item.label}</span>
+            {item.status === 'na' && <span className="tiny">N/A</span>}
+          </button>
+        ))}
+      </div>
+      {e.broadcastLink && (
+        <p className="small" style={{ marginBottom: 0 }}>
+          <a className="link" href={e.broadcastLink} target="_blank" rel="noreferrer">Broadcast link <I.external /></a>
+        </p>
+      )}
+    </Card>
   )
 }
 
@@ -240,7 +394,7 @@ function Staffing({ e, editable }: { e: SportEvent; editable: boolean }) {
                     setSlot(slot.id, { userId: uid, status: uid ? 'assigned' : 'unfilled' })
                     if (uid) {
                       const u = state.users.find(x => x.id === uid)
-                      logActivity(`assigned ${u?.name} as ${slot.role} for ${e.sport} vs ${e.opponent}`, `/events/${e.id}`)
+                      logActivity(`assigned ${u?.name} as ${slot.role} for ${eventTitle(e, { short: true })}`, `/events/${e.id}`)
                       toast(`${u?.name} assigned`)
                     }
                   }} aria-label={`Assign ${slot.role}`}>
@@ -324,48 +478,67 @@ function RunOfShow({ e, editable }: { e: SportEvent; editable: boolean }) {
   )
 }
 
+const ACTIVATION_TYPES = ['Presenting sponsor', 'Halftime promotion', 'First Down sponsor', 'Check presentation', 'Giveaway night', 'Senior Night sponsor', 'National anthem sponsor', 'Other (describe in notes)']
+
 function EventSponsors({ e, editable }: { e: SportEvent; editable: boolean }) {
-  const { state, update, toast } = useStore()
-  const linked = state.sponsors.filter(s => e.sponsorIds.includes(s.id))
-  const available = state.sponsors.filter(s => s.orgId === e.orgId && !e.sponsorIds.includes(s.id))
+  const { state, update, logActivity, toast } = useStore()
+  const [draft, setDraft] = useState({ sponsorId: '', activation: ACTIVATION_TYPES[0], notes: '' })
+  const committed = state.sponsors.filter(s => s.orgId === e.orgId && s.stage === 'committed')
+  const setActs = (acts: SponsorActivation[]) => update('events', e.id, { sponsorActivations: acts } as Partial<SportEvent>)
   return (
     <div className="detail-grid">
-      <Card title="Sponsor activations" pad={false} action={editable && available.length > 0 && (
-        <select className="inline-select" value="" aria-label="Add sponsor" onChange={ev => {
-          if (!ev.target.value) return
-          update('events', e.id, { sponsorIds: [...e.sponsorIds, ev.target.value] } as Partial<SportEvent>)
-          toast('Sponsor assigned to event')
-        }}>
-          <option value="">+ Assign sponsor…</option>
-          {available.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      )}>
-        {linked.length === 0 && <Empty icon="◈" title="No sponsors assigned" hint="Assign a sponsor to track gameday recognition and fulfillment." />}
-        {linked.map(s => {
-          const ag = state.agreements.find(a => a.sponsorId === s.id)
+      <Card title="Game-specific sponsor activations" pad={false}>
+        <p className="small muted" style={{ margin: '12px 18px 4px' }}>
+          Standard tier benefits (video-board rotation, PA reads, signage) run at every game automatically — don't list sponsors
+          here just because they exist. Activate a sponsor only for something specific to <strong>this</strong> game.
+        </p>
+        {e.sponsorActivations.length === 0 && <Empty icon="◈" title="No game-specific activations" hint="e.g. a presenting sponsor, halftime promotion, or check presentation." />}
+        {e.sponsorActivations.map(a => {
+          const sp = state.sponsors.find(x => x.id === a.sponsorId)
+          const ag = state.agreements.find(x => x.sponsorId === a.sponsorId)
           return (
-            <div key={s.id} className="notif-item" style={{ alignItems: 'center' }}>
+            <div key={a.id} className="notif-item" style={{ alignItems: 'center' }}>
               <span style={{ flex: 1 }}>
-                <Link className="link" to={`/sponsors/${s.id}`}><strong>{s.name}</strong></Link>
-                <div className="tiny">{s.tier} · {s.benefitSummary}</div>
+                <Link className="link" to={`/sponsors/${a.sponsorId}`}><strong>{sp?.name}</strong></Link>
+                {' — '}<span style={{ fontWeight: 600 }}>{a.activation}</span>
+                {a.notes && <div className="tiny">{a.notes}</div>}
+                <div className="tiny">{sp?.tier} tier · standard benefits run automatically</div>
               </span>
               {ag && <StatusBadge status={ag.paymentStatus} />}
-              <StatusBadge status={s.logoStatus} />
-              {editable && <button className="btn sm ghost" onClick={() => {
-                update('events', e.id, { sponsorIds: e.sponsorIds.filter(x => x !== s.id) } as Partial<SportEvent>)
-                toast('Sponsor removed from event')
-              }} aria-label="Remove sponsor"><I.x /></button>}
+              {sp && <StatusBadge status={sp.logoStatus} />}
+              {editable && <button className="btn sm ghost" onClick={() => { setActs(e.sponsorActivations.filter(x => x.id !== a.id)); toast('Activation removed') }} aria-label="Remove activation"><I.x /></button>}
             </div>
           )
         })}
+        {editable && (
+          <div style={{ display: 'flex', gap: 8, padding: '12px 18px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+            <select className="inline-select" value={draft.sponsorId} onChange={ev => setDraft(d => ({ ...d, sponsorId: ev.target.value }))} aria-label="Sponsor">
+              <option value="">Choose sponsor…</option>
+              {committed.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
+            </select>
+            <select className="inline-select" value={draft.activation} onChange={ev => setDraft(d => ({ ...d, activation: ev.target.value }))} aria-label="Activation type">
+              {ACTIVATION_TYPES.map(t => <option key={t}>{t}</option>)}
+            </select>
+            <input className="input" style={{ flex: 1, minWidth: 160 }} placeholder="Notes (optional)" value={draft.notes} onChange={ev => setDraft(d => ({ ...d, notes: ev.target.value }))} />
+            <button className="btn primary sm" onClick={() => {
+              if (!draft.sponsorId) { toast('Choose a sponsor first', 'error'); return }
+              setActs([...e.sponsorActivations, { id: `act-${Date.now()}`, sponsorId: draft.sponsorId, activation: draft.activation, notes: draft.notes.trim() || undefined }])
+              logActivity(`activated ${state.sponsors.find(x => x.id === draft.sponsorId)?.name} (${draft.activation}) for ${eventTitle(e)}`, `/events/${e.id}?tab=sponsors`)
+              toast('Sponsor activation added')
+              setDraft({ sponsorId: '', activation: ACTIVATION_TYPES[0], notes: '' })
+            }}><I.plus /> Activate</button>
+          </div>
+        )}
       </Card>
-      <Card title="Gameday recognition checklist">
-        <p className="small muted" style={{ marginTop: 0 }}>Recognition items for assigned sponsors are tracked as content reminders on the Tasks tab.</p>
+      <Card title="What runs automatically">
+        <p className="small muted" style={{ marginTop: 0 }}>Every committed sponsor's tier benefits are fulfilled across the season without per-game assignment:</p>
         <ul className="small" style={{ margin: 0, paddingLeft: 18, color: 'var(--text-2)' }}>
-          <li>PA reads during breaks</li>
-          <li>Video-board rotation before kickoff</li>
-          <li>Social recognition post</li>
+          <li>Video-board rotation before and during breaks</li>
+          <li>PA reads from the approved script</li>
+          <li>Static signage and website placement</li>
         </ul>
+        <div className="divider" />
+        <p className="tiny" style={{ margin: 0 }}>Track those season-long obligations on each sponsor's fulfillment checklist.</p>
       </Card>
     </div>
   )
@@ -417,7 +590,7 @@ function EventTasks({ e, tasks, editable }: { e: SportEvent; tasks: Task[]; edit
           </select>
           <input className="input" style={{ flex: 1, minWidth: 200 }} placeholder={kind === 'task' ? 'Add a task…' : `Add "${kind}" reminder…`} value={title} onChange={ev => setTitle(ev.target.value)} />
           <button className="btn primary sm" onClick={() => {
-            const finalTitle = title.trim() || (kind !== 'task' ? `${kind} — ${e.sport} vs ${e.opponent}` : '')
+            const finalTitle = title.trim() || (kind !== 'task' ? `${kind} — ${eventTitle(e, { short: true })}` : '')
             if (!finalTitle) { setErr('Give the task a short title.'); return }
             setErr('')
             add('tasks', {
@@ -451,7 +624,7 @@ function Results({ e, editable }: { e: SportEvent; editable: boolean }) {
     }
     setErr('')
     update('events', e.id, { score: { us: u, them: t, result: u > t ? 'W' : u < t ? 'L' : 'T' }, status: 'completed' } as Partial<SportEvent>)
-    logActivity(`posted final score ${u}–${t} for ${e.sport} vs ${e.opponent}`, `/events/${e.id}`)
+    logActivity(`posted final score ${u}–${t} for ${eventTitle(e, { short: true })}`, `/events/${e.id}`)
     toast('Final score saved')
   }
 

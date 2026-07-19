@@ -51,6 +51,13 @@ export const users: User[] = [
   { id: 'u-read', orgId: 'org-hhs', name: 'Pat Doyle', email: 'pdoyle@homewoodboosters.org', role: 'read_only', title: 'Booster Club Liaison', initials: 'PD', color: '#57534e' },
 ]
 
+const SOCIALS: Record<string, Team['socials']> = {
+  't-fb-v': { instagram: 'https://instagram.com/homewoodpatriotsfb', x: 'https://x.com/HomewoodFB' },
+  't-vb-v': { instagram: 'https://instagram.com/homewoodvolleyball', x: 'https://x.com/HomewoodVB' },
+  't-xc-v': { instagram: 'https://instagram.com/homewoodxctrack' },
+  't-cheer-v': { instagram: 'https://instagram.com/homewoodcheer', facebook: 'https://facebook.com/homewoodcheer' },
+}
+
 export const teams: Team[] = [
   { id: 't-fb-v', orgId: 'org-hhs', sport: 'Football', level: 'Varsity', name: 'Varsity Football', season: 'Fall', seasonLabel: 'Fall 2026', coachIds: ['u-fb'], rosterStatus: 'complete', rosterCount: 68, missingInfo: [], importantDates: [{ label: 'Region play begins', date: '2026-09-04' }, { label: 'Homecoming vs Chelsea', date: '2026-10-08' }, { label: 'Senior Night vs Oak Mountain', date: '2026-10-30' }] },
   { id: 't-fb-jv', orgId: 'org-hhs', sport: 'Football', level: 'JV', name: 'JV Football', season: 'Fall', seasonLabel: 'Fall 2026', coachIds: ['u-fb'], rosterStatus: 'in_progress', rosterCount: 41, missingInfo: ['4 athletes missing physicals on file'], importantDates: [] },
@@ -208,13 +215,38 @@ const DESIGNATIONS: Record<string, string> = {
 const FB_REGION = ['Mountain Brook', 'Pelham', 'Helena', 'Chelsea', 'Calera', 'Briarwood', 'Oak Mountain']
 const VB_AREA = ['Chelsea', 'Briarwood', 'Helena']
 
-// Home varsity football sponsor-of-the-game rotation
-const GAME_SPONSORS: Record<string, string[]> = {
-  'ev-032': ['sp-oncology', 'sp-firstus'],
-  'ev-079': ['sp-robins', 'sp-arc'],
-  'ev-092': ['sp-soho', 'sp-piggly'],
-  'ev-104': ['sp-cotton'],
-  'ev-109': ['sp-bryant'],
+// Game-specific sponsor activations for home varsity football
+const GAME_ACTIVATIONS: Record<string, { sponsorId: string; activation: string; notes?: string }[]> = {
+  'ev-032': [
+    { sponsorId: 'sp-oncology', activation: 'Presenting sponsor', notes: 'Region opener presented by Alabama Oncology — banner + PA open.' },
+    { sponsorId: 'sp-firstus', activation: 'First Down sponsor' },
+  ],
+  'ev-079': [
+    { sponsorId: 'sp-robins', activation: 'Halftime promotion' },
+    { sponsorId: 'sp-arc', activation: 'PAT / Field Goal sponsor' },
+  ],
+  'ev-092': [
+    { sponsorId: 'sp-soho', activation: 'Presenting sponsor', notes: 'Homecoming presented by SoHo Social — concourse activation.' },
+    { sponsorId: 'sp-piggly', activation: 'Halftime promotion', notes: 'Grocery giveaway at midfield.' },
+  ],
+  'ev-104': [{ sponsorId: 'sp-cotton', activation: 'Presenting sponsor' }],
+  'ev-109': [{ sponsorId: 'sp-bryant', activation: 'Senior Night sponsor', notes: 'Bryant Bank presents senior recognition flowers.' }],
+}
+
+const TOURNEY_RE = /tournament|invitational|classic|play date|jamboree|championship|sectional/i
+
+const GAME_MOMENTS: Record<string, { title: string; timing: string; notes?: string }[]> = {
+  'ev-092': [
+    { title: 'Honor 2016 state championship team', timing: 'Between Q1 & Q2', notes: 'Coordinate with alumni office; ~30 former players expected on the track.' },
+    { title: 'Homecoming court presentation', timing: 'Halftime', notes: 'Court lines up at the north end zone at 8 min left in Q2.' },
+  ],
+  'ev-109': [
+    { title: 'Senior recognition — players, band, cheer', timing: 'Pregame', notes: 'Families meet at gate 3 by 6:00 PM; flowers from Bryant Bank table.' },
+    { title: 'Charity check presentation — Patriot Pantry', timing: 'Pregame', notes: 'Booster president presents; photographer needed at midfield 6:40 PM.' },
+  ],
+  'ev-032': [
+    { title: 'Recognize Alabama Oncology survivors group', timing: 'End of Q1', notes: 'Guests seated in section C; PA read from sponsor script.' },
+  ],
 }
 
 function buildEvents(demoToday: string): SportEvent[] {
@@ -235,6 +267,7 @@ function buildEvents(demoToday: string): SportEvent[] {
         status: !filled ? 'unfilled' : hash(slotKey + 'c') > 0.4 || isPast ? 'confirmed' : 'assigned',
       }
     })
+    const eventKind = (r.multiDay || TOURNEY_RE.test(r.opponent)) ? 'tournament' : 'single'
     const broadcast = isVarsityFB || (r.sport === 'Volleyball' && r.level === 'Varsity' && isHome)
     const score = isPast && r.homeAway !== 'tbd' && !['Cross Country'].includes(r.sport) && r.opponent !== 'TBD'
       ? (() => {
@@ -249,7 +282,7 @@ function buildEvents(demoToday: string): SportEvent[] {
     const ev: SportEvent = {
       id: r.id, orgId: 'org-hhs', teamId, sport: r.sport, level: r.level,
       date: r.date, time: r.time, homeAway: r.homeAway as SportEvent['homeAway'],
-      opponent: r.opponent, venue: r.venue,
+      eventKind, opponent: r.opponent, venue: r.venue,
       gameType: r.sport === 'Football' && FB_REGION.includes(r.opponent) ? 'region'
         : r.sport === 'Volleyball' && VB_AREA.includes(r.opponent) ? 'area' : 'non',
       status: isPast ? 'completed' : r.date <= addDaysISO(demoToday, 10) ? 'confirmed' : 'scheduled',
@@ -258,7 +291,19 @@ function buildEvents(demoToday: string): SportEvent[] {
       broadcastLink: broadcast ? 'https://www.nfhsnetwork.com/schools/homewood-high-school' : undefined,
       broadcastStatus: broadcast ? (isPast ? 'archived' : isVarsityFB ? 'confirmed' : 'planned') : 'none',
       notes: r.notes, checkoutTime: r.checkoutTime, multiDay: r.multiDay,
-      staffSlots, runOfShow: [], sponsorIds: GAME_SPONSORS[r.id] ?? [],
+      staffSlots, runOfShow: [],
+      sponsorActivations: (GAME_ACTIVATIONS[r.id] ?? []).map((a, i) => ({ id: `act-${r.id}-${i}`, ...a })),
+      gameMoments: (GAME_MOMENTS[r.id] ?? []).map((m, i) => ({ id: `gm-${r.id}-${i}`, ...m, ownerId: 'u-ad' })),
+      broadcastChecklist: broadcast
+        ? [
+            { id: 'crew', label: 'Broadcast crew assigned', status: (isPast || hash(r.id + 'bc1') > 0.3 ? 'ok' : 'pending') as 'ok' | 'pending' },
+            { id: 'location', label: 'Setup location confirmed', status: (isPast || isHome ? 'ok' : hash(r.id + 'bc2') > 0.5 ? 'ok' : 'pending') as 'ok' | 'pending' },
+            { id: 'parking', label: 'Unload / special parking arranged', status: (isPast ? 'ok' : isHome ? 'na' : hash(r.id + 'bc3') > 0.6 ? 'ok' : 'pending') as 'ok' | 'na' | 'pending' },
+            { id: 'internet', label: 'Internet availability verified', status: (isPast || isHome ? 'ok' : hash(r.id + 'bc4') > 0.55 ? 'ok' : 'pending') as 'ok' | 'pending' },
+            { id: 'power', label: 'Power availability verified', status: (isPast || isHome ? 'ok' : hash(r.id + 'bc5') > 0.5 ? 'ok' : 'pending') as 'ok' | 'pending' },
+            { id: 'link', label: 'Broadcast link published', status: 'ok' },
+          ]
+        : undefined,
       score,
     }
     return ev
@@ -283,14 +328,16 @@ function buildEvents(demoToday: string): SportEvent[] {
   events.push(
     {
       id: 'ev-pre-01', orgId: 'org-hhs', teamId: 't-fb-v', sport: 'Football', level: 'Varsity',
-      date: '2026-08-14', time: '18:00', homeAway: 'home', opponent: 'Fan Day & Media Night', venue: 'Waldrop Stadium',
-      status: 'completed', broadcastStatus: 'none', staffSlots: [], runOfShow: [], sponsorIds: ['sp-oncology'],
+      date: '2026-08-14', time: '18:00', homeAway: 'home', eventKind: 'noncomp', opponent: 'Fan Day & Media Night', venue: 'Waldrop Stadium',
+      status: 'completed', broadcastStatus: 'none', staffSlots: [], runOfShow: [],
+      sponsorActivations: [{ id: 'act-pre-01', sponsorId: 'sp-oncology', activation: 'Event sponsor', notes: 'Sponsor booths on concourse.' }],
+      gameMoments: [],
       notes: 'Team photos, headshots, sponsor booths on concourse.',
     },
     {
       id: 'ev-pre-02', orgId: 'org-hhs', teamId: 't-cheer-v', sport: 'Cheerleading', level: 'Varsity',
-      date: '2026-11-21', time: '09:00', homeAway: 'away', opponent: 'AHSAA Regional Competition', venue: 'Birmingham CrossPlex',
-      status: 'scheduled', broadcastStatus: 'none', staffSlots: [], runOfShow: [], sponsorIds: [],
+      date: '2026-11-21', time: '09:00', homeAway: 'away', eventKind: 'tournament', opponent: 'AHSAA Regional Competition', venue: 'Birmingham CrossPlex',
+      status: 'scheduled', broadcastStatus: 'none', staffSlots: [], runOfShow: [], sponsorActivations: [], gameMoments: [],
     },
   )
   return events
@@ -430,14 +477,14 @@ function buildTasks(events: SportEvent[], demoToday: string): Task[] {
 
   // Content reminders for home varsity football + volleyball senior night window
   const contentTargets = events.filter(e =>
-    e.homeAway === 'home' && e.level === 'Varsity' && (e.sport === 'Football' || (e.sport === 'Volleyball' && !!e.designation)) && e.opponent !== 'TBD' && !e.multiDay,
+    e.homeAway === 'home' && e.level === 'Varsity' && e.eventKind === 'single' && (e.sport === 'Football' || (e.sport === 'Volleyball' && !!e.designation)) && e.opponent !== 'TBD',
   )
   for (const e of contentTargets) {
     const past = e.date < demoToday
     add({ title: `Gameday post — ${e.sport} vs ${e.opponent}`, kind: 'content', contentKind: 'Gameday Post', eventId: e.id, teamId: e.teamId, assigneeId: 'u-comms', dueDate: e.date, status: past ? 'done' : 'open', priority: 'normal' })
     add({ title: `Final score — ${e.sport} vs ${e.opponent}`, kind: 'content', contentKind: 'Final Score', eventId: e.id, teamId: e.teamId, assigneeId: 'u-comms', dueDate: e.date, status: past ? 'done' : 'open', priority: 'normal' })
     if (e.ticketLink) add({ title: `Promote ticket link — vs ${e.opponent}`, kind: 'content', contentKind: 'Ticket Link Promo', eventId: e.id, teamId: e.teamId, assigneeId: 'u-intern', dueDate: addDaysISO(e.date, -2), status: past ? 'done' : 'open', priority: 'normal' })
-    if (e.sponsorIds.length) add({ title: `Recognize game sponsor — vs ${e.opponent}`, kind: 'content', contentKind: 'Sponsor Recognition', eventId: e.id, sponsorId: e.sponsorIds[0], assigneeId: 'u-comms', dueDate: addDaysISO(e.date, -1), status: past ? 'done' : 'open', priority: 'normal' })
+    if (e.sponsorActivations.length) add({ title: `Recognize game sponsor — vs ${e.opponent}`, kind: 'content', contentKind: 'Sponsor Recognition', eventId: e.id, sponsorId: e.sponsorActivations[0].sponsorId, assigneeId: 'u-comms', dueDate: addDaysISO(e.date, -1), status: past ? 'done' : 'open', priority: 'normal' })
     if (e.sport === 'Football') add({ title: `Photo gallery — vs ${e.opponent}`, kind: 'content', contentKind: 'Photo Gallery', eventId: e.id, assigneeId: 'u-photo', dueDate: addDaysISO(e.date, 1), status: past ? (hash(e.id) > 0.3 ? 'done' : 'open') : 'open', priority: 'low' })
   }
 
@@ -511,13 +558,23 @@ const OPPONENT_LOGOS: Record<string, string> = {
 
 const TINTS = ['#b45309', '#166534', '#1d4ed8', '#7c3aed', '#be185d', '#0e7490', '#ca8a04', '#4d7c0f', '#9d174d', '#ea580c', '#0369a1', '#57534e']
 
+const OPPONENT_PROFILES: Record<string, Partial<Opponent>> = {
+  'Mountain Brook': { mascot: 'Spartans', city: 'Mountain Brook', state: 'AL', address: '3650 Bethune Dr, Mountain Brook, AL 35223', website: 'https://www.mtnbrook.k12.al.us', colors: 'Green & Gold', notes: 'Rivalry game — expect large visiting crowd. Visiting media park in lot B.' },
+  'Hoover': { mascot: 'Buccaneers', city: 'Hoover', state: 'AL', address: '1000 Buccaneer Dr, Hoover, AL 35244', website: 'https://www.hoovercityschools.net', colors: 'Orange & Navy', notes: 'Broadcast setups go through their press box coordinator.' },
+  'Chelsea': { mascot: 'Hornets', city: 'Chelsea', state: 'AL', address: '10510 Hwy 11, Chelsea, AL 35043', website: 'https://www.shelbyed.k12.al.us/chhs', colors: 'Maroon & Gold' },
+  'Pelham': { mascot: 'Panthers', city: 'Pelham', state: 'AL', address: '2500 Panther Cir, Pelham, AL 35124', colors: 'Blue & White' },
+  'Helena': { mascot: 'Huskies', city: 'Helena', state: 'AL', address: '1310 Hillsboro Pkwy, Helena, AL 35080', colors: 'Navy & Vegas Gold' },
+  'Briarwood': { mascot: 'Lions', city: 'Birmingham', state: 'AL', address: '6255 Cahaba Valley Rd, Birmingham, AL 35242', colors: 'Green & White' },
+}
+
 function buildOpponents(events: SportEvent[]): Opponent[] {
-  const names = [...new Set(events.map(e => e.opponent))].filter(n => n && n !== 'TBD').sort()
+  const names = [...new Set(events.filter(e => e.eventKind === 'single').map(e => e.opponent))].filter(n => n && n !== 'TBD').sort()
   return names.map(name => ({
     id: 'opp-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
     orgId: 'org-hhs', name,
     logoAssetId: OPPONENT_LOGOS[name],
     tint: TINTS[Math.floor(hash('opp' + name) * TINTS.length) % TINTS.length],
+    ...OPPONENT_PROFILES[name],
   }))
 }
 
@@ -526,16 +583,16 @@ export function buildSeedState(): AppState {
   const events = buildEvents(demoToday)
   const opponents = buildOpponents(events)
   const byName = new Map(opponents.map(o => [o.name, o.id]))
-  for (const e of events) e.opponentId = byName.get(e.opponent)
+  for (const e of events) if (e.eventKind === 'single') e.opponentId = byName.get(e.opponent)
   return {
-    version: 6,
+    version: 7,
     orgs,
     currentOrgId: 'org-hhs',
     currentUserId: 'u-ad',
     demoToday,
     showSampleResults: true,
     users,
-    teams: teams.map(t => ({ ...t, roster: t.id === 't-ffb-jv' ? [] : buildRoster(t) })),
+    teams: teams.map(t => ({ ...t, socials: SOCIALS[t.id], roster: t.id === 't-ffb-jv' ? [] : buildRoster(t) })),
     events,
     opponents,
     sponsors,
