@@ -19,6 +19,7 @@ export const I = {
   plus: () => <svg {...base} width={15} height={15}><path d="M12 5v14M5 12h14"/></svg>,
   check: () => <svg {...base} width={12} height={12} strokeWidth={3}><path d="M20 6 9 17l-5-5"/></svg>,
   x: () => <svg {...base} width={15} height={15}><path d="M18 6 6 18M6 6l12 12"/></svg>,
+  edit: () => <svg {...base} width={14} height={14}><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
   warn: () => <svg {...base} width={15} height={15}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></svg>,
   menu: () => <svg {...base}><path d="M4 6h16M4 12h16M4 18h16"/></svg>,
   sun: () => <svg {...base}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>,

@@ -210,6 +210,7 @@ export interface SponsorNote {
   at: string
   authorId: string
   text: string
+  edited?: boolean
 }
 
 /** Pre-sale pipeline: idea → outreach → maybe → yes/no */
