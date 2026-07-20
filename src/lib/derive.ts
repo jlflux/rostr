@@ -191,7 +191,7 @@ export const PIPELINE_STAGES: { value: PipelineStage; label: string; hint: strin
   { value: 'prospect', label: 'Prospect', hint: 'Talked about internally' },
   { value: 'contacted', label: 'Reached out', hint: 'Outreach sent, waiting to hear back' },
   { value: 'maybe', label: 'Maybe', hint: 'Interested but not committed' },
-  { value: 'committed', label: 'Committed', hint: 'Said yes — agreement in place' },
+  { value: 'committed', label: 'Accepted', hint: 'Said yes — now a sponsor with an agreement' },
   { value: 'declined', label: 'Declined', hint: 'Said no this season' },
 ]
 
@@ -259,4 +259,63 @@ export function can(role: string, action: 'edit' | 'finance' | 'admin'): boolean
   if (action === 'finance') return ['platform_owner', 'school_admin', 'finance'].includes(role)
   if (action === 'admin') return ['platform_owner', 'school_admin'].includes(role)
   return ['platform_owner', 'school_admin', 'comms_admin', 'finance', 'coach', 'event_staff'].includes(role)
+}
+
+export type Section =
+  | 'dashboard' | 'calendar' | 'events' | 'opponents' | 'sponsors'
+  | 'teams' | 'requests' | 'assets' | 'reports' | 'settings'
+
+/**
+ * What each role is allowed to see. Event staff get only the gameday basics
+ * (their events, calendar, assets); coaches add teams/requests/opponents but
+ * not sponsor money or reports; admins and above see everything.
+ */
+export function canView(role: string, section: Section): boolean {
+  const ALL: Section[] = ['dashboard', 'calendar', 'events', 'opponents', 'sponsors', 'teams', 'requests', 'assets', 'reports', 'settings']
+  const BY_ROLE: Record<string, Section[]> = {
+    platform_owner: ALL,
+    school_admin: ALL,
+    comms_admin: ALL,
+    finance: ALL,
+    read_only: ALL,
+    coach: ['dashboard', 'calendar', 'events', 'opponents', 'teams', 'requests', 'assets', 'settings'],
+    event_staff: ['dashboard', 'calendar', 'events', 'assets', 'settings'],
+  }
+  return (BY_ROLE[role] ?? ['dashboard']).includes(section)
+}
+
+// ---------- Sponsor money: a sponsor may have multiple "buys" (agreements) ----------
+
+export function sponsorAgreements(s: AppState, sponsorId: string): Agreement[] {
+  return agreements(s).filter(a => a.sponsorId === sponsorId)
+}
+
+export function sponsorTotal(s: AppState, sponsorId: string): number {
+  return sponsorAgreements(s, sponsorId).reduce((n, a) => n + a.amount, 0)
+}
+
+export function sponsorPaid(s: AppState, sponsorId: string): number {
+  return sponsorAgreements(s, sponsorId).reduce((n, a) => n + agreementPaid(a), 0)
+}
+
+export function sponsorPaymentStatus(s: AppState, sponsorId: string): 'paid' | 'partial' | 'unpaid' {
+  const total = sponsorTotal(s, sponsorId)
+  const paid = sponsorPaid(s, sponsorId)
+  if (total === 0) return 'unpaid'
+  if (paid >= total) return 'paid'
+  return paid > 0 ? 'partial' : 'unpaid'
+}
+
+/** Money earmarked to each team/department across all of a sponsor's buys. */
+export function sponsorAllocations(s: AppState, sponsorId: string): { target: string; amount: number }[] {
+  const totals = new Map<string, number>()
+  for (const a of sponsorAgreements(s, sponsorId)) {
+    for (const al of a.allocations ?? []) totals.set(al.target, (totals.get(al.target) ?? 0) + al.amount)
+  }
+  return [...totals.entries()].map(([target, amount]) => ({ target, amount })).sort((a, b) => b.amount - a.amount)
+}
+
+export function allocationLabel(s: AppState, target: string): string {
+  if (target === 'athletics') return 'Athletic department'
+  return teams(s).find(t => t.id === target)?.name ?? target
 }

@@ -6,7 +6,7 @@ import type {
 
 // The prototype runs on a frozen "demo clock" so the fall 2026 season data
 // reads as an in-progress season. Changeable in Settings.
-export const DEFAULT_DEMO_TODAY = '2026-09-25'
+export const DEFAULT_DEMO_TODAY = '2026-08-20'
 
 // Deterministic pseudo-random from a string, so seeded data is stable.
 function hash(s: string): number {
@@ -33,22 +33,16 @@ export const orgs: Organization[] = [
 ]
 
 export const users: User[] = [
-  { id: 'u-owner', orgId: 'org-hhs', name: 'Alex Rivera', email: 'alex@headqtrs.app', role: 'platform_owner', title: 'HeadQtrs Platform Owner', initials: 'AR', color: '#6d28d9' },
-  { id: 'u-ad', orgId: 'org-hhs', name: 'Marcus Cole', email: 'mcole@homewood.k12.al.us', role: 'school_admin', title: 'Athletic Director', initials: 'MC', color: '#d60000' },
-  { id: 'u-comms', orgId: 'org-hhs', name: 'Katie Bramlett', email: 'kbramlett@homewood.k12.al.us', role: 'comms_admin', title: 'Athletics Communications Director', initials: 'KB', color: '#0e7490' },
-  { id: 'u-fin', orgId: 'org-hhs', name: 'Sandra Ellis', email: 'sellis@homewood.k12.al.us', role: 'finance', title: 'Athletics Bookkeeper', initials: 'SE', color: '#15803d' },
-  { id: 'u-fb', orgId: 'org-hhs', name: 'Ben Ward', email: 'bward@homewood.k12.al.us', role: 'coach', title: 'Head Football Coach', initials: 'BW', color: '#b45309', teamIds: ['t-fb-v', 't-fb-jv', 't-fb-fr'] },
-  { id: 'u-vb', orgId: 'org-hhs', name: 'Lauren Tate', email: 'ltate@homewood.k12.al.us', role: 'coach', title: 'Head Volleyball Coach', initials: 'LT', color: '#be185d', teamIds: ['t-vb-v', 't-vb-jv', 't-vb-fr'] },
-  { id: 'u-ffb', orgId: 'org-hhs', name: 'Dana Brooks', email: 'dbrooks@homewood.k12.al.us', role: 'coach', title: 'Head Flag Football Coach', initials: 'DB', color: '#7c3aed', teamIds: ['t-ffb-v', 't-ffb-jv'] },
-  { id: 'u-xc', orgId: 'org-hhs', name: 'Chris Nolan', email: 'cnolan@homewood.k12.al.us', role: 'coach', title: 'Head Cross Country Coach', initials: 'CN', color: '#0369a1', teamIds: ['t-xc-v', 't-xc-jv'] },
-  { id: 'u-cheer', orgId: 'org-hhs', name: 'Emily Ross', email: 'eross@homewood.k12.al.us', role: 'coach', title: 'Cheerleading Sponsor', initials: 'ER', color: '#c2410c', teamIds: ['t-cheer-v'] },
-  { id: 'u-pa', orgId: 'org-hhs', name: 'Ray Simmons', email: 'ray.simmons@gmail.com', role: 'event_staff', title: 'PA Announcer', initials: 'RS', color: '#374151' },
-  { id: 'u-tix', orgId: 'org-hhs', name: 'Gloria Chen', email: 'gloria.chen@gmail.com', role: 'event_staff', title: 'Gate & Ticketing', initials: 'GC', color: '#4d7c0f' },
-  { id: 'u-vboard', orgId: 'org-hhs', name: 'Jamal Foster', email: 'jamal.foster@gmail.com', role: 'event_staff', title: 'Video-board Operator', initials: 'JF', color: '#1d4ed8' },
-  { id: 'u-photo', orgId: 'org-hhs', name: 'Priya Nair', email: 'priya@nairphoto.com', role: 'event_staff', title: 'Photographer', initials: 'PN', color: '#9d174d' },
-  { id: 'u-admin2', orgId: 'org-hhs', name: 'Hank Odom', email: 'hodom@homewood.k12.al.us', role: 'event_staff', title: 'Assistant AD / Game Admin', initials: 'HO', color: '#12223c' },
-  { id: 'u-intern', orgId: 'org-hhs', name: 'Will Hastings', email: 'whastings27@homewood.k12.al.us', role: 'event_staff', title: 'Student Intern', initials: 'WH', color: '#a16207' },
-  { id: 'u-read', orgId: 'org-hhs', name: 'Pat Doyle', email: 'pdoyle@homewoodboosters.org', role: 'read_only', title: 'Booster Club Liaison', initials: 'PD', color: '#57534e' },
+  { id: 'u-owner', orgId: 'org-hhs', name: 'Jon Lunceford', email: 'jl@fluxmedia.org', role: 'platform_owner', title: 'Platform Owner', initials: 'JL', color: '#ea1a45', status: 'active' },
+  { id: 'u-ad', orgId: 'org-hhs', name: 'Rick Baguley', email: 'rbaguley@homewood.k12.al.us', role: 'school_admin', title: 'Administrator', initials: 'RB', color: '#d60000', status: 'active' },
+  { id: 'u-comms', orgId: 'org-hhs', name: 'Debbie Chancellor', email: 'dchancellor@homewood.k12.al.us', role: 'school_admin', title: 'Administrator', initials: 'DC', color: '#0e7490', status: 'active' },
+  { id: 'u-fin', orgId: 'org-hhs', name: 'Debbie Corum', email: 'dcorum@homewood.k12.al.us', role: 'school_admin', title: 'Administrator', initials: 'DC', color: '#15803d', status: 'active' },
+  { id: 'u-fb', orgId: 'org-hhs', name: 'Ben Berguson', email: 'bberguson@homewood.k12.al.us', role: 'coach', title: 'Head Football Coach', initials: 'BB', color: '#b45309', status: 'active', teamIds: ['t-fb-v', 't-fb-jv', 't-fb-fr'] },
+  { id: 'u-vb', orgId: 'org-hhs', name: 'Grace Burgess', email: 'gburgess@homewood.k12.al.us', role: 'coach', title: 'Head Volleyball Coach', initials: 'GB', color: '#be185d', status: 'active', teamIds: ['t-vb-v', 't-vb-jv', 't-vb-fr'] },
+  { id: 'u-ffb', orgId: 'org-hhs', name: 'Latta Johnston', email: 'ljohnston@homewood.k12.al.us', role: 'coach', title: 'Head Flag Football Coach', initials: 'LJ', color: '#7c3aed', status: 'active', teamIds: ['t-ffb-v', 't-ffb-jv'] },
+  { id: 'u-xc', orgId: 'org-hhs', name: 'Kelly McNair', email: 'kmcnair@homewood.k12.al.us', role: 'coach', title: 'Head Cross Country & Cheer Coach', initials: 'KM', color: '#0369a1', status: 'active', teamIds: ['t-xc-v', 't-xc-jv', 't-cheer-v'] },
+  { id: 'u-pa', orgId: 'org-hhs', name: 'Curt Bloom', email: 'curt.bloom@gmail.com', role: 'event_staff', title: 'Event Staff', initials: 'CB', color: '#374151', status: 'active' },
+  { id: 'u-admin2', orgId: 'org-hhs', name: 'Chet Walker', email: 'chet.walker@gmail.com', role: 'event_staff', title: 'Event Staff', initials: 'CW', color: '#12223c', status: 'active' },
 ]
 
 const SOCIALS: Record<string, Team['socials']> = {
@@ -69,7 +63,7 @@ export const teams: Team[] = [
   { id: 't-ffb-jv', orgId: 'org-hhs', sport: 'Flag Football', level: 'JV', gender: 'Girls', name: 'JV Flag Football', season: 'Fall', seasonLabel: 'Fall 2026', coachIds: ['u-ffb'], rosterStatus: 'not_started', rosterCount: 0, missingInfo: ['Roster not submitted', 'Team photo not scheduled'], importantDates: [] },
   { id: 't-xc-v', orgId: 'org-hhs', sport: 'Cross Country', level: 'Varsity', gender: 'Coed', name: 'Varsity Cross Country', season: 'Fall', seasonLabel: 'Fall 2026', coachIds: ['u-xc'], rosterStatus: 'complete', rosterCount: 54, missingInfo: [], importantDates: [{ label: 'Section meet', date: '2026-11-05' }, { label: 'State meet — Oakville', date: '2026-11-14' }] },
   { id: 't-xc-jv', orgId: 'org-hhs', sport: 'Cross Country', level: 'JV', gender: 'Coed', name: 'JV Cross Country', season: 'Fall', seasonLabel: 'Fall 2026', coachIds: ['u-xc'], rosterStatus: 'complete', rosterCount: 38, missingInfo: [], importantDates: [] },
-  { id: 't-cheer-v', orgId: 'org-hhs', sport: 'Cheerleading', level: 'Varsity', gender: 'Coed', name: 'Varsity Cheerleading', season: 'Fall', seasonLabel: 'Fall 2026', coachIds: ['u-cheer'], rosterStatus: 'complete', rosterCount: 24, missingInfo: ['Competition schedule not entered'], importantDates: [{ label: 'Regional competition', date: '2026-11-21' }] },
+  { id: 't-cheer-v', orgId: 'org-hhs', sport: 'Cheerleading', level: 'Varsity', gender: 'Coed', name: 'Varsity Cheerleading', season: 'Fall', seasonLabel: 'Fall 2026', coachIds: ['u-xc'], rosterStatus: 'complete', rosterCount: 24, missingInfo: ['Competition schedule not entered'], importantDates: [{ label: 'Regional competition', date: '2026-11-21' }] },
 ]
 
 const teamBySportLevel = new Map(teams.map(t => [`${t.sport}|${t.level}`, t.id]))
@@ -172,12 +166,31 @@ export const agreements: Agreement[] = sponsorSeeds.map(s => {
     }))
   return {
     id: `ag-${s.id.slice(3)}`, orgId: 'org-hhs', sponsorId: s.id, season: 'Fall 2026',
+    label: `${s.tier} sponsorship`,
     amount: s.amount,
     paymentStatus: s.paid >= s.amount ? 'paid' : s.paid > 0 ? 'partial' : 'unpaid',
     payments: s.paid > 0 ? [{ id: `${s.id}-p1`, date: s.paidDate ?? '2026-07-01', amount: s.paid, method: 'Check' }] : [],
     fulfillment,
+    allocations: [{ id: `${s.id}-alloc-ath`, target: 'athletics', amount: s.amount }],
     signedDate: s.paidDate ?? undefined,
   }
+})
+
+// Example of a second buy under one business: Alabama Oncology later added a
+// $20,000 department donation on top of their original Red sponsorship, split
+// across football, cheer, and the athletic department.
+agreements.push({
+  id: 'ag-oncology-2', orgId: 'org-hhs', sponsorId: 'sp-oncology', season: 'Fall 2026',
+  label: 'Additional department donation',
+  amount: 20000, paymentStatus: 'paid',
+  payments: [{ id: 'oncology-2-p1', date: '2026-08-10', amount: 20000, method: 'ACH transfer' }],
+  fulfillment: [],
+  allocations: [
+    { id: 'oncology-2-a1', target: 't-fb-v', amount: 8000 },
+    { id: 'oncology-2-a2', target: 't-cheer-v', amount: 4000 },
+    { id: 'oncology-2-a3', target: 'athletics', amount: 8000 },
+  ],
+  signedDate: '2026-08-10',
 })
 
 // ---------- Events: enrich the imported fall composite schedule ----------
@@ -193,14 +206,14 @@ const FIELD_ROLES: StaffRole[] = ['Game Administrator', 'Ticket Worker', 'Traine
 
 const staffPool: Record<string, string[]> = {
   'Game Administrator': ['u-admin2', 'u-ad'],
-  'Ticket Worker': ['u-tix', 'u-intern'],
+  'Ticket Worker': ['u-pa', 'u-admin2'],
   'PA Announcer': ['u-pa'],
-  'Scoreboard Operator': ['u-vboard', 'u-intern'],
-  'Video-board Operator': ['u-vboard'],
-  'Broadcast Crew': ['u-intern'],
-  'Photographer': ['u-photo'],
-  'Social Media Coverage': ['u-comms', 'u-intern'],
-  'Student Intern': ['u-intern'],
+  'Scoreboard Operator': ['u-admin2', 'u-admin2'],
+  'Video-board Operator': ['u-admin2'],
+  'Broadcast Crew': ['u-admin2'],
+  'Photographer': ['u-pa'],
+  'Social Media Coverage': ['u-comms', 'u-admin2'],
+  'Student Intern': ['u-admin2'],
   'Trainer': ['u-admin2'],
 }
 
@@ -313,12 +326,12 @@ function buildEvents(demoToday: string): SportEvent[] {
   const nextHomeFB = events.find(e => e.sport === 'Football' && e.level === 'Varsity' && e.homeAway === 'home' && e.date >= demoToday)
   if (nextHomeFB) {
     nextHomeFB.runOfShow = [
-      { id: 'ros-1', time: '17:30', item: 'Gates open — ticket scanners live', ownerId: 'u-tix', done: false },
-      { id: 'ros-2', time: '17:45', item: 'Video board loop: sponsor rotation + hype video', ownerId: 'u-vboard', done: false },
+      { id: 'ros-1', time: '17:30', item: 'Gates open — ticket scanners live', ownerId: 'u-pa', done: false },
+      { id: 'ros-2', time: '17:45', item: 'Video board loop: sponsor rotation + hype video', ownerId: 'u-admin2', done: false },
       { id: 'ros-3', time: '18:20', item: 'Band pregame + Patriot Walk', ownerId: 'u-admin2', done: false },
       { id: 'ros-4', time: '18:40', item: 'Starting lineups + sponsor PA reads (Alabama Oncology presenting)', ownerId: 'u-pa', done: false },
       { id: 'ros-5', time: '18:55', item: 'National anthem — HHS choir', ownerId: 'u-admin2', done: false },
-      { id: 'ros-6', time: '19:00', item: 'Kickoff — First Down sponsor graphics armed', ownerId: 'u-vboard', done: false },
+      { id: 'ros-6', time: '19:00', item: 'Kickoff — First Down sponsor graphics armed', ownerId: 'u-admin2', done: false },
       { id: 'ros-7', time: '20:00', item: 'Halftime: Homecoming court presentation', ownerId: 'u-comms', done: false },
       { id: 'ros-8', time: '21:30', item: 'Final score post + photo gallery upload', ownerId: 'u-comms', done: false },
     ]
@@ -395,7 +408,7 @@ const requests: CoachRequest[] = [
     attachments: [], status: 'reviewed', internalNotes: [], createdAt: '2026-09-23T14:10:00', assigneeId: 'u-comms',
   },
   {
-    id: 'req-007', orgId: 'org-hhs', coachId: 'u-cheer', teamId: 't-cheer-v', type: 'Website Update',
+    id: 'req-007', orgId: 'org-hhs', coachId: 'u-xc', teamId: 't-cheer-v', type: 'Website Update',
     title: 'Add competition schedule to cheer page', neededBy: '2026-10-15', priority: 'low',
     description: 'Regional and state competition dates need to be added to the cheerleading page. Dates attached.',
     attachments: ['cheer_comp_dates.docx'], status: 'submitted', internalNotes: [], createdAt: '2026-09-25T09:05:00', assigneeId: null,
@@ -414,7 +427,7 @@ const requests: CoachRequest[] = [
     description: 'Two freshman athletes missed picture day. Can we schedule makeup headshots before region play?',
     attachments: [], status: 'completed', internalNotes: [
       { id: 'rn-009-1', at: '2026-09-17T12:00:00', authorId: 'u-comms', text: 'Makeup shoot completed 9/17; uploading to asset library.' },
-    ], createdAt: '2026-09-12T13:30:00', assigneeId: 'u-photo',
+    ], createdAt: '2026-09-12T13:30:00', assigneeId: 'u-pa',
   },
   {
     id: 'req-010', orgId: 'org-hhs', coachId: 'u-fb', teamId: 't-fb-v', type: 'Signing Announcement',
@@ -459,7 +472,7 @@ const assetSeeds: Array<Partial<Asset> & { id: string; name: string; type: Asset
 
 const assets: Asset[] = assetSeeds.map((a, i) => ({
   orgId: 'org-hhs', season: 'Fall 2026', approvalStatus: 'approved',
-  uploadedById: i % 3 === 0 ? 'u-comms' : i % 3 === 1 ? 'u-photo' : 'u-intern',
+  uploadedById: i % 3 === 0 ? 'u-comms' : i % 3 === 1 ? 'u-pa' : 'u-admin2',
   uploadedAt: addDaysISO('2026-08-01', i * 2),
   sport: undefined, teamId: undefined, sponsorId: undefined,
   ...a,
@@ -483,15 +496,15 @@ function buildTasks(events: SportEvent[], demoToday: string): Task[] {
     const past = e.date < demoToday
     add({ title: `Gameday post — ${e.sport} vs ${e.opponent}`, kind: 'content', contentKind: 'Gameday Post', eventId: e.id, teamId: e.teamId, assigneeId: 'u-comms', dueDate: e.date, status: past ? 'done' : 'open', priority: 'normal' })
     add({ title: `Final score — ${e.sport} vs ${e.opponent}`, kind: 'content', contentKind: 'Final Score', eventId: e.id, teamId: e.teamId, assigneeId: 'u-comms', dueDate: e.date, status: past ? 'done' : 'open', priority: 'normal' })
-    if (e.ticketLink) add({ title: `Promote ticket link — vs ${e.opponent}`, kind: 'content', contentKind: 'Ticket Link Promo', eventId: e.id, teamId: e.teamId, assigneeId: 'u-intern', dueDate: addDaysISO(e.date, -2), status: past ? 'done' : 'open', priority: 'normal' })
+    if (e.ticketLink) add({ title: `Promote ticket link — vs ${e.opponent}`, kind: 'content', contentKind: 'Ticket Link Promo', eventId: e.id, teamId: e.teamId, assigneeId: 'u-admin2', dueDate: addDaysISO(e.date, -2), status: past ? 'done' : 'open', priority: 'normal' })
     if (e.sponsorActivations.length) add({ title: `Recognize game sponsor — vs ${e.opponent}`, kind: 'content', contentKind: 'Sponsor Recognition', eventId: e.id, sponsorId: e.sponsorActivations[0].sponsorId, assigneeId: 'u-comms', dueDate: addDaysISO(e.date, -1), status: past ? 'done' : 'open', priority: 'normal' })
-    if (e.sport === 'Football') add({ title: `Photo gallery — vs ${e.opponent}`, kind: 'content', contentKind: 'Photo Gallery', eventId: e.id, assigneeId: 'u-photo', dueDate: addDaysISO(e.date, 1), status: past ? (hash(e.id) > 0.3 ? 'done' : 'open') : 'open', priority: 'low' })
+    if (e.sport === 'Football') add({ title: `Photo gallery — vs ${e.opponent}`, kind: 'content', contentKind: 'Photo Gallery', eventId: e.id, assigneeId: 'u-pa', dueDate: addDaysISO(e.date, 1), status: past ? (hash(e.id) > 0.3 ? 'done' : 'open') : 'open', priority: 'low' })
   }
 
   // Operational + sponsorship tasks (mix of overdue and upcoming vs demo clock)
   add({ title: 'Collect Waverly payment — invoice 45 days out', kind: 'task', sponsorId: 'sp-waverly', assigneeId: 'u-fin', dueDate: '2026-09-15', status: 'open', priority: 'high' })
   add({ title: 'Chase Dazzio & Freidman logo files', kind: 'task', sponsorId: 'sp-dazzio', assigneeId: 'u-comms', dueDate: '2026-09-18', status: 'open', priority: 'high' })
-  add({ title: 'Town & Country updated logo → video board', kind: 'task', sponsorId: 'sp-towncountry', assigneeId: 'u-vboard', dueDate: '2026-09-22', status: 'in_progress', priority: 'normal' })
+  add({ title: 'Town & Country updated logo → video board', kind: 'task', sponsorId: 'sp-towncountry', assigneeId: 'u-admin2', dueDate: '2026-09-22', status: 'in_progress', priority: 'normal' })
   add({ title: 'Upload SoHo Social commercial to NFHS', kind: 'task', sponsorId: 'sp-soho', assigneeId: 'u-comms', dueDate: '2026-09-26', status: 'open', priority: 'normal' })
   add({ title: 'Send Q2 sponsorship statement to HAF board', kind: 'task', assigneeId: 'u-fin', dueDate: '2026-09-30', status: 'open', priority: 'normal' })
   add({ title: 'Confirm officials crew — Homecoming vs Chelsea', kind: 'task', eventId: 'ev-092', assigneeId: 'u-ad', dueDate: '2026-10-01', status: 'open', priority: 'high' })
@@ -499,7 +512,7 @@ function buildTasks(events: SportEvent[], demoToday: string): Task[] {
   add({ title: 'Renewal outreach list for spring sponsors', kind: 'task', assigneeId: 'u-fin', dueDate: '2026-10-15', status: 'open', priority: 'low' })
   add({ title: 'Follow up: First US Bank First-Down package', kind: 'task', sponsorId: 'sp-firstus', assigneeId: 'u-ad', dueDate: '2026-09-12', status: 'open', priority: 'high' })
   add({ title: 'Approve PA sponsor scripts for October', kind: 'task', assigneeId: 'u-ad', dueDate: '2026-09-24', status: 'in_progress', priority: 'normal' })
-  add({ title: 'Broadcast crew training — new scoreboard overlay', kind: 'task', assigneeId: 'u-vboard', dueDate: '2026-09-29', status: 'open', priority: 'normal' })
+  add({ title: 'Broadcast crew training — new scoreboard overlay', kind: 'task', assigneeId: 'u-admin2', dueDate: '2026-09-29', status: 'open', priority: 'normal' })
   add({ title: 'Reconcile gate deposits — weeks 3–4', kind: 'task', assigneeId: 'u-fin', dueDate: '2026-09-23', status: 'done', priority: 'normal' })
   return tasks
 }
@@ -507,11 +520,11 @@ function buildTasks(events: SportEvent[], demoToday: string): Task[] {
 // ---------- Activity feed ----------
 
 const activity: Activity[] = [
-  { id: 'act-01', orgId: 'org-hhs', at: '2026-09-25T09:05:00', userId: 'u-cheer', text: 'submitted request “Add competition schedule to cheer page”', link: '/requests/req-007' },
+  { id: 'act-01', orgId: 'org-hhs', at: '2026-09-25T09:05:00', userId: 'u-xc', text: 'submitted request “Add competition schedule to cheer page”', link: '/requests/req-007' },
   { id: 'act-02', orgId: 'org-hhs', at: '2026-09-24T18:44:00', userId: 'u-vb', text: 'submitted request “Senior Night photographer — Oct 13”', link: '/requests/req-005' },
   { id: 'act-03', orgId: 'org-hhs', at: '2026-09-24T16:20:00', userId: 'u-comms', text: 'updated JV flag roster request — holding two names pending physicals', link: '/requests/req-004' },
   { id: 'act-04', orgId: 'org-hhs', at: '2026-09-24T11:10:00', userId: 'u-fin', text: 'logged partial payment of $1,500 from Byrom Building', link: '/sponsors/sp-byrom' },
-  { id: 'act-05', orgId: 'org-hhs', at: '2026-09-23T15:32:00', userId: 'u-vboard', text: 'marked Town & Country video-board slide in progress' },
+  { id: 'act-05', orgId: 'org-hhs', at: '2026-09-23T15:32:00', userId: 'u-admin2', text: 'marked Town & Country video-board slide in progress' },
   { id: 'act-06', orgId: 'org-hhs', at: '2026-09-23T08:41:00', userId: 'u-vb', text: 'submitted request “JV/V times flipped for Oct 1 tri-match”', link: '/requests/req-001' },
   { id: 'act-07', orgId: 'org-hhs', at: '2026-09-22T13:05:00', userId: 'u-comms', text: 'approved senior spotlight request for #7 QB', link: '/requests/req-002' },
   { id: 'act-08', orgId: 'org-hhs', at: '2026-09-21T10:00:00', userId: 'u-ad', text: 'confirmed staffing for Friday vs Calera', link: '/events/ev-079' },
@@ -585,10 +598,10 @@ export function buildSeedState(): AppState {
   const byName = new Map(opponents.map(o => [o.name, o.id]))
   for (const e of events) if (e.eventKind === 'single') e.opponentId = byName.get(e.opponent)
   return {
-    version: 7,
+    version: 8,
     orgs,
     currentOrgId: 'org-hhs',
-    currentUserId: 'u-ad',
+    currentUserId: 'u-owner',
     demoToday,
     showSampleResults: true,
     users,

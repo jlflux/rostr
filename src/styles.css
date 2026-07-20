@@ -476,3 +476,13 @@ tr.sched-row.win:hover, tr.sched-row.loss:hover { filter: brightness(0.98); }
 .tsched-status { font-size: 0.78rem; color: var(--text-2); }
 .tsched-status .alert { color: var(--danger); font-weight: 700; }
 .sport-svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--text-2); }
+
+/* bulk selection */
+.bulk-bar {
+  display: flex; align-items: center; gap: 10px; padding: 9px 16px; margin-bottom: 12px;
+  background: var(--brand-navy); color: #fff; border-radius: var(--radius);
+}
+.bulk-bar .spacer { flex: 1; }
+.bulk-bar .inline-select { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.25); }
+.bulk-bar .btn.ghost { color: #fff; }
+tr.row-selected > td { background: var(--info-bg); }

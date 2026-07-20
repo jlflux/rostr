@@ -38,6 +38,8 @@ export interface User {
   initials: string
   color: string
   teamIds?: string[]
+  /** 'revoked' users keep their history but can't sign in */
+  status?: 'active' | 'revoked'
 }
 
 export type RosterStatus = 'complete' | 'in_progress' | 'not_started'
@@ -241,15 +243,25 @@ export interface Payment {
   method: string
 }
 
+/** How one buy's money is earmarked. target = teamId, or 'athletics' for the department. */
+export interface Allocation {
+  id: string
+  target: string
+  amount: number
+}
+
 export interface Agreement {
   id: string
   orgId: string
   sponsorId: string
   season: string
+  /** Short label for this buy, e.g. "White sponsorship" or "Additional donation" */
+  label?: string
   amount: number
   paymentStatus: PaymentStatus
   payments: Payment[]
   fulfillment: FulfillmentItem[]
+  allocations?: Allocation[]
   signedDate?: string
 }
 

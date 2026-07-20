@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, agreementPaid, agreements as allAgreements, can, fulfillmentProgress, sponsors as allSponsors, sponsorshipTotals } from '../lib/derive'
+import { PIPELINE_STAGES, can, fulfillmentProgress, sponsorAgreements, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsors as allSponsors, sponsorshipTotals } from '../lib/derive'
 import { fmtMoney } from '../lib/dates'
 import { Badge, Empty, Field, Modal, Progress, SearchBox, Seg, StatCard, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
@@ -38,9 +38,15 @@ export default function SponsorsPage() {
     const term = q.trim().toLowerCase()
     if (term) sps = sps.filter(s => s.name.toLowerCase().includes(term) || s.contactName.toLowerCase().includes(term))
     if (tier) sps = sps.filter(s => s.tier === tier)
-    let out = sps.map(s => ({ sponsor: s, agreement: allAgreements(state).find(a => a.sponsorId === s.id) }))
-    if (payment) out = out.filter(r => r.agreement?.paymentStatus === payment)
-    return out.sort((a, b) => TIER_ORDER.indexOf(a.sponsor.tier) - TIER_ORDER.indexOf(b.sponsor.tier) || (b.agreement?.amount ?? 0) - (a.agreement?.amount ?? 0))
+    let out = sps.map(s => ({
+      sponsor: s,
+      total: sponsorTotal(state, s.id),
+      paid: sponsorPaid(state, s.id),
+      pay: sponsorPaymentStatus(state, s.id),
+      buys: sponsorAgreements(state, s.id).length,
+    }))
+    if (payment) out = out.filter(r => r.pay === payment)
+    return out.sort((a, b) => TIER_ORDER.indexOf(a.sponsor.tier) - TIER_ORDER.indexOf(b.sponsor.tier) || b.total - a.total)
   }, [state, q, tier, payment])
 
   return (
@@ -90,21 +96,22 @@ export default function SponsorsPage() {
       <div className="card tbl-wrap">
         <table className="tbl">
           <thead>
-            <tr><th>Sponsor</th><th>Tier</th><th className="num">Agreement</th><th className="num">Outstanding</th><th>Payment</th><th>Logo</th><th style={{ minWidth: 140 }}>Fulfillment</th></tr>
+            <tr><th>Sponsor</th><th>Tier</th><th className="num">Total value</th><th className="num">Outstanding</th><th>Payment</th><th>Logo</th><th style={{ minWidth: 140 }}>Fulfillment</th></tr>
           </thead>
           <tbody>
             {rows.length === 0 && <tr><td colSpan={7}><div className="empty"><h4>No sponsors match</h4><p>Adjust the search or filters.</p></div></td></tr>}
-            {rows.map(({ sponsor: s, agreement: a }) => {
-              const prog = a ? fulfillmentProgress(a) : { done: 0, total: 0 }
+            {rows.map(({ sponsor: s, total, paid, pay, buys }) => {
+              const ags = sponsorAgreements(state, s.id)
+              const prog = ags.reduce((acc, a) => { const p = fulfillmentProgress(a); return { done: acc.done + p.done, total: acc.total + p.total } }, { done: 0, total: 0 })
               return (
                 <tr key={s.id} className="clickable" onClick={() => navigate(`/sponsors/${s.id}`)}>
-                  <td><span className="primary">{s.name}</span><div className="tiny">{s.contactName}</div></td>
+                  <td><span className="primary">{s.name}</span><div className="tiny">{s.contactName}{buys > 1 ? ` · ${buys} buys` : ''}</div></td>
                   <td><TierBadge tier={s.tier} /></td>
-                  <td className="num">{a ? fmtMoney(a.amount) : '—'}</td>
-                  <td className="num" style={{ color: a && agreementPaid(a) < a.amount ? 'var(--danger)' : undefined }}>
-                    {a ? fmtMoney(Math.max(a.amount - agreementPaid(a), 0)) : '—'}
+                  <td className="num">{total ? fmtMoney(total) : '—'}</td>
+                  <td className="num" style={{ color: paid < total ? 'var(--danger)' : undefined }}>
+                    {total ? fmtMoney(Math.max(total - paid, 0)) : '—'}
                   </td>
-                  <td>{a && <StatusBadge status={a.paymentStatus} />}</td>
+                  <td>{total > 0 && <StatusBadge status={pay} />}</td>
                   <td><StatusBadge status={s.logoStatus} label={s.logoStatus === 'received' ? 'Received' : s.logoStatus === 'missing' ? 'Missing' : 'Needs update'} /></td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -141,14 +148,23 @@ export default function SponsorsPage() {
 }
 
 function PipelineBoard({ editable }: { editable: boolean }) {
-  const { state, update, logActivity, toast } = useStore()
+  const { state, update, add, logActivity, toast } = useStore()
   const navigate = useNavigate()
+  const [accepting, setAccepting] = useState<Sponsor | null>(null)
   const pipeline = allSponsors(state).filter(s => s.stage !== 'committed')
+
+  const changeStage = (sp: Sponsor, stage: PipelineStage) => {
+    if (stage === 'committed') { setAccepting(sp); return } // capture the deal first
+    update('sponsors', sp.id, { stage })
+    logActivity(`moved ${sp.name} to ${PIPELINE_STAGES.find(p => p.value === stage)?.label} in the sponsor pipeline`, `/sponsors/${sp.id}`)
+    toast(`${sp.name} → ${PIPELINE_STAGES.find(p => p.value === stage)?.label}`)
+  }
+
   return (
     <>
       <p className="small muted" style={{ marginTop: 0 }}>
         Track sponsors before the sale: prospects you've talked about, outreach in flight, maybes, and passes.
-        Moving one to <strong>Committed</strong> promotes it to the sponsor directory.
+        Marking one <strong>Accepted</strong> creates their agreement and adds them to the sponsor directory.
       </p>
       {PIPELINE_STAGES.filter(st => st.value !== 'committed').map(st => {
         const items = pipeline.filter(s => s.stage === st.value)
@@ -170,12 +186,7 @@ function PipelineBoard({ editable }: { editable: boolean }) {
                       <td className="muted small" style={{ maxWidth: 380 }}>{sp.notes[0]?.text ?? '—'}</td>
                       <td onClick={e => e.stopPropagation()}>
                         {editable ? (
-                          <select className="inline-select" value={sp.stage} onChange={e => {
-                            const stage = e.target.value as PipelineStage
-                            update('sponsors', sp.id, { stage })
-                            logActivity(`moved ${sp.name} to ${PIPELINE_STAGES.find(p => p.value === stage)?.label} in the sponsor pipeline`, `/sponsors/${sp.id}`)
-                            toast(stage === 'committed' ? `${sp.name} committed — now in the sponsor directory` : `${sp.name} → ${PIPELINE_STAGES.find(p => p.value === stage)?.label}`)
-                          }} aria-label="Pipeline stage">
+                          <select className="inline-select" value={sp.stage} onChange={e => changeStage(sp, e.target.value as PipelineStage)} aria-label="Pipeline stage">
                             {PIPELINE_STAGES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                           </select>
                         ) : <StageBadge stage={sp.stage} />}
@@ -188,7 +199,58 @@ function PipelineBoard({ editable }: { editable: boolean }) {
           </div>
         )
       })}
+      {accepting && (
+        <AcceptModal sponsor={accepting} onClose={() => setAccepting(null)} onAccept={(amount, tier) => {
+          const sp = accepting
+          update('sponsors', sp.id, { stage: 'committed', tier, benefitSummary: `${tier} tier package` })
+          add('agreements', {
+            id: `ag-${sp.id.slice(3)}-${Date.now()}`, orgId: state.currentOrgId, sponsorId: sp.id, season: 'Fall 2026',
+            label: `${tier} sponsorship`, amount, paymentStatus: 'unpaid', payments: [],
+            fulfillment: [
+              { id: `${sp.id}-logo`, label: 'Logo received', status: 'pending' },
+              { id: `${sp.id}-vboard`, label: 'Video-board upload complete', status: 'pending' },
+              { id: `${sp.id}-web`, label: 'Website placement complete', status: 'pending' },
+              { id: `${sp.id}-pa`, label: 'PA copy approved', status: 'pending' },
+            ],
+            allocations: [{ id: `${sp.id}-alloc-ath`, target: 'athletics', amount }],
+          } as Agreement)
+          logActivity(`accepted ${sp.name} as a ${tier} sponsor (${fmtMoney(amount)})`, `/sponsors/${sp.id}`)
+          toast(`${sp.name} accepted — now in the sponsor directory`)
+          setAccepting(null)
+          navigate(`/sponsors/${sp.id}`)
+        }} />
+      )}
     </>
+  )
+}
+
+function AcceptModal({ sponsor, onClose, onAccept }: { sponsor: Sponsor; onClose: () => void; onAccept: (amount: number, tier: SponsorTier) => void }) {
+  const [amount, setAmount] = useState('3000')
+  const [tier, setTier] = useState<SponsorTier>(sponsor.tier)
+  const [err, setErr] = useState('')
+  return (
+    <Modal title={`Accept ${sponsor.name}`} onClose={onClose} footer={
+      <>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn primary" onClick={() => {
+          const amt = Number(amount)
+          if (Number.isNaN(amt) || amt <= 0) { setErr('Enter the agreement amount.'); return }
+          onAccept(amt, tier)
+        }}>Accept & create sponsor</button>
+      </>
+    }>
+      <p className="small muted" style={{ marginTop: 0 }}>This creates {sponsor.name}'s first agreement and moves them into the sponsor directory. You can add more buys or edit anything afterward.</p>
+      <div className="form-row">
+        <Field label="Tier">
+          <select value={tier} onChange={e => setTier(e.target.value as SponsorTier)}>
+            {TIER_ORDER.map(t => <option key={t}>{t}</option>)}
+          </select>
+        </Field>
+        <Field label="Agreement amount ($)" required error={err}>
+          <input type="number" min={0} value={amount} onChange={e => setAmount(e.target.value)} />
+        </Field>
+      </div>
+    </Modal>
   )
 }
 

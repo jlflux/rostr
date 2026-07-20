@@ -8,9 +8,10 @@ import type { Organization, Role, User } from '../types'
 const AVATAR_COLORS = ['#d60000', '#0e7490', '#15803d', '#b45309', '#7c3aed', '#be185d', '#1d4ed8', '#374151']
 
 export default function SettingsPage() {
-  const { state, update, add, setState, resetDemo, theme, setTheme, toast } = useStore()
+  const { state, update, add, remove, setState, resetDemo, theme, setTheme, toast } = useStore()
   const [confirmReset, setConfirmReset] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null)
   const me = state.users.find(u => u.id === state.currentUserId)!
   const org = state.orgs.find(o => o.id === state.currentOrgId)!
   const isAdmin = can(me.role, 'admin')
@@ -28,7 +29,7 @@ export default function SettingsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card title="Organization branding">
             <p className="small muted" style={{ marginTop: 0 }}>
-              Each school configures its own identity — team colors drive home/away accents and badges, while the HeadQtrs chrome (sidebar, buttons) stays consistent for every school.
+              Each school configures its own identity — team colors drive home/away accents and badges, while the Flux Athletics chrome (sidebar, buttons) stays consistent for every school.
             </p>
             <div className="form-row">
               <Field label="Organization name">
@@ -64,21 +65,23 @@ export default function SettingsPage() {
                 {org.logoUrl && isAdmin && <button className="btn sm ghost" onClick={() => { updateOrg({ logoUrl: undefined }); toast('Logo removed') }}>Remove</button>}
               </div>
             </Field>
-            {!isAdmin && <p className="tiny">Only school administrators can edit branding. Switch to Marcus Cole via the profile menu to try it.</p>}
+            {!isAdmin && <p className="tiny">Only school administrators can edit branding. Switch to an Administrator (e.g. Rick Baguley) via the profile menu to try it.</p>}
           </Card>
 
           <Card title="Users & roles" pad={false} action={isAdmin && (
             <button className="btn sm primary" onClick={() => setAddingUser(true)}><I.plus /> Add user</button>
           )}>
             <table className="tbl">
-              <thead><tr><th>User</th><th>Title</th><th>Role</th></tr></thead>
+              <thead><tr><th>User</th><th>Title</th><th>Role</th>{isAdmin && <th>Access</th>}</tr></thead>
               <tbody>
-                {state.users.map(u => (
-                  <tr key={u.id}>
+                {state.users.map(u => {
+                  const revoked = u.status === 'revoked'
+                  return (
+                  <tr key={u.id} style={revoked ? { opacity: 0.55 } : undefined}>
                     <td>
                       <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <Avatar user={u} size="sm" />
-                        <span><span className="primary">{u.name}</span><div className="tiny">{u.email}</div></span>
+                        <span><span className="primary">{u.name}{revoked ? ' · revoked' : ''}</span><div className="tiny">{u.email}</div></span>
                       </span>
                     </td>
                     <td className="muted small">{u.title}</td>
@@ -92,8 +95,22 @@ export default function SettingsPage() {
                         </select>
                       ) : <Badge tone={u.role === 'platform_owner' ? 'navy' : 'outline'}>{ROLE_LABELS[u.role]}</Badge>}
                     </td>
+                    {isAdmin && (
+                      <td>
+                        {u.id === me.id || u.role === 'platform_owner' ? <span className="tiny">—</span> : (
+                          <span style={{ display: 'flex', gap: 4 }}>
+                            <button className="btn sm ghost" onClick={() => {
+                              update('users', u.id, { status: revoked ? 'active' : 'revoked' })
+                              toast(revoked ? `${u.name} reinstated` : `${u.name}'s access revoked`)
+                            }}>{revoked ? 'Reinstate' : 'Revoke'}</button>
+                            <button className="btn sm ghost danger" aria-label="Delete user" title="Delete user" onClick={() => setConfirmDeleteUser(u)}><I.x /></button>
+                          </span>
+                        )}
+                      </td>
+                    )}
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </Card>
@@ -152,6 +169,24 @@ export default function SettingsPage() {
           toast(`${u.name} added as ${ROLE_LABELS[u.role]}`)
           setAddingUser(false)
         }} />
+      )}
+
+      {confirmDeleteUser && (
+        <ConfirmDialog title={`Delete ${confirmDeleteUser.name}?`} danger confirmLabel="Delete user"
+          message={`This permanently removes ${confirmDeleteUser.name}. Any staff assignments, tasks, or requests they held are left unassigned. To keep their history but block sign-in, use Revoke instead.`}
+          onConfirm={() => {
+            const uid = confirmDeleteUser.id
+            // Unassign anywhere the user is referenced so nothing points at a ghost
+            setState({
+              events: state.events.map(e => ({ ...e, staffSlots: e.staffSlots.map(sl => sl.userId === uid ? { ...sl, userId: null, status: 'unfilled' } : sl), runOfShow: e.runOfShow.map(r => r.ownerId === uid ? { ...r, ownerId: null } : r), gameMoments: e.gameMoments.map(m => m.ownerId === uid ? { ...m, ownerId: null } : m) })),
+              tasks: state.tasks.map(t => t.assigneeId === uid ? { ...t, assigneeId: null } : t),
+              requests: state.requests.map(r => r.assigneeId === uid ? { ...r, assigneeId: null } : r),
+            })
+            remove('users', uid)
+            toast(`${confirmDeleteUser.name} deleted`)
+            setConfirmDeleteUser(null)
+          }}
+          onClose={() => setConfirmDeleteUser(null)} />
       )}
 
       {confirmReset && (

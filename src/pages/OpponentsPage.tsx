@@ -19,15 +19,28 @@ function profileComplete(o: Opponent): boolean {
 }
 
 export default function OpponentsPage() {
-  const { state, add, toast } = useStore()
+  const { state, add, setState, logActivity, toast } = useStore()
   const [params, setParams] = useSearchParams()
   const [q, setQ] = useState('')
   const [openId, setOpenId] = useState<string | null>(params.get('open'))
   const [creating, setCreating] = useState(false)
   const [showTrash, setShowTrash] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const me = state.users.find(u => u.id === state.currentUserId)!
   const editable = can(me.role, 'edit')
   const trash = trashedOpponents(state)
+  const toggleSel = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  const bulkTrash = () => {
+    const ids = selected
+    setState({
+      opponents: state.opponents.map(o => ids.has(o.id) ? { ...o, deletedAt: state.demoToday } : o),
+      events: state.events.map(e => e.opponentId && ids.has(e.opponentId) ? { ...e, opponent: 'TBD' } : e),
+    })
+    logActivity(`moved ${ids.size} opponents to the trash`)
+    toast(`${ids.size} opponents moved to trash`)
+    setSelected(new Set())
+  }
 
   useEffect(() => {
     if (params.get('open')) setParams({}, { replace: true })
@@ -64,15 +77,29 @@ export default function OpponentsPage() {
 
       {showTrash && <TrashPanel />}
 
+      {editable && selected.size > 0 && (
+        <div className="bulk-bar">
+          <strong>{selected.size} selected</strong>
+          <div className="spacer" />
+          <button className="btn sm danger" onClick={bulkTrash}>Move {selected.size} to trash</button>
+          <button className="btn sm ghost" onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
+
       <div className="card tbl-wrap">
         <table className="tbl">
-          <thead><tr><th>School</th><th>Mascot</th><th>Location</th><th>Logo</th><th>Games</th><th>Profile</th></tr></thead>
+          <thead><tr>
+            {editable && <th style={{ width: 34 }}><input type="checkbox" aria-label="Select all"
+              checked={rows.length > 0 && rows.every(o => selected.has(o.id))}
+              onChange={ev => setSelected(ev.target.checked ? new Set(rows.map(o => o.id)) : new Set())} /></th>}
+            <th>School</th><th>Mascot</th><th>Location</th><th>Logo</th><th>Games</th><th>Profile</th></tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={6}><div className="empty"><h4>No opponents yet</h4><p>Opponents are added here or automatically when events are created.</p></div></td></tr>}
+            {rows.length === 0 && <tr><td colSpan={editable ? 7 : 6}><div className="empty"><h4>No opponents yet</h4><p>Opponents are added here or automatically when events are created.</p></div></td></tr>}
             {rows.map(o => {
               const games = gamesFor(o.id)
               return (
-                <tr key={o.id} className="clickable" onClick={() => setOpenId(o.id)}>
+                <tr key={o.id} className={`clickable ${selected.has(o.id) ? 'row-selected' : ''}`} onClick={() => setOpenId(o.id)}>
+                  {editable && <td onClick={ev => ev.stopPropagation()}><input type="checkbox" aria-label={`Select ${o.name}`} checked={selected.has(o.id)} onChange={() => toggleSel(o.id)} /></td>}
                   <td><span className="primary">{o.name}</span></td>
                   <td className="muted small">{o.mascot ?? '—'}</td>
                   <td className="muted small">{o.city ? `${o.city}, ${o.state ?? ''}` : '—'}</td>

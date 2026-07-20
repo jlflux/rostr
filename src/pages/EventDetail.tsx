@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { broadcastState, can, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
+import { broadcastState, can, canView, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDateLong, fmtTime, relDue } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, HomeAwayBadge, Modal, PriorityBadge, StatusBadge } from '../components/ui'
 import { EventForm } from './EventsPage'
@@ -32,7 +32,9 @@ export default function EventDetail() {
     return <Card><Empty icon="?" title="Event not found" hint="It may have been removed. Return to the events list." /></Card>
   }
 
-  const visibleTabs = e.eventKind === 'noncomp' ? TABS.filter(t => t !== 'results') : [...TABS]
+  const showSponsors = canView(me.role, 'sponsors')
+  let visibleTabs = e.eventKind === 'noncomp' ? TABS.filter(t => t !== 'results') : [...TABS]
+  if (!showSponsors) visibleTabs = visibleTabs.filter(t => t !== 'sponsors')
   const tab = (visibleTabs.includes(params.get('tab') as Tab) ? params.get('tab') : 'overview') as Tab
   const setTab = (t: Tab) => setParams(t === 'overview' ? {} : { tab: t }, { replace: true })
   const team = state.teams.find(t => t.id === e.teamId)
@@ -152,6 +154,8 @@ export default function EventDetail() {
 
 function Overview({ e, teamName, editable }: { e: SportEvent; teamName?: string; editable: boolean }) {
   const { state } = useStore()
+  const me = state.users.find(u => u.id === state.currentUserId)!
+  const showSponsors = canView(me.role, 'sponsors')
   const score = visibleScore(state, e)
   const opp = state.opponents.find(o => o.id === e.opponentId && !o.deletedAt)
   return (
@@ -200,6 +204,7 @@ function Overview({ e, teamName, editable }: { e: SportEvent; teamName?: string;
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <GameMomentsCard e={e} editable={editable} />
+        {showSponsors && (
         <Card title="Sponsor activations" action={<Link className="card-link" to={`/events/${e.id}?tab=sponsors`}>Manage →</Link>}>
           {e.sponsorActivations.length === 0
             ? <p className="small muted" style={{ margin: 0 }}>No game-specific sponsor activations. Tier benefits (video board, PA rotation) run automatically.</p>
@@ -217,6 +222,7 @@ function Overview({ e, teamName, editable }: { e: SportEvent; teamName?: string;
               </div>
             )}
         </Card>
+        )}
         <Card title="Staffing at a glance" action={<Link className="card-link" to={`/events/${e.id}?tab=staffing`}>Manage →</Link>}>
           {e.staffSlots.length === 0
             ? <p className="small muted" style={{ margin: 0 }}>No staff plan for this event{e.homeAway !== 'home' ? ' (away game)' : ''}.</p>

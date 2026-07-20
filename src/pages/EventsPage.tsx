@@ -10,14 +10,17 @@ import type { EventKind, GameType, Opponent, SportEvent } from '../types'
 const OPP_TINTS = ['#b45309', '#166534', '#1d4ed8', '#7c3aed', '#be185d', '#0e7490', '#ca8a04', '#4d7c0f']
 
 export default function EventsPage() {
-  const { state, add, logActivity, toast } = useStore()
+  const { state, add, update, remove, logActivity, toast } = useStore()
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [scope, setScope] = useState<'upcoming' | 'past' | 'all'>('upcoming')
   const [sport, setSport] = useState('')
   const [creating, setCreating] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const me = state.users.find(u => u.id === state.currentUserId)!
+  const editable = can(me.role, 'edit')
+  const toggleSel = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   const list = useMemo(() => {
     let evs = allEvents(state)
@@ -58,22 +61,51 @@ export default function EventsPage() {
         <Seg options={[{ value: 'upcoming', label: 'Upcoming' }, { value: 'past', label: 'Past' }, { value: 'all', label: 'All' }]} value={scope} onChange={setScope} />
       </div>
 
+      {editable && selected.size > 0 && (
+        <div className="bulk-bar">
+          <strong>{selected.size} selected</strong>
+          <div className="spacer" />
+          <select className="inline-select" value="" aria-label="Set status for selected" onChange={ev => {
+            const st = ev.target.value
+            if (!st) return
+            selected.forEach(id => update('events', id, { status: st }))
+            toast(`${selected.size} events set to ${st}`)
+            setSelected(new Set())
+          }}>
+            <option value="">Set status…</option>
+            {['scheduled', 'confirmed', 'completed', 'postponed', 'canceled'].map(s => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
+          </select>
+          <button className="btn sm danger" onClick={() => {
+            const n = selected.size
+            selected.forEach(id => remove('events', id))
+            logActivity(`deleted ${n} events in bulk`)
+            toast(`${n} events deleted`)
+            setSelected(new Set())
+          }}>Delete {selected.size}</button>
+          <button className="btn sm ghost" onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
+
       <div className="card tbl-wrap">
         <table className="tbl">
           <thead>
             <tr>
+              {editable && <th style={{ width: 34 }}><input type="checkbox" aria-label="Select all"
+                checked={list.length > 0 && list.every(e => selected.has(e.id))}
+                onChange={ev => setSelected(ev.target.checked ? new Set(list.map(e => e.id)) : new Set())} /></th>}
               <th>Date</th><th>Matchup</th><th>H/A</th><th>Venue</th><th>Staffing</th><th>Status</th>
             </tr>
           </thead>
           <tbody>
             {list.length === 0 && (
-              <tr><td colSpan={6}><div className="empty"><h4>No events match</h4><p>Adjust the search or filters.</p></div></td></tr>
+              <tr><td colSpan={editable ? 7 : 6}><div className="empty"><h4>No events match</h4><p>Adjust the search or filters.</p></div></td></tr>
             )}
             {list.map(e => {
               const open = e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length
               const score = visibleScore(state, e)
               return (
-                <tr key={e.id} className="clickable" onClick={() => navigate(`/events/${e.id}`)}>
+                <tr key={e.id} className={`clickable ${selected.has(e.id) ? 'row-selected' : ''}`} onClick={() => navigate(`/events/${e.id}`)}>
+                  {editable && <td onClick={ev => ev.stopPropagation()}><input type="checkbox" aria-label={`Select ${matchupLabel(e)}`} checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} /></td>}
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <div style={{ fontWeight: 750 }}>{fmtDate(e.date)}</div>
                     <div className="tiny">{fmtTime(e.time)}</div>

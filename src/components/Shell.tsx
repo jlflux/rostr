@@ -3,7 +3,7 @@ import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { I } from './icons'
 import { Avatar } from './ui'
-import { ROLE_LABELS, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
+import { ROLE_LABELS, canView, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
 import { fmtDateTime } from '../lib/dates'
 
 function useClickOutside(onClose: () => void) {
@@ -25,6 +25,7 @@ function GlobalSearch() {
   const navigate = useNavigate()
   const ref = useClickOutside(() => setOpen(false))
 
+  const me = state.users.find(u => u.id === state.currentUserId)!
   const results = useMemo(() => {
     const term = q.trim().toLowerCase()
     if (term.length < 2) return []
@@ -35,12 +36,12 @@ function GlobalSearch() {
         out.push({ kind: 'Event', label: `${e.sport} ${e.level} vs ${e.opponent}`, sub: e.date, to: `/events/${e.id}` })
       }
     }
-    for (const s of state.sponsors) if (match(s.name) || match(s.contactName)) out.push({ kind: 'Sponsor', label: s.name, sub: `${s.tier} tier`, to: `/sponsors/${s.id}` })
-    for (const t of state.teams) if (match(t.name) || match(t.sport)) out.push({ kind: 'Team', label: t.name, sub: t.seasonLabel, to: `/teams/${t.id}` })
-    for (const o of state.opponents) if (!o.deletedAt && (match(o.name) || match(o.mascot))) out.push({ kind: 'Opponent', label: o.name, sub: o.mascot ?? 'Opponent', to: `/opponents?open=${o.id}` })
-    for (const r of state.requests) if (match(r.title)) out.push({ kind: 'Request', label: r.title, sub: r.type, to: `/requests/${r.id}` })
+    if (canView(me.role, 'sponsors')) for (const s of state.sponsors) if (match(s.name) || match(s.contactName)) out.push({ kind: 'Sponsor', label: s.name, sub: `${s.tier} tier`, to: `/sponsors/${s.id}` })
+    if (canView(me.role, 'teams')) for (const t of state.teams) if (match(t.name) || match(t.sport)) out.push({ kind: 'Team', label: t.name, sub: t.seasonLabel, to: `/teams/${t.id}` })
+    if (canView(me.role, 'opponents')) for (const o of state.opponents) if (!o.deletedAt && (match(o.name) || match(o.mascot))) out.push({ kind: 'Opponent', label: o.name, sub: o.mascot ?? 'Opponent', to: `/opponents?open=${o.id}` })
+    if (canView(me.role, 'requests')) for (const r of state.requests) if (match(r.title)) out.push({ kind: 'Request', label: r.title, sub: r.type, to: `/requests/${r.id}` })
     for (const a of state.assets) if (match(a.name)) out.push({ kind: 'Asset', label: a.name, sub: a.type, to: '/assets' })
-    for (const u of state.users) if (match(u.name)) out.push({ kind: 'Person', label: u.name, sub: u.title, to: '/settings' })
+    if (canView(me.role, 'settings')) for (const u of state.users) if (match(u.name)) out.push({ kind: 'Person', label: u.name, sub: u.title, to: '/settings' })
     return out.slice(0, 12)
   }, [q, state])
 
@@ -166,7 +167,7 @@ function UserMenu() {
             <div className="tiny">{user.title} · {ROLE_LABELS[user.role]}</div>
           </div>
           <div className="menu-label">View as (demo)</div>
-          {state.users.filter(u => u.role !== 'platform_owner' || user.role === 'platform_owner').slice(0, 16).map(u => (
+          {state.users.filter(u => u.status !== 'revoked').slice(0, 16).map(u => (
             <button key={u.id} className={`menu-item ${u.id === state.currentUserId ? 'active' : ''}`}
               onClick={() => { setState({ currentUserId: u.id }); setOpen(false); toast(`Now viewing as ${u.name} (${ROLE_LABELS[u.role]})`) }}>
               <Avatar user={u} size="sm" />
@@ -182,17 +183,17 @@ function UserMenu() {
   )
 }
 
-const NAV = [
-  { to: '/', label: 'Dashboard', icon: I.dashboard, end: true },
-  { to: '/calendar', label: 'Calendar', icon: I.calendar },
-  { to: '/events', label: 'Events', icon: I.event },
-  { to: '/opponents', label: 'Opponents', icon: I.team },
-  { to: '/sponsors', label: 'Sponsors', icon: I.sponsor },
-  { to: '/teams', label: 'Teams', icon: I.team },
-  { to: '/requests', label: 'Requests', icon: I.request },
-  { to: '/assets', label: 'Assets', icon: I.asset },
-  { to: '/reports', label: 'Reports', icon: I.report },
-  { to: '/settings', label: 'Settings', icon: I.settings },
+const NAV: { to: string; label: string; icon: () => JSX.Element; end?: boolean; section: import('../lib/derive').Section }[] = [
+  { to: '/', label: 'Dashboard', icon: I.dashboard, end: true, section: 'dashboard' },
+  { to: '/calendar', label: 'Calendar', icon: I.calendar, section: 'calendar' },
+  { to: '/events', label: 'Events', icon: I.event, section: 'events' },
+  { to: '/opponents', label: 'Opponents', icon: I.team, section: 'opponents' },
+  { to: '/sponsors', label: 'Sponsors', icon: I.sponsor, section: 'sponsors' },
+  { to: '/teams', label: 'Teams', icon: I.team, section: 'teams' },
+  { to: '/requests', label: 'Requests', icon: I.request, section: 'requests' },
+  { to: '/assets', label: 'Assets', icon: I.asset, section: 'assets' },
+  { to: '/reports', label: 'Reports', icon: I.report, section: 'reports' },
+  { to: '/settings', label: 'Settings', icon: I.settings, section: 'settings' },
 ]
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -201,11 +202,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   useEffect(() => setNavOpen(false), [location.pathname])
   const org = state.orgs.find(o => o.id === state.currentOrgId)!
+  const me = state.users.find(u => u.id === state.currentUserId)!
+  const nav = NAV.filter(n => canView(me.role, n.section))
   const openReqCount = openRequests(state).filter(r => r.status === 'submitted').length
 
   useEffect(() => {
     document.documentElement.style.setProperty('--brand', org.theme.primary)
     document.documentElement.style.setProperty('--brand-navy', org.theme.navy)
+  }, [org])
+
+  useEffect(() => {
+    document.title = `${org.shortName} Command Center — Powered by Flux Athletics`
   }, [org])
 
   return (
@@ -219,7 +226,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <span>{org.shortName}<small>Athletics Command Center</small></span>
         </div>
         <nav className="nav">
-          {NAV.map(n => (
+          {nav.map(n => (
             <NavLink key={n.to} to={n.to} end={n.end}>
               <n.icon />
               {n.label}
@@ -228,7 +235,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-footer">
-          Powered by HeadQtrs<br />Demo date: {state.demoToday}
+          Powered by Flux Athletics<br />Demo date: {state.demoToday}
         </div>
       </aside>
       <div className="main">
