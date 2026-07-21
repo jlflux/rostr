@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import type { AppState, Collection } from '../types'
 import { buildSeedState } from '../data/seed'
 
-const STORAGE_KEY = 'headqtrs:state:v9'
+const STORAGE_KEY = 'headqtrs:state:v10'
 const THEME_KEY = 'headqtrs:theme'
 
 type Entity = { id: string }

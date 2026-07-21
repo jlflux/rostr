@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { broadcastState, can, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
+import { ROLE_LABELS, broadcastState, can, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { splitCsvLine } from './EventsPage'
@@ -68,7 +68,6 @@ export function TeamDetail() {
   const openReqs = state.requests.filter(r => r.teamId === t.id && r.status !== 'completed')
   const teamAssets = state.assets.filter(a => a.teamId === t.id)
   const rec = teamRecord(state, t.id)
-  const coaches = t.coachIds.map(cid => state.users.find(u => u.id === cid)).filter(Boolean)
 
   return (
     <>
@@ -153,14 +152,7 @@ export function TeamDetail() {
           </Card>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Card title="Coaching staff" pad={false}>
-            {coaches.map(c => (
-              <div key={c!.id} className="notif-item" style={{ alignItems: 'center' }}>
-                <Avatar user={c} />
-                <span style={{ flex: 1 }}><strong>{c!.name}</strong><div className="tiny">{c!.title}</div></span>
-              </div>
-            ))}
-          </Card>
+          <CoachingStaffCard team={t} />
           <Card title="Social media" pad={false}>
             {!t.socials || Object.values(t.socials).every(v => !v) ? (
               <Empty title="No accounts linked" hint="Add the team's social links so gameday coverage tags the right accounts." />
@@ -173,15 +165,7 @@ export function TeamDetail() {
             )}
             <SocialsEditor team={t} />
           </Card>
-          <Card title="Important dates" pad={false}>
-            {t.importantDates.length === 0 && <Empty title="No key dates entered" />}
-            {t.importantDates.map((d, i) => (
-              <div key={i} className="notif-item">
-                <span style={{ flex: 1 }}>{d.label}</span>
-                <Badge tone="outline">{fmtDate(d.date)}</Badge>
-              </div>
-            ))}
-          </Card>
+          <ImportantDatesCard team={t} />
           <Card title="Broadcasts" pad={false}>
             {broadcasts.length === 0 && <Empty title="No upcoming broadcasts" />}
             {broadcasts.slice(0, 5).map(e => (
@@ -415,5 +399,121 @@ function SocialsEditor({ team }: { team: Team }) {
         <button className="btn sm ghost" onClick={() => setOpen(false)}>Cancel</button>
       </div>
     </div>
+  )
+}
+
+function CoachingStaffCard({ team }: { team: Team }) {
+  const { state, update, toast } = useStore()
+  const me = state.users.find(u => u.id === state.currentUserId)!
+  const editable = can(me.role, 'edit')
+  const [editing, setEditing] = useState(false)
+  const [headId, setHeadId] = useState(team.coachIds[0] ?? '')
+  const [assistants, setAssistants] = useState(team.assistantCoaches ?? [])
+  const [draft, setDraft] = useState({ name: '', role: '' })
+  const orgUsers = state.users.filter(u => u.orgId === team.orgId && u.status !== 'revoked')
+  const head = state.users.find(u => u.id === team.coachIds[0])
+
+  const save = () => {
+    update('teams', team.id, { coachIds: headId ? [headId] : [], assistantCoaches: assistants } as Partial<Team>)
+    toast('Coaching staff updated')
+    setEditing(false)
+  }
+
+  return (
+    <Card title="Coaching staff" pad={false} action={editable && !editing && <button className="btn sm ghost" onClick={() => { setHeadId(team.coachIds[0] ?? ''); setAssistants(team.assistantCoaches ?? []); setEditing(true) }}>Edit</button>}>
+      {!editing ? (
+        <>
+          <div className="notif-item" style={{ alignItems: 'center' }}>
+            <Avatar user={head} />
+            <span style={{ flex: 1 }}><strong>{head?.name ?? 'No head coach assigned'}</strong><div className="tiny">{head ? `Head coach · ${head.title}` : 'Assign one with Edit'}</div></span>
+          </div>
+          {(team.assistantCoaches ?? []).map(a => (
+            <div key={a.id} className="notif-item" style={{ alignItems: 'center' }}>
+              <span className="avatar sm" style={{ background: 'var(--border-strong)', color: 'var(--text-2)' }}>{a.name.split(' ').map(w => w[0]).slice(0, 2).join('')}</span>
+              <span style={{ flex: 1 }}><strong>{a.name}</strong><div className="tiny">{a.role || 'Assistant coach'}</div></span>
+            </div>
+          ))}
+        </>
+      ) : (
+        <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <label className="tiny" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            Head coach
+            <select className="inline-select" value={headId} onChange={e => setHeadId(e.target.value)}>
+              <option value="">— None —</option>
+              {orgUsers.map(u => <option key={u.id} value={u.id}>{u.name} · {ROLE_LABELS[u.role]}</option>)}
+            </select>
+          </label>
+          <div>
+            <div className="tiny" style={{ marginBottom: 4 }}>Assistant coaches</div>
+            {assistants.map((a, i) => (
+              <div key={a.id} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                <input className="input" style={{ flex: 1 }} value={a.name} onChange={e => setAssistants(assistants.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Name" />
+                <input className="input" style={{ width: 120 }} value={a.role ?? ''} onChange={e => setAssistants(assistants.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} placeholder="Role" />
+                <button className="btn sm ghost" aria-label="Remove assistant" onClick={() => setAssistants(assistants.filter((_, j) => j !== i))}><I.x /></button>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input className="input" style={{ flex: 1 }} placeholder="Add assistant name" value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} />
+              <input className="input" style={{ width: 120 }} placeholder="Role" value={draft.role} onChange={e => setDraft(d => ({ ...d, role: e.target.value }))} />
+              <button className="btn sm" onClick={() => { if (!draft.name.trim()) return; setAssistants([...assistants, { id: `asst-${Date.now()}`, name: draft.name.trim(), role: draft.role.trim() || undefined }]); setDraft({ name: '', role: '' }) }}>Add</button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn primary sm" onClick={save}>Save</button>
+            <button className="btn sm ghost" onClick={() => setEditing(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function ImportantDatesCard({ team }: { team: Team }) {
+  const { state, update, toast } = useStore()
+  const me = state.users.find(u => u.id === state.currentUserId)!
+  const editable = can(me.role, 'edit')
+  const [editing, setEditing] = useState(false)
+  const [dates, setDates] = useState(team.importantDates)
+  const [draft, setDraft] = useState({ label: '', date: '' })
+
+  const save = () => {
+    update('teams', team.id, { importantDates: [...dates].sort((a, b) => a.date.localeCompare(b.date)) } as Partial<Team>)
+    toast('Important dates updated')
+    setEditing(false)
+  }
+
+  return (
+    <Card title="Important dates" pad={false} action={editable && !editing && <button className="btn sm ghost" onClick={() => { setDates(team.importantDates); setEditing(true) }}>Edit</button>}>
+      {!editing ? (
+        <>
+          {team.importantDates.length === 0 && <Empty title="No key dates entered" hint={editable ? 'Add them with Edit.' : undefined} />}
+          {team.importantDates.map((d, i) => (
+            <div key={i} className="notif-item">
+              <span style={{ flex: 1 }}>{d.label}</span>
+              <Badge tone="outline">{fmtDate(d.date)}</Badge>
+            </div>
+          ))}
+        </>
+      ) : (
+        <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {dates.map((d, i) => (
+            <div key={i} style={{ display: 'flex', gap: 6 }}>
+              <input className="input" style={{ flex: 1 }} value={d.label} onChange={e => setDates(dates.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} placeholder="Label" />
+              <input className="input" type="date" style={{ width: 150 }} value={d.date} onChange={e => setDates(dates.map((x, j) => j === i ? { ...x, date: e.target.value } : x))} />
+              <button className="btn sm ghost" aria-label="Remove date" onClick={() => setDates(dates.filter((_, j) => j !== i))}><I.x /></button>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input className="input" style={{ flex: 1 }} placeholder="e.g. Senior Night" value={draft.label} onChange={e => setDraft(d => ({ ...d, label: e.target.value }))} />
+            <input className="input" type="date" style={{ width: 150 }} value={draft.date} onChange={e => setDraft(d => ({ ...d, date: e.target.value }))} />
+            <button className="btn sm" onClick={() => { if (!draft.label.trim() || !draft.date) { toast('Label and date are both required', 'error'); return } setDates([...dates, { label: draft.label.trim(), date: draft.date }]); setDraft({ label: '', date: '' }) }}>Add</button>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn primary sm" onClick={save}>Save</button>
+            <button className="btn sm ghost" onClick={() => setEditing(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </Card>
   )
 }

@@ -67,6 +67,8 @@ export interface Team {
   season: 'Fall' | 'Winter' | 'Spring'
   seasonLabel: string
   socials?: { instagram?: string; x?: string; facebook?: string }
+  /** Assistant coaches (free-text; may or may not have a user account) */
+  assistantCoaches?: { id: string; name: string; role?: string }[]
   coachIds: string[]
   rosterStatus: RosterStatus
   rosterCount: number

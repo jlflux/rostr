@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { broadcastState, can, canView, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
+import { ROLE_LABELS, broadcastState, can, canView, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateLong, fmtTime, relDue } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, HomeAwayBadge, Modal, PriorityBadge, StatusBadge } from '../components/ui'
 import { EventForm } from './EventsPage'
@@ -382,7 +382,8 @@ function BroadcastSetupCard({ e, editable }: { e: SportEvent; editable: boolean 
 function Staffing({ e, editable }: { e: SportEvent; editable: boolean }) {
   const { state, update, logActivity, toast } = useStore()
   const [addingRole, setAddingRole] = useState<StaffRole>('Ticket Worker')
-  const staffUsers = state.users.filter(u => ['event_staff', 'comms_admin', 'school_admin'].includes(u.role))
+  // Anyone with a school account can be assigned to a gameday role
+  const staffUsers = state.users.filter(u => u.orgId === e.orgId && u.status !== 'revoked')
 
   const setSlot = (slotId: string, p: Partial<StaffSlot>) => {
     update('events', e.id, {
@@ -421,7 +422,7 @@ function Staffing({ e, editable }: { e: SportEvent; editable: boolean }) {
                     }
                   }} aria-label={`Assign ${slot.role}`}>
                   <option value="">— Unassigned —</option>
-                  {staffUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  {staffUsers.map(u => <option key={u.id} value={u.id}>{u.name} · {ROLE_LABELS[u.role]}</option>)}
                 </select>
               ) : (
                 <span style={{ flex: 1 }} className="small">{assigned?.name ?? '—'}</span>

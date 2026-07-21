@@ -45,6 +45,14 @@ export const users: User[] = [
   { id: 'u-admin2', orgId: 'org-hhs', name: 'Chet Walker', email: 'chet.walker@gmail.com', role: 'event_staff', title: 'Event Staff', initials: 'CW', color: '#12223c', status: 'active' },
 ]
 
+const ASSISTANTS: Record<string, NonNullable<Team['assistantCoaches']>> = {
+  't-fb-v': [
+    { id: 'asst-fb-1', name: 'Mark Sellers', role: 'Offensive Coordinator' },
+    { id: 'asst-fb-2', name: 'Tony Reed', role: 'Defensive Coordinator' },
+  ],
+  't-vb-v': [{ id: 'asst-vb-1', name: 'Hannah Pope', role: 'Assistant Coach' }],
+}
+
 const SOCIALS: Record<string, Team['socials']> = {
   't-fb-v': { instagram: 'https://instagram.com/homewoodpatriotsfb', x: 'https://x.com/HomewoodFB' },
   't-vb-v': { instagram: 'https://instagram.com/homewoodvolleyball', x: 'https://x.com/HomewoodVB' },
@@ -598,14 +606,14 @@ export function buildSeedState(): AppState {
   const byName = new Map(opponents.map(o => [o.name, o.id]))
   for (const e of events) if (e.eventKind === 'single') e.opponentId = byName.get(e.opponent)
   return {
-    version: 9,
+    version: 10,
     orgs,
     currentOrgId: 'org-hhs',
     currentUserId: 'u-owner',
     demoToday,
     showSampleResults: true,
     users,
-    teams: teams.map(t => ({ ...t, socials: SOCIALS[t.id], roster: t.id === 't-ffb-jv' ? [] : buildRoster(t) })),
+    teams: teams.map(t => ({ ...t, socials: SOCIALS[t.id], assistantCoaches: ASSISTANTS[t.id], roster: t.id === 't-ffb-jv' ? [] : buildRoster(t) })),
     events,
     opponents,
     sponsors,
