@@ -135,7 +135,7 @@ export default function SponsorDetail() {
             {allItems.length === 0 && <Empty title="No fulfillment items" hint={editable ? 'Add items below.' : undefined} />}
             {allItems.map(({ item, agId }) => (
               <FulfillmentRow key={item.id} item={item} editable={editable} today={state.demoToday}
-                buyLabel={ags.length > 1 ? ags.find(a => a.id === agId)?.label : undefined}
+                buys={ags.map(a => ({ id: a.id, label: a.label ?? 'Sponsorship' }))}
                 onToggle={() => toggleItem(agId, item)}
                 onSave={patch => patchItem(agId, item.id, patch)}
                 onRemove={() => removeItem(agId, item.id)}
@@ -234,23 +234,26 @@ export default function SponsorDetail() {
 
 // ---------- Fulfillment ----------
 
-function FulfillmentRow({ item, editable, today, buyLabel, onToggle, onSave, onRemove }: {
-  item: FulfillmentItem; editable: boolean; today: string; buyLabel?: string
+function FulfillmentRow({ item, editable, today, buys, onToggle, onSave, onRemove }: {
+  item: FulfillmentItem; editable: boolean; today: string; buys: { id: string; label: string }[]
   onToggle: () => void; onSave: (patch: Partial<FulfillmentItem>) => void; onRemove: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [label, setLabel] = useState(item.label)
   const [dueDate, setDueDate] = useState(item.dueDate ?? '')
   const [status, setStatus] = useState<FulfillmentStatus>(item.status)
+  const [buyId, setBuyId] = useState(item.buyId ?? '')
+  const [notes, setNotes] = useState(item.notes ?? '')
+  const buyLabel = item.buyId ? buys.find(b => b.id === item.buyId)?.label : undefined
 
   if (editing) {
     return (
       <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input className="input" value={label} onChange={e => setLabel(e.target.value)} placeholder="Item label" aria-label="Item label" />
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <label className="tiny" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             Due date
-            <input className="input" type="date" style={{ width: 160 }} value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            <input className="input" type="date" style={{ width: 150 }} value={dueDate} onChange={e => setDueDate(e.target.value)} />
           </label>
           <label className="tiny" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             Status
@@ -260,22 +263,41 @@ function FulfillmentRow({ item, editable, today, buyLabel, onToggle, onSave, onR
               <option value="na">Not applicable</option>
             </select>
           </label>
+          <label className="tiny" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            Assign to buy (optional)
+            <select className="inline-select" value={buyId} onChange={e => setBuyId(e.target.value)}>
+              <option value="">Not assigned</option>
+              {buys.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}
+            </select>
+          </label>
           {dueDate && <button className="btn sm ghost" onClick={() => setDueDate('')}>Clear due date</button>}
+        </div>
+        <input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (optional)" aria-label="Notes" />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn sm primary" onClick={() => { if (!label.trim()) return; onSave({ label: label.trim(), dueDate: dueDate || undefined, status, buyId: buyId || undefined, notes: notes.trim() || undefined }); setEditing(false) }}>Save</button>
+          <button className="btn sm ghost" onClick={() => { setLabel(item.label); setDueDate(item.dueDate ?? ''); setStatus(item.status); setBuyId(item.buyId ?? ''); setNotes(item.notes ?? ''); setEditing(false) }}>Cancel</button>
           <div style={{ flex: 1 }} />
-          <button className="btn sm primary" onClick={() => { if (!label.trim()) return; onSave({ label: label.trim(), dueDate: dueDate || undefined, status }); setEditing(false) }}>Save</button>
-          <button className="btn sm ghost" onClick={() => { setLabel(item.label); setDueDate(item.dueDate ?? ''); setStatus(item.status); setEditing(false) }}>Cancel</button>
           <button className="btn sm danger" onClick={onRemove}>Remove</button>
         </div>
       </div>
     )
   }
 
+  const showSub = (item.dueDate && item.status !== 'complete') || buyLabel || item.notes
   return (
     <div className={`checklist-item ${item.status === 'complete' ? 'done' : ''}`} style={{ padding: '9px 18px' }}>
       <Check checked={item.status === 'complete'} disabled={!editable || item.status === 'na'} onChange={onToggle} />
       <span className="label">
         {item.label}
-        {(item.dueDate && item.status !== 'complete') || buyLabel ? <div className="tiny">{buyLabel ? `${buyLabel}` : ''}{buyLabel && item.dueDate && item.status !== 'complete' ? ' · ' : ''}{item.dueDate && item.status !== 'complete' ? `Due ${fmtDate(item.dueDate)}` : ''}</div> : null}
+        {showSub && (
+          <div className="tiny">
+            {[
+              item.dueDate && item.status !== 'complete' ? `Due ${fmtDate(item.dueDate)}` : '',
+              buyLabel ? `Buy: ${buyLabel}` : '',
+              item.notes ?? '',
+            ].filter(Boolean).join(' · ')}
+          </div>
+        )}
       </span>
       {item.status === 'pending' && item.dueDate && item.dueDate < today && <Badge tone="danger">Overdue</Badge>}
       <StatusBadge status={item.status === 'complete' ? 'complete' : item.status === 'na' ? 'archived' : 'pending'}

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { broadcastState, can, canView, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
-import { fmtDateLong, fmtTime, relDue } from '../lib/dates'
+import { fmtDate, fmtDateLong, fmtTime, relDue } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, HomeAwayBadge, Modal, PriorityBadge, StatusBadge } from '../components/ui'
 import { EventForm } from './EventsPage'
 import { I, SportIcon } from '../components/icons'
@@ -19,10 +19,12 @@ const ALL_STAFF_ROLES: StaffRole[] = ['Game Administrator', 'Ticket Worker', 'PA
 
 export default function EventDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const { state, update, add, logActivity, toast } = useStore()
   const [editing, setEditing] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const e = state.events.find(x => x.id === id)
   const me = state.users.find(u => u.id === state.currentUserId)!
   const editable = can(me.role, 'edit')
@@ -88,9 +90,18 @@ export default function EventDetail() {
               {['scheduled', 'confirmed', 'completed', 'postponed', 'canceled'].map(s => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
             </select>
             <button className="btn" onClick={() => setEditing(true)}>Edit event</button>
+            <button className="btn danger" onClick={() => setConfirmDelete(true)}>Delete</button>
           </div>
         )}
       </div>
+
+      {e.deletedAt && (
+        <div className="card card-pad" style={{ marginBottom: 14, borderColor: 'var(--danger)', display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span style={{ color: 'var(--danger)' }}><I.warn /></span>
+          <span className="small" style={{ flex: 1 }}><strong>This event is in the trash</strong> — deleted {fmtDate(e.deletedAt)}, auto-removes in 30 days.</span>
+          {editable && <button className="btn sm" onClick={() => { patch({ deletedAt: undefined }); toast('Event restored') }}>Restore</button>}
+        </div>
+      )}
 
       {conflictIds.length > 0 && (
         <div className="card card-pad" style={{ marginBottom: 14, borderColor: 'var(--warn)', display: 'flex', gap: 10 }}>
@@ -147,6 +158,12 @@ export default function EventDetail() {
           message={`This marks ${eventTitle(e)} as canceled. Staff assignments and reminders stay attached but the event is flagged across the app.`}
           onConfirm={() => { patch({ status: 'canceled' }); logActivity(`canceled event vs ${e.opponent}`); toast('Event canceled') }}
           onClose={() => setConfirmCancel(false)} />
+      )}
+      {confirmDelete && (
+        <ConfirmDialog title="Delete this event?" danger confirmLabel="Move to trash"
+          message={`${eventTitle(e)} will move to the trash for 30 days, then be removed permanently. You can restore it from the Events page any time before then.`}
+          onConfirm={() => { patch({ deletedAt: state.demoToday }); logActivity(`moved event ${eventTitle(e, { short: true })} to the trash`); toast('Event moved to trash'); navigate('/events') }}
+          onClose={() => setConfirmDelete(false)} />
       )}
     </>
   )

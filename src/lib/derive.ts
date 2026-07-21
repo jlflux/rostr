@@ -7,7 +7,8 @@ export function orgScoped<T extends { orgId: string }>(state: AppState, rows: T[
   return rows.filter(r => r.orgId === state.currentOrgId)
 }
 
-export const events = (s: AppState) => orgScoped(s, s.events)
+export const events = (s: AppState) => orgScoped(s, s.events).filter(e => !e.deletedAt)
+export const trashedEvents = (s: AppState) => orgScoped(s, s.events).filter(e => !!e.deletedAt)
 export const sponsors = (s: AppState) => orgScoped(s, s.sponsors)
 export const agreements = (s: AppState) => orgScoped(s, s.agreements)
 export const requests = (s: AppState) => orgScoped(s, s.requests)
@@ -141,6 +142,13 @@ export function matchupLabel(e: SportEvent): string {
   if (e.eventKind === 'tournament') return `${e.homeAway === 'home' ? 'Hosts' : 'at'} ${e.opponent}${lvl}`
   const w = e.homeAway === 'home' ? 'vs ' : e.homeAway === 'away' ? 'at ' : ''
   return `${w}${e.opponent}${lvl}`
+}
+
+export const EVENT_KIND_LABELS: Record<string, string> = {
+  single: 'Single opponent',
+  multi: 'Multi-opponent (tri/quad match)',
+  tournament: 'Tournament',
+  noncomp: 'Non-competition event',
 }
 
 /** Opponents not in the trash. */

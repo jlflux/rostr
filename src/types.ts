@@ -139,7 +139,7 @@ export interface Opponent {
 }
 
 /** How the event's "opponent" field should be interpreted */
-export type EventKind = 'single' | 'tournament' | 'noncomp'
+export type EventKind = 'single' | 'multi' | 'tournament' | 'noncomp'
 
 /** A sponsor activated for something specific within one game */
 export interface SponsorActivation {
@@ -178,8 +178,12 @@ export interface SportEvent {
   eventKind: EventKind
   opponent: string
   opponentId?: string
+  /** For multi-opponent events (tri/quad matches) */
+  opponentIds?: string[]
   gameType?: GameType
   venue: string
+  /** Set when the event is moved to trash; kept ~30 days */
+  deletedAt?: string
   status: EventStatus
   designation?: string // e.g. Homecoming, Senior Night, Region Match
   ticketLink?: string
@@ -205,6 +209,9 @@ export interface FulfillmentItem {
   label: string
   status: FulfillmentStatus
   dueDate?: string
+  /** Optional link to a specific buy; unset = not tied to any particular buy */
+  buyId?: string
+  notes?: string
 }
 
 export interface SponsorNote {

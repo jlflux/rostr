@@ -598,7 +598,7 @@ export function buildSeedState(): AppState {
   const byName = new Map(opponents.map(o => [o.name, o.id]))
   for (const e of events) if (e.eventKind === 'single') e.opponentId = byName.get(e.opponent)
   return {
-    version: 8,
+    version: 9,
     orgs,
     currentOrgId: 'org-hhs',
     currentUserId: 'u-owner',

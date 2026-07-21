@@ -1,26 +1,26 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { activeOpponents, events as allEvents, can, eventTitle, matchupLabel, visibleScore, visibleStatus } from '../lib/derive'
-import { fmtDate, fmtTime } from '../lib/dates'
-import { Badge, Field, HomeAwayBadge, Modal, SearchBox, Seg, StatusBadge } from '../components/ui'
+import { activeOpponents, events as allEvents, can, eventTitle, matchupLabel, trashedEvents, visibleScore, visibleStatus } from '../lib/derive'
+import { addDays, fmtDate, fmtTime } from '../lib/dates'
+import { Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, Seg, StatusBadge } from '../components/ui'
 import { I, SportIcon } from '../components/icons'
 import type { EventKind, GameType, Opponent, SportEvent } from '../types'
 
 const OPP_TINTS = ['#b45309', '#166534', '#1d4ed8', '#7c3aed', '#be185d', '#0e7490', '#ca8a04', '#4d7c0f']
 
 export default function EventsPage() {
-  const { state, add, update, remove, logActivity, toast } = useStore()
+  const { state, add, setState, logActivity, toast } = useStore()
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [scope, setScope] = useState<'upcoming' | 'past' | 'all'>('upcoming')
   const [sport, setSport] = useState('')
   const [creating, setCreating] = useState(false)
   const [importing, setImporting] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showTrash, setShowTrash] = useState(false)
   const me = state.users.find(u => u.id === state.currentUserId)!
   const editable = can(me.role, 'edit')
-  const toggleSel = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const trash = trashedEvents(state)
 
   const list = useMemo(() => {
     let evs = allEvents(state)
@@ -58,54 +58,28 @@ export default function EventsPage() {
           {sports.map(s => <option key={s}>{s}</option>)}
         </select>
         <div className="spacer" />
+        {editable && <button className={`chip ${showTrash ? 'active' : ''}`} onClick={() => setShowTrash(v => !v)}>Trash ({trash.length})</button>}
         <Seg options={[{ value: 'upcoming', label: 'Upcoming' }, { value: 'past', label: 'Past' }, { value: 'all', label: 'All' }]} value={scope} onChange={setScope} />
       </div>
 
-      {editable && selected.size > 0 && (
-        <div className="bulk-bar">
-          <strong>{selected.size} selected</strong>
-          <div className="spacer" />
-          <select className="inline-select" value="" aria-label="Set status for selected" onChange={ev => {
-            const st = ev.target.value
-            if (!st) return
-            selected.forEach(id => update('events', id, { status: st }))
-            toast(`${selected.size} events set to ${st}`)
-            setSelected(new Set())
-          }}>
-            <option value="">Set status…</option>
-            {['scheduled', 'confirmed', 'completed', 'postponed', 'canceled'].map(s => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
-          </select>
-          <button className="btn sm danger" onClick={() => {
-            const n = selected.size
-            selected.forEach(id => remove('events', id))
-            logActivity(`deleted ${n} events in bulk`)
-            toast(`${n} events deleted`)
-            setSelected(new Set())
-          }}>Delete {selected.size}</button>
-          <button className="btn sm ghost" onClick={() => setSelected(new Set())}>Clear</button>
-        </div>
-      )}
+      {showTrash && <EventsTrash />}
 
       <div className="card tbl-wrap">
         <table className="tbl">
           <thead>
             <tr>
-              {editable && <th style={{ width: 34 }}><input type="checkbox" aria-label="Select all"
-                checked={list.length > 0 && list.every(e => selected.has(e.id))}
-                onChange={ev => setSelected(ev.target.checked ? new Set(list.map(e => e.id)) : new Set())} /></th>}
               <th>Date</th><th>Matchup</th><th>H/A</th><th>Venue</th><th>Staffing</th><th>Status</th>
             </tr>
           </thead>
           <tbody>
             {list.length === 0 && (
-              <tr><td colSpan={editable ? 7 : 6}><div className="empty"><h4>No events match</h4><p>Adjust the search or filters.</p></div></td></tr>
+              <tr><td colSpan={6}><div className="empty"><h4>No events match</h4><p>Adjust the search or filters.</p></div></td></tr>
             )}
             {list.map(e => {
               const open = e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length
               const score = visibleScore(state, e)
               return (
-                <tr key={e.id} className={`clickable ${selected.has(e.id) ? 'row-selected' : ''}`} onClick={() => navigate(`/events/${e.id}`)}>
-                  {editable && <td onClick={ev => ev.stopPropagation()}><input type="checkbox" aria-label={`Select ${matchupLabel(e)}`} checked={selected.has(e.id)} onChange={() => toggleSel(e.id)} /></td>}
+                <tr key={e.id} className="clickable" onClick={() => navigate(`/events/${e.id}`)}>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <div style={{ fontWeight: 750 }}>{fmtDate(e.date)}</div>
                     <div className="tiny">{fmtTime(e.time)}</div>
@@ -148,6 +122,27 @@ export default function EventsPage() {
       )}
       {importing && <ImportScheduleModal onClose={() => setImporting(false)} />}
     </>
+  )
+}
+
+function EventsTrash() {
+  const { state, update, remove, toast } = useStore()
+  const trash = trashedEvents(state).sort((a, b) => (b.deletedAt ?? '').localeCompare(a.deletedAt ?? ''))
+  return (
+    <Card title="Trash" pad={false}>
+      <p className="small muted" style={{ margin: '12px 18px 4px' }}>Deleted events are kept for 30 days, then removed permanently.</p>
+      {trash.length === 0 && <Empty icon="🗑" title="Trash is empty" />}
+      {trash.map(e => (
+        <div key={e.id} className="notif-item" style={{ alignItems: 'center' }}>
+          <span style={{ flex: 1 }}>
+            <strong>{eventTitle(e, { short: true })}</strong>
+            <div className="tiny">{fmtDate(e.date)} · deleted {fmtDate(e.deletedAt!)} · auto-removes {fmtDate(addDays(e.deletedAt!, 30))}</div>
+          </span>
+          <button className="btn sm" onClick={() => { update('events', e.id, { deletedAt: undefined }); toast('Event restored') }}>Restore</button>
+          <button className="btn sm danger" onClick={() => { remove('events', e.id); toast('Event permanently deleted', 'error') }}>Delete forever</button>
+        </div>
+      ))}
+    </Card>
   )
 }
 
@@ -207,6 +202,48 @@ function OpponentPicker({ value, name, onPick, error }: {
   )
 }
 
+/** Pick 2+ opponents for tri/quad matches, with an inline add-new. */
+function MultiOpponentPicker({ value, error, onChange }: {
+  value: string[]; error?: string; onChange: (ids: string[], names: string[]) => void
+}) {
+  const { state, add } = useStore()
+  const [newName, setNewName] = useState('')
+  const opponents = activeOpponents(state).sort((a, b) => a.name.localeCompare(b.name))
+  const nameOf = (id: string) => state.opponents.find(o => o.id === id)?.name ?? ''
+  const emit = (ids: string[]) => onChange(ids, ids.map(nameOf))
+  const toggle = (id: string) => emit(value.includes(id) ? value.filter(x => x !== id) : [...value, id])
+  const addNew = () => {
+    const t = newName.trim()
+    if (!t) return
+    const existing = opponents.find(o => o.name.toLowerCase() === t.toLowerCase())
+    if (existing) { if (!value.includes(existing.id)) emit([...value, existing.id]) }
+    else {
+      const opp: Opponent = { id: `opp-new-${Date.now()}`, orgId: state.currentOrgId, name: t, tint: OPP_TINTS[Math.floor(Math.random() * OPP_TINTS.length)] }
+      add('opponents', opp)
+      emit([...value, opp.id])
+    }
+    setNewName('')
+  }
+  return (
+    <Field label="Opponents (choose 2 or more)" required error={error}>
+      <div style={{ border: '1px solid var(--border-strong)', borderRadius: 8, maxHeight: 180, overflowY: 'auto', padding: '4px 0' }}>
+        {opponents.map(o => (
+          <label key={o.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '5px 12px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={value.includes(o.id)} onChange={() => toggle(o.id)} />
+            {o.name}
+          </label>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+        <input className="input" style={{ flex: 1 }} placeholder="Add a new opponent…" value={newName}
+          onChange={e => setNewName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNew() } }} />
+        <button type="button" className="btn sm" onClick={addNew} disabled={!newName.trim()}>Add</button>
+      </div>
+      {value.length > 0 && <div className="tiny" style={{ marginTop: 6 }}>{value.length} selected: {value.map(nameOf).join(', ')}</div>}
+    </Field>
+  )
+}
+
 export function EventForm({ initial, onClose, onSave }: { initial?: SportEvent; onClose: () => void; onSave: (e: SportEvent) => void }) {
   const { state } = useStore()
   const [form, setForm] = useState(() => initial ?? {
@@ -221,7 +258,8 @@ export function EventForm({ initial, onClose, onSave }: { initial?: SportEvent; 
 
   const submit = () => {
     const errs: Record<string, string> = {}
-    if (!form.opponent.trim()) errs.opponent = form.eventKind === 'single' ? 'Select an opponent or add a new one.' : 'Give the event a name.'
+    if (form.eventKind === 'multi') { if ((form.opponentIds ?? []).length < 2) errs.opponent = 'Pick at least two opponents.' }
+    else if (!form.opponent.trim()) errs.opponent = form.eventKind === 'single' ? 'Select an opponent or add a new one.' : 'Give the event a name.'
     if (!form.date) errs.date = 'Date is required.'
     if (!form.venue.trim()) errs.venue = 'Venue is required.'
     if (form.ticketLink && !/^https?:\/\//.test(form.ticketLink)) errs.ticketLink = 'Must be a full URL starting with http(s)://'
@@ -250,18 +288,24 @@ export function EventForm({ initial, onClose, onSave }: { initial?: SportEvent; 
         <Field label="Event type" required>
           <select value={form.eventKind} onChange={e => {
             const eventKind = e.target.value as EventKind
-            set({ eventKind, opponentId: undefined, opponent: '' })
+            set({ eventKind, opponentId: undefined, opponentIds: undefined, opponent: '' })
           }}>
             <option value="single">Single opponent</option>
-            <option value="tournament">Tournament / multi-team</option>
+            <option value="multi">Multi-opponent (tri / quad match)</option>
+            <option value="tournament">Tournament</option>
             <option value="noncomp">Non-competition event</option>
           </select>
         </Field>
       </div>
-      {form.eventKind === 'single' ? (
+      {form.eventKind === 'single' && (
         <OpponentPicker value={form.opponentId} name={form.opponent} error={errors.opponent}
           onPick={(opponentId, name) => set({ opponentId, opponent: name })} />
-      ) : (
+      )}
+      {form.eventKind === 'multi' && (
+        <MultiOpponentPicker value={form.opponentIds ?? []} error={errors.opponent}
+          onChange={(ids, names) => set({ opponentIds: ids, opponent: names.join(', ') })} />
+      )}
+      {(form.eventKind === 'tournament' || form.eventKind === 'noncomp') && (
         <Field label={form.eventKind === 'tournament' ? 'Tournament / meet name' : 'Event name'} required error={errors.opponent}>
           <input value={form.opponent} onChange={e => set({ opponent: e.target.value, opponentId: undefined })}
             placeholder={form.eventKind === 'tournament' ? 'e.g. Coach Wood Invitational' : 'e.g. Fan Day & Media Night'} />

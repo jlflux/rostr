@@ -49,10 +49,13 @@ export default function Dashboard() {
         <Link to="/calendar" className="btn navy">View calendar</Link>
       </div>
 
-      <div className="grid grid-4" style={{ marginBottom: 16 }}>
-        <StatCard label="Events this week" value={week.length} hint={`${home.length} at home`} />
-        <StatCard label="Unfilled staff roles" value={gaps.reduce((n, g) => n + g.count, 0)} tone={gaps.length ? 'alert' : 'ok'} hint={gaps.length ? `across ${unfilledSlots(state).length} upcoming events` : 'All events covered'} />
-        <StatCard label="Home events this week" value={home.length} hint={home.length ? `Next: ${home[0] ? fmtDate(home[0].date) : ''}` : 'No home events'} />
+      <div className={`grid ${showRequests ? 'grid-3' : 'grid-3'}`} style={{ marginBottom: 16 }}>
+        <div className="card stat-card">
+          <span className="label">Events this week</span>
+          <span className="value">{week.length}</span>
+          <span className="hint">of which <strong style={{ color: 'var(--brand)', fontSize: '1.05rem' }}>{home.length}</strong> {home.length === 1 ? 'is' : 'are'} at home</span>
+        </div>
+        <StatCard label="Unfilled staff assignments" value={gaps.reduce((n, g) => n + g.count, 0)} tone={gaps.length ? 'alert' : 'ok'} hint={gaps.length ? `across ${unfilledSlots(state).length} upcoming events` : 'All events covered'} />
         {showRequests
           ? <StatCard label="Open coach requests" value={reqs.length} tone={reqs.some(r => r.status === 'submitted') ? 'warn' : undefined} hint={`${reqs.filter(r => r.status === 'submitted').length} awaiting review`} />
           : <StatCard label="Overdue tasks" value={overdue.length} tone={overdue.length ? 'alert' : 'ok'} hint={overdue.length ? 'Need attention' : 'All on schedule'} />}

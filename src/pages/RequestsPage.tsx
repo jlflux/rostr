@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { can, requests as allRequests } from '../lib/derive'
+import { ROLE_LABELS, can, requests as allRequests } from '../lib/derive'
 import { fmtDate, fmtDateTime, relDue } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Field, Modal, PriorityBadge, SearchBox, Seg, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
@@ -274,7 +274,7 @@ export function RequestDetail() {
                   toast('Assignee updated')
                 }}>
                   <option value="">Unassigned</option>
-                  {state.users.filter(u => ['comms_admin', 'school_admin', 'event_staff'].includes(u.role)).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  {state.users.filter(u => u.orgId === state.currentOrgId && u.status !== 'revoked').map(u => <option key={u.id} value={u.id}>{u.name} · {ROLE_LABELS[u.role]}</option>)}
                 </select>
               ) : (assignee?.name ?? 'Unassigned')}
             </dd>
