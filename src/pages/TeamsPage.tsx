@@ -247,10 +247,10 @@ function RosterTab({ team }: { team: Team }) {
               const guardians = a.guardians ?? []
               return (
                 <Fragment key={a.id}>
-                  <tr className="clickable" onClick={() => toggleExpand(a.id)}>
+                  <tr className={`clickable athlete-row ${isOpen ? 'open' : ''}`} onClick={() => toggleExpand(a.id)} aria-expanded={isOpen} title="Show contact & guardian info">
                     <td><span className={`chev ${isOpen ? 'open' : ''}`} aria-hidden><I.chevron /></span></td>
                     <td className="num" style={{ textAlign: 'left', fontWeight: 700 }}>{a.number ?? '—'}</td>
-                    <td><span className="primary">{a.name}</span></td>
+                    <td><span className="athlete-name">{a.name}</span></td>
                     <td className="muted small">{a.grade ? `Grade ${a.grade}` : '—'}</td>
                     <td className="muted small">{a.position ?? '—'}</td>
                     <td className="small">{guardians.length ? `${guardians.length} contact${guardians.length > 1 ? 's' : ''}` : <span className="tiny">None</span>}</td>

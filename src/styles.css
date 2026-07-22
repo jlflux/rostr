@@ -219,11 +219,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .tbl tbody tr.clickable { cursor: pointer; }
 .tbl td .primary { font-weight: 600; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
-.chev { display: inline-flex; color: var(--text-3); transition: transform 0.15s ease; }
-.chev.open { transform: rotate(90deg); color: var(--text); }
+.chev { display: inline-flex; color: var(--brand, var(--text-3)); transition: transform 0.15s ease; }
+.chev.open { transform: rotate(90deg); }
+.athlete-name { font-weight: 600; color: var(--brand); }
+.tbl tbody tr.athlete-row:hover .athlete-name { text-decoration: underline; }
+.tbl tbody tr.athlete-row.open { background: var(--surface-2); }
 .tbl tbody tr.athlete-detail-row:hover { background: transparent; }
 .tbl tr.athlete-detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
-.athlete-detail { padding: 14px 16px 16px; background: var(--surface-2); }
+.athlete-detail { padding: 14px 16px 16px; background: var(--surface-2); border-left: 3px solid var(--brand); }
 
 /* ---------- Buttons / forms ---------- */
 .btn {
