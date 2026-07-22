@@ -44,12 +44,25 @@ export interface User {
 
 export type RosterStatus = 'complete' | 'in_progress' | 'not_started'
 
+export interface Guardian {
+  id: string
+  name: string
+  relation?: string // Mother, Father, Guardian…
+  phone?: string
+  email?: string
+}
+
 export interface Athlete {
   id: string
   number?: string
   name: string
   grade?: string // 9–12
   position?: string
+  phone?: string
+  email?: string
+  /** Emergency / medical info coaches may need on the field */
+  medicalNotes?: string
+  guardians?: Guardian[]
 }
 
 export interface ImportantDate {

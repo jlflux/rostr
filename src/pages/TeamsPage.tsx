@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { Fragment, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, broadcastState, can, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
@@ -6,7 +6,7 @@ import { fmtDate, fmtTime } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { splitCsvLine } from './EventsPage'
 import { I } from '../components/icons'
-import type { Athlete, Team } from '../types'
+import type { Athlete, Guardian, Team } from '../types'
 
 export default function TeamsPage() {
   const { state } = useStore()
@@ -206,9 +206,12 @@ function RosterTab({ team }: { team: Team }) {
   const [q, setQ] = useState('')
   const [importing, setImporting] = useState(false)
   const [draft, setDraft] = useState({ number: '', name: '', grade: '', position: '' })
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [editingAthlete, setEditingAthlete] = useState<Athlete | null>(null)
   const me = state.users.find(u => u.id === state.currentUserId)!
   const editable = can(me.role, 'edit')
   const roster = team.roster ?? []
+  const toggleExpand = (id: string) => setExpanded(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   const term = q.trim().toLowerCase()
   const shown = term ? roster.filter(a => a.name.toLowerCase().includes(term) || a.number === term || a.position?.toLowerCase().includes(term)) : roster
 
@@ -228,30 +231,73 @@ function RosterTab({ team }: { team: Team }) {
         <div className="spacer" />
         {editable && <button className="btn primary" onClick={() => setImporting(true)}>Import roster</button>}
       </div>
+      <p className="tiny" style={{ margin: '0 0 10px' }}>Tap an athlete to see contact and guardian info — handy on the sideline in an emergency.</p>
       <div className="card tbl-wrap">
         <table className="tbl">
-          <thead><tr><th style={{ width: 60 }}>#</th><th>Name</th><th>Grade</th><th>Position</th>{editable && <th style={{ width: 50 }} />}</tr></thead>
+          <thead><tr><th style={{ width: 34 }} /><th style={{ width: 50 }}>#</th><th>Name</th><th>Grade</th><th>Position</th><th>Guardians</th>{editable && <th style={{ width: 50 }} />}</tr></thead>
           <tbody>
             {shown.length === 0 && (
-              <tr><td colSpan={5}><div className="empty">
+              <tr><td colSpan={7}><div className="empty">
                 <h4>{term ? 'No athletes match' : 'No roster on file'}</h4>
                 <p>{term ? 'Try a different search.' : 'Add athletes below or import the full roster from a spreadsheet.'}</p>
               </div></td></tr>
             )}
-            {shown.map(a => (
-              <tr key={a.id}>
-                <td className="num" style={{ textAlign: 'left', fontWeight: 700 }}>{a.number ?? '—'}</td>
-                <td><span className="primary">{a.name}</span></td>
-                <td className="muted small">{a.grade ? `Grade ${a.grade}` : '—'}</td>
-                <td className="muted small">{a.position ?? '—'}</td>
-                {editable && (
-                  <td>
-                    <button className="btn sm ghost" aria-label={`Remove ${a.name}`} title="Remove athlete"
-                      onClick={() => setRoster(roster.filter(x => x.id !== a.id), `${a.name} removed from roster`)}>✕</button>
-                  </td>
-                )}
-              </tr>
-            ))}
+            {shown.map(a => {
+              const isOpen = expanded.has(a.id)
+              const guardians = a.guardians ?? []
+              return (
+                <Fragment key={a.id}>
+                  <tr className="clickable" onClick={() => toggleExpand(a.id)}>
+                    <td><span className={`chev ${isOpen ? 'open' : ''}`} aria-hidden><I.chevron /></span></td>
+                    <td className="num" style={{ textAlign: 'left', fontWeight: 700 }}>{a.number ?? '—'}</td>
+                    <td><span className="primary">{a.name}</span></td>
+                    <td className="muted small">{a.grade ? `Grade ${a.grade}` : '—'}</td>
+                    <td className="muted small">{a.position ?? '—'}</td>
+                    <td className="small">{guardians.length ? `${guardians.length} contact${guardians.length > 1 ? 's' : ''}` : <span className="tiny">None</span>}</td>
+                    {editable && (
+                      <td onClick={ev => ev.stopPropagation()}>
+                        <button className="btn sm ghost" aria-label={`Remove ${a.name}`} title="Remove athlete"
+                          onClick={() => setRoster(roster.filter(x => x.id !== a.id), `${a.name} removed from roster`)}>✕</button>
+                      </td>
+                    )}
+                  </tr>
+                  {isOpen && (
+                    <tr className="athlete-detail-row">
+                      <td colSpan={editable ? 7 : 6}>
+                        <div className="athlete-detail">
+                          <div className="grid grid-2" style={{ gap: 16 }}>
+                            <div>
+                              <div className="section-title" style={{ fontSize: '0.82rem', marginBottom: 6 }}>Athlete</div>
+                              <dl className="kv" style={{ gridTemplateColumns: '90px 1fr', fontSize: '0.85rem' }}>
+                                <dt>Phone</dt><dd>{a.phone ? <a className="link" href={`tel:${a.phone}`}>{a.phone}</a> : <span className="muted">—</span>}</dd>
+                                <dt>Email</dt><dd>{a.email ? <a className="link" href={`mailto:${a.email}`}>{a.email}</a> : <span className="muted">—</span>}</dd>
+                                <dt>Medical</dt><dd>{a.medicalNotes || <span className="muted">None on file</span>}</dd>
+                              </dl>
+                            </div>
+                            <div>
+                              <div className="section-title" style={{ fontSize: '0.82rem', marginBottom: 6 }}>Guardians / emergency contacts</div>
+                              {guardians.length === 0 && <p className="small muted" style={{ margin: 0 }}>No contacts on file.</p>}
+                              {guardians.map(g => (
+                                <div key={g.id} style={{ marginBottom: 8 }}>
+                                  <div style={{ fontWeight: 650, fontSize: '0.88rem' }}>{g.name} {g.relation && <span className="tiny">· {g.relation}</span>}</div>
+                                  <div className="small">
+                                    {g.phone && <a className="link" href={`tel:${g.phone}`}>{g.phone}</a>}
+                                    {g.phone && g.email && ' · '}
+                                    {g.email && <a className="link" href={`mailto:${g.email}`}>{g.email}</a>}
+                                    {!g.phone && !g.email && <span className="muted">No contact info</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          {editable && <button className="btn sm" style={{ marginTop: 6 }} onClick={() => setEditingAthlete(a)}><I.edit /> Edit athlete & contacts</button>}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
           </tbody>
         </table>
         {editable && (
@@ -268,6 +314,12 @@ function RosterTab({ team }: { team: Team }) {
           </div>
         )}
       </div>
+      {editingAthlete && (
+        <AthleteModal athlete={editingAthlete} onClose={() => setEditingAthlete(null)} onSave={next => {
+          setRoster(roster.map(x => x.id === next.id ? next : x), `${next.name} updated`)
+          setEditingAthlete(null)
+        }} />
+      )}
       {importing && (
         <RosterImportModal team={team} onClose={() => setImporting(false)} onImport={(athletes, mode) => {
           const next = mode === 'replace' ? athletes : [...roster, ...athletes]
@@ -369,6 +421,73 @@ function RosterImportModal({ team, onClose, onImport }: {
           </div>
         </>
       )}
+    </Modal>
+  )
+}
+
+function AthleteModal({ athlete, onClose, onSave }: { athlete: Athlete; onClose: () => void; onSave: (a: Athlete) => void }) {
+  const { toast } = useStore()
+  const [form, setForm] = useState<Athlete>({ ...athlete, guardians: (athlete.guardians ?? []).map(g => ({ ...g })) })
+  const set = (patch: Partial<Athlete>) => setForm(f => ({ ...f, ...patch }))
+  const guardians = form.guardians ?? []
+  const setGuardian = (i: number, patch: Partial<Guardian>) =>
+    set({ guardians: guardians.map((g, j) => j === i ? { ...g, ...patch } : g) })
+
+  const save = () => {
+    if (!form.name.trim()) { toast('Athlete name is required', 'error'); return }
+    for (const g of guardians) {
+      if (g.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g.email)) { toast(`Check the email for ${g.name || 'a guardian'}`, 'error'); return }
+    }
+    onSave({
+      ...form,
+      name: form.name.trim(),
+      number: form.number?.trim() || undefined,
+      grade: form.grade?.trim() || undefined,
+      position: form.position?.trim() || undefined,
+      phone: form.phone?.trim() || undefined,
+      email: form.email?.trim() || undefined,
+      medicalNotes: form.medicalNotes?.trim() || undefined,
+      guardians: guardians
+        .filter(g => g.name.trim() || g.phone?.trim() || g.email?.trim())
+        .map(g => ({ ...g, name: g.name.trim(), relation: g.relation?.trim() || undefined, phone: g.phone?.trim() || undefined, email: g.email?.trim() || undefined })),
+    })
+  }
+
+  return (
+    <Modal title={`Edit ${athlete.name}`} onClose={onClose} wide footer={
+      <>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn primary" onClick={save}>Save athlete</button>
+      </>
+    }>
+      <div className="grid grid-2" style={{ gap: 12 }}>
+        <Field label="Jersey #"><input className="input" value={form.number ?? ''} onChange={e => set({ number: e.target.value })} /></Field>
+        <Field label="Name"><input className="input" value={form.name} onChange={e => set({ name: e.target.value })} /></Field>
+        <Field label="Grade"><input className="input" value={form.grade ?? ''} onChange={e => set({ grade: e.target.value })} placeholder="9–12" /></Field>
+        <Field label="Position"><input className="input" value={form.position ?? ''} onChange={e => set({ position: e.target.value })} /></Field>
+        <Field label="Athlete phone"><input className="input" value={form.phone ?? ''} onChange={e => set({ phone: e.target.value })} placeholder="(205) 555-0100" /></Field>
+        <Field label="Athlete email"><input className="input" value={form.email ?? ''} onChange={e => set({ email: e.target.value })} /></Field>
+      </div>
+      <Field label="Medical / emergency notes">
+        <textarea rows={2} value={form.medicalNotes ?? ''} onChange={e => set({ medicalNotes: e.target.value })} placeholder="Allergies, conditions, medications coaches should know on the field" />
+      </Field>
+      <div className="section-title" style={{ margin: '14px 0 8px' }}>Guardians / emergency contacts</div>
+      {guardians.length === 0 && <p className="small muted" style={{ marginTop: 0 }}>No contacts yet — add a parent or guardian below.</p>}
+      {guardians.map((g, i) => (
+        <div key={g.id} className="card card-pad" style={{ marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <strong className="small">Contact {i + 1}</strong>
+            <button className="btn sm ghost" aria-label="Remove contact" onClick={() => set({ guardians: guardians.filter((_, j) => j !== i) })}><I.x /> Remove</button>
+          </div>
+          <div className="grid grid-2" style={{ gap: 10 }}>
+            <Field label="Name"><input className="input" value={g.name} onChange={e => setGuardian(i, { name: e.target.value })} /></Field>
+            <Field label="Relationship"><input className="input" value={g.relation ?? ''} onChange={e => setGuardian(i, { relation: e.target.value })} placeholder="Mother, Father, Guardian…" /></Field>
+            <Field label="Phone"><input className="input" value={g.phone ?? ''} onChange={e => setGuardian(i, { phone: e.target.value })} placeholder="(205) 555-0100" /></Field>
+            <Field label="Email"><input className="input" value={g.email ?? ''} onChange={e => setGuardian(i, { email: e.target.value })} /></Field>
+          </div>
+        </div>
+      ))}
+      <button className="btn sm" onClick={() => set({ guardians: [...guardians, { id: `grd-${Date.now()}`, name: '', relation: '', phone: '', email: '' }] })}><I.plus /> Add contact</button>
     </Modal>
   )
 }

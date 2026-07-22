@@ -1,6 +1,6 @@
 import rawSchedule from './scheduleEvents.json'
 import type {
-  Activity, Agreement, AppState, Asset, Athlete, CoachRequest, FulfillmentItem, Opponent, Organization,
+  Activity, Agreement, AppState, Asset, Athlete, CoachRequest, FulfillmentItem, Guardian, Opponent, Organization,
   SportEvent, Sponsor, StaffRole, StaffSlot, Task, Team, User,
 } from '../types'
 
@@ -542,6 +542,8 @@ const activity: Activity[] = [
 
 const FIRST_NAMES = ['Jack', 'Will', 'Sam', 'Eli', 'Mason', 'Carter', 'Owen', 'Luke', 'Henry', 'Miles', 'Ava', 'Ella', 'Mary', 'Anna', 'Kate', 'Lily', 'Nora', 'Ruby', 'Sadie', 'Tess', 'Jordan', 'Riley', 'Avery', 'Quinn', 'Reese']
 const LAST_NAMES = ['Adams', 'Baker', 'Cooper', 'Davis', 'Ellis', 'Foster', 'Grant', 'Hayes', 'Ingram', 'Jones', 'Kelly', 'Lawson', 'Mitchell', 'Norris', 'Owens', 'Parker', 'Reed', 'Sanders', 'Turner', 'Vance', 'Walker', 'Young']
+const MOM_FIRSTS = ['Jennifer', 'Lisa', 'Karen', 'Susan', 'Amy', 'Angela', 'Melissa', 'Rebecca', 'Michelle', 'Kimberly']
+const DAD_FIRSTS = ['Michael', 'David', 'James', 'Robert', 'John', 'Brian', 'Kevin', 'Steven', 'Mark', 'Paul']
 const POSITIONS: Record<string, string[]> = {
   Football: ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K'],
   Volleyball: ['S', 'OH', 'MB', 'RS', 'L', 'DS'],
@@ -557,15 +559,29 @@ function buildRoster(t: Team): Athlete[] {
   const firsts = FIRST_NAMES.filter((_, i) => (boys && i < 10) || (girls && i >= 10))
   const grades = t.level === 'Freshman' ? ['9'] : t.level === 'JV' ? ['9', '10', '10'] : ['10', '11', '11', '12', '12']
   const positions = POSITIONS[t.sport] ?? ['—']
+  const phone = (key: string) => `(205) 555-${String(100 + Math.floor(hash(key + 'ph') * 899)).padStart(4, '0')}`
   const out: Athlete[] = []
   for (let i = 0; i < count; i++) {
     const key = `${t.id}-${i}`
+    const last = pick(LAST_NAMES, key + 'l')
+    const name = `${pick(firsts, key + 'f')} ${last}`
+    // Seed parent/guardian contacts so coaches can pull up a number on the sideline
+    const twoParents = hash(key + 'gg') > 0.35
+    const momFirst = hash(key + 'r1') > 0.5 // first listed guardian is the mother
+    const mom: Guardian = { id: `grd-${key}-m`, name: `${pick(MOM_FIRSTS, key + 'gm')} ${last}`, relation: 'Mother', phone: phone(key + 'm') }
+    const dad: Guardian = { id: `grd-${key}-d`, name: `${pick(DAD_FIRSTS, key + 'gd')} ${last}`, relation: 'Father', phone: phone(key + 'd') }
+    const ordered = twoParents ? (momFirst ? [mom, dad] : [dad, mom]) : [momFirst ? mom : dad]
+    // Primary contact carries the shared family email
+    ordered[0].email = `${last.toLowerCase()}.family@example.com`
+    const guardians: Guardian[] = ordered
     out.push({
       id: `ath-${key}`,
       number: t.sport === 'Cross Country' || t.sport === 'Cheerleading' ? undefined : String(1 + Math.floor(hash(key + 'n') * 98)),
-      name: `${pick(firsts, key + 'f')} ${pick(LAST_NAMES, key + 'l')}`,
+      name,
       grade: pick(grades, key + 'g'),
       position: pick(positions, key + 'p'),
+      phone: phone(key + '0'),
+      guardians,
     })
   }
   return out.sort((a, b) => (Number(a.number) || 999) - (Number(b.number) || 999) || a.name.localeCompare(b.name))
@@ -606,7 +622,7 @@ export function buildSeedState(): AppState {
   const byName = new Map(opponents.map(o => [o.name, o.id]))
   for (const e of events) if (e.eventKind === 'single') e.opponentId = byName.get(e.opponent)
   return {
-    version: 10,
+    version: 11,
     orgs,
     currentOrgId: 'org-hhs',
     currentUserId: 'u-owner',

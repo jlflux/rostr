@@ -219,6 +219,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .tbl tbody tr.clickable { cursor: pointer; }
 .tbl td .primary { font-weight: 600; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+.chev { display: inline-flex; color: var(--text-3); transition: transform 0.15s ease; }
+.chev.open { transform: rotate(90deg); color: var(--text); }
+.tbl tbody tr.athlete-detail-row:hover { background: transparent; }
+.tbl tr.athlete-detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
+.athlete-detail { padding: 14px 16px 16px; background: var(--surface-2); }
 
 /* ---------- Buttons / forms ---------- */
 .btn {
@@ -486,3 +491,20 @@ tr.sched-row.win:hover, tr.sched-row.loss:hover { filter: brightness(0.98); }
 .bulk-bar .inline-select { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.25); }
 .bulk-bar .btn.ghost { color: #fff; }
 tr.row-selected > td { background: var(--info-bg); }
+
+/* mobile global search: collapse to a magnifying-glass button */
+.gsearch-trigger { display: none; }
+.gsearch-close {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; font-size: 1.4rem; line-height: 1; color: var(--text-3); padding: 4px 8px;
+}
+.gsearch-close:hover { color: var(--text); }
+@media (max-width: 640px) {
+  .gsearch-trigger { display: grid; }
+  .gsearch { display: none; }
+  .gsearch.mobile-open {
+    display: flex; position: fixed; top: 8px; left: 10px; right: 10px; z-index: 120; max-width: none;
+    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: var(--shadow-lg);
+  }
+  .gsearch.mobile-open input { background: var(--surface); padding-right: 40px; height: 42px; }
+}

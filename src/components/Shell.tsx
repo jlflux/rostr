@@ -22,8 +22,10 @@ function GlobalSearch() {
   const { state } = useStore()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
-  const ref = useClickOutside(() => setOpen(false))
+  const ref = useClickOutside(() => { setOpen(false); setMobileOpen(false) })
 
   const me = state.users.find(u => u.id === state.currentUserId)!
   const results = useMemo(() => {
@@ -45,31 +47,41 @@ function GlobalSearch() {
     return out.slice(0, 12)
   }, [q, state])
 
+  const go = (to: string) => { navigate(to); setOpen(false); setMobileOpen(false); setQ('') }
+
   return (
-    <div className="gsearch" ref={ref}>
-      <span className="icon"><I.search /></span>
-      <input
-        placeholder="Search events, sponsors, teams, requests…"
-        value={q}
-        aria-label="Global search"
-        onChange={e => { setQ(e.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
-      />
-      {open && q.trim().length >= 2 && (
-        <div className="gsearch-results">
-          {results.length === 0 && <div style={{ padding: '14px', fontSize: '0.85rem', color: 'var(--text-3)' }}>No matches for “{q}”</div>}
-          {results.map((r, i) => (
-            <a key={i} onClick={() => { navigate(r.to); setOpen(false); setQ('') }} style={{ cursor: 'pointer' }}>
-              <span className="kind">{r.kind}</span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600 }}>{r.label}</div>
-                <div className="tiny">{r.sub}</div>
-              </span>
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
+    <>
+      {/* On phones the field collapses to this magnifying-glass button */}
+      <button className="iconbtn gsearch-trigger" aria-label="Search" onClick={() => { setMobileOpen(true); setTimeout(() => inputRef.current?.focus(), 0) }}>
+        <I.search />
+      </button>
+      <div className={`gsearch ${mobileOpen ? 'mobile-open' : ''}`} ref={ref}>
+        <span className="icon"><I.search /></span>
+        <input
+          ref={inputRef}
+          placeholder="Search events, sponsors, teams, requests…"
+          value={q}
+          aria-label="Global search"
+          onChange={e => { setQ(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+        />
+        {mobileOpen && <button className="gsearch-close" aria-label="Close search" onClick={() => { setMobileOpen(false); setQ('') }}>×</button>}
+        {open && q.trim().length >= 2 && (
+          <div className="gsearch-results">
+            {results.length === 0 && <div style={{ padding: '14px', fontSize: '0.85rem', color: 'var(--text-3)' }}>No matches for “{q}”</div>}
+            {results.map((r, i) => (
+              <a key={i} onClick={() => go(r.to)} style={{ cursor: 'pointer' }}>
+                <span className="kind">{r.kind}</span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{r.label}</div>
+                  <div className="tiny">{r.sub}</div>
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 
@@ -200,7 +212,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { state, toasts, theme, setTheme } = useStore()
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
+  const contentRef = useRef<HTMLElement>(null)
   useEffect(() => setNavOpen(false), [location.pathname])
+  // Start every page at the top rather than inheriting the previous scroll position
+  useEffect(() => { contentRef.current?.scrollTo(0, 0) }, [location.pathname])
   const org = state.orgs.find(o => o.id === state.currentOrgId)!
   const me = state.users.find(u => u.id === state.currentUserId)!
   const nav = NAV.filter(n => canView(me.role, n.section))
@@ -252,7 +267,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <Notifications />
           <UserMenu />
         </header>
-        <main className="content"><div className="content-inner">{children}</div></main>
+        <main className="content" ref={contentRef}><div className="content-inner">{children}</div></main>
       </div>
       <div className="toasts">
         {toasts.map(t => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'success' ? <I.check /> : <I.warn />} {t.msg}</div>)}
