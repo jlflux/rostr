@@ -622,7 +622,9 @@ export function buildSeedState(): AppState {
   const byName = new Map(opponents.map(o => [o.name, o.id]))
   for (const e of events) if (e.eventKind === 'single') e.opponentId = byName.get(e.opponent)
   return {
-    version: 12,
+    // Matches SCHEMA_VERSION in store.tsx. Do NOT bump this for demo-content
+    // tweaks — only for a breaking data-shape change (with a migrate() step).
+    version: 13,
     orgs,
     currentOrgId: 'org-hhs',
     currentUserId: 'u-owner',
