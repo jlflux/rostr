@@ -327,3 +327,41 @@ export function allocationLabel(s: AppState, target: string): string {
   if (target === 'athletics') return 'Athletic department'
   return teams(s).find(t => t.id === target)?.name ?? target
 }
+
+/**
+ * Total sponsorship revenue split by where the money is earmarked. Any part of a
+ * buy that isn't earmarked to a specific team falls to the athletic department, so
+ * a $5,000 buy with $500 earmarked to cheer shows $4,500 to athletics + $500 to cheer.
+ */
+export function revenueByDepartment(s: AppState): { target: string; label: string; total: number; collected: number }[] {
+  const totals = new Map<string, { total: number; collected: number }>()
+  const bump = (target: string, total: number, collected: number) => {
+    const cur = totals.get(target) ?? { total: 0, collected: 0 }
+    cur.total += total; cur.collected += collected
+    totals.set(target, cur)
+  }
+  for (const a of agreements(s)) {
+    const paidRatio = a.amount > 0 ? agreementPaid(a) / a.amount : 0
+    const allocs = a.allocations ?? []
+    let allocated = 0
+    for (const al of allocs) { bump(al.target, al.amount, al.amount * paidRatio); allocated += al.amount }
+    const remainder = a.amount - allocated
+    if (remainder > 0) bump('athletics', remainder, remainder * paidRatio)
+  }
+  return [...totals.entries()]
+    .map(([target, v]) => ({ target, label: allocationLabel(s, target), total: v.total, collected: v.collected }))
+    .sort((a, b) => b.total - a.total)
+}
+
+/** Every team earmark (excludes the athletic-department default), newest-largest first, with its note. */
+export function teamEarmarks(s: AppState): { id: string; sponsorId: string; sponsorName: string; label: string; amount: number; note?: string }[] {
+  const out: { id: string; sponsorId: string; sponsorName: string; label: string; amount: number; note?: string }[] = []
+  for (const a of agreements(s)) {
+    const sp = sponsors(s).find(x => x.id === a.sponsorId)
+    for (const al of a.allocations ?? []) {
+      if (al.target === 'athletics') continue
+      out.push({ id: al.id, sponsorId: a.sponsorId, sponsorName: sp?.name ?? '—', label: allocationLabel(s, al.target), amount: al.amount, note: al.note })
+    }
+  }
+  return out.sort((a, b) => b.amount - a.amount)
+}

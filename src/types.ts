@@ -74,7 +74,7 @@ export interface Team {
   id: string
   orgId: string
   sport: string
-  level: 'Varsity' | 'JV' | 'Freshman'
+  level: 'Varsity' | 'JV' | 'Freshman' | '8th Grade' | '7th Grade'
   gender?: 'Boys' | 'Girls' | 'Coed'
   name: string
   season: 'Fall' | 'Winter' | 'Spring'
@@ -270,6 +270,8 @@ export interface Allocation {
   id: string
   target: string
   amount: number
+  /** Free-text note on this earmark, e.g. which athlete gets credit for the money */
+  note?: string
 }
 
 export interface Agreement {

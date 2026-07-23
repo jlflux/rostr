@@ -1,7 +1,7 @@
 import { useStore } from '../store/store'
-import { agreementPaid, agreements as allAgreements, fulfillmentProgress, requests as allRequests, sponsors as allSponsors, sponsorshipTotals, tasks as allTasks, teamCompleteness, teams as allTeams, events as allEvents } from '../lib/derive'
+import { agreementPaid, agreements as allAgreements, fulfillmentProgress, requests as allRequests, revenueByDepartment, sponsors as allSponsors, sponsorshipTotals, tasks as allTasks, teamCompleteness, teamEarmarks, teams as allTeams, events as allEvents } from '../lib/derive'
 import { fmtDate, fmtMoney } from '../lib/dates'
-import { Badge, Card, StatCard, StatusBadge } from '../components/ui'
+import { Badge, Card, Empty, StatCard, StatusBadge } from '../components/ui'
 import { Link } from 'react-router-dom'
 
 function Bar({ label, value, max, display, brand }: { label: string; value: number; max: number; display?: string; brand?: boolean }) {
@@ -52,6 +52,11 @@ export default function ReportsPage() {
   const renewals = sps.map(s => ({ s, a: ags.find(a => a.sponsorId === s.id) }))
     .sort((x, y) => x.s.renewalDate.localeCompare(y.s.renewalDate)).slice(0, 8)
 
+  // Revenue split by department: athletic dept keeps whatever isn't earmarked to a team
+  const byDept = revenueByDepartment(state)
+  const maxDept = Math.max(1, ...byDept.map(d => d.total))
+  const earmarks = teamEarmarks(state)
+
   return (
     <>
       <div className="page-head">
@@ -69,6 +74,41 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid grid-2">
+        <Card title="Revenue by department" action={<span className="tiny">Unearmarked money stays with athletics</span>}>
+          {byDept.length === 0 && <Empty title="No revenue recorded" />}
+          {byDept.map(d => (
+            <Bar key={d.target} label={d.label} value={d.total} max={maxDept} display={fmtMoney(d.total)} brand={d.target === 'athletics'} />
+          ))}
+          {byDept.length > 0 && (
+            <>
+              <div className="divider" />
+              <p className="small muted" style={{ margin: 0 }}>
+                {fmtMoney(byDept.find(d => d.target === 'athletics')?.total ?? 0)} to the athletic department ·{' '}
+                {fmtMoney(byDept.filter(d => d.target !== 'athletics').reduce((n, d) => n + d.total, 0))} earmarked to teams
+              </p>
+            </>
+          )}
+        </Card>
+
+        <Card title="Team earmarks & credit notes" pad={false}>
+          {earmarks.length === 0 && <div style={{ padding: 16 }}><Empty title="No team earmarks" hint="Split a buy toward a team on the sponsor page to earmark money." /></div>}
+          {earmarks.length > 0 && (
+            <table className="tbl">
+              <thead><tr><th>Team</th><th>Sponsor</th><th className="num">Amount</th><th>Note</th></tr></thead>
+              <tbody>
+                {earmarks.map(e => (
+                  <tr key={e.id}>
+                    <td>{e.label}</td>
+                    <td><Link className="link" to={`/sponsors/${e.sponsorId}`}>{e.sponsorName}</Link></td>
+                    <td className="num">{fmtMoney(e.amount)}</td>
+                    <td className="small muted">{e.note || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+
         <Card title="Sponsorship revenue by tier">
           {byTier.map(x => <Bar key={x.tier} label={`${x.tier} (${x.count})`} value={x.total} max={maxTier} display={fmtMoney(x.total)} brand />)}
           <div className="divider" />

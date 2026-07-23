@@ -1,5 +1,5 @@
 import React, { Fragment, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, broadcastState, can, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime } from '../lib/dates'
@@ -8,19 +8,40 @@ import { splitCsvLine } from './EventsPage'
 import { I } from '../components/icons'
 import type { Athlete, Guardian, Team } from '../types'
 
+// Offered sports, alphabetical. Used by the add-team picker.
+export const SPORTS = [
+  'Baseball', 'Basketball', 'Bowling', 'Cheerleading', 'Cross Country', 'Esports', 'Flag Football', 'Football',
+  'Golf', 'Gymnastics', 'Indoor Track & Field', 'Lacrosse', 'Outdoor Track & Field', 'Soccer', 'Softball',
+  'Swimming & Diving', 'Tennis', 'Volleyball', 'Wrestling',
+]
+export const TEAM_LEVELS: Team['level'][] = ['Varsity', 'JV', 'Freshman', '8th Grade', '7th Grade']
+export const TEAM_GENDERS: { value: NonNullable<Team['gender']>; label: string }[] = [
+  { value: 'Boys', label: 'Boys' }, { value: 'Girls', label: 'Girls' }, { value: 'Coed', label: 'Co-ed' },
+]
+const LEVEL_ORDER: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2, '8th Grade': 3, '7th Grade': 4 }
+const SPORT_SEASON: Record<string, Team['season']> = {
+  Football: 'Fall', 'Flag Football': 'Fall', Volleyball: 'Fall', 'Cross Country': 'Fall', Cheerleading: 'Fall',
+  Basketball: 'Winter', Bowling: 'Winter', 'Indoor Track & Field': 'Winter', Wrestling: 'Winter', 'Swimming & Diving': 'Winter', Esports: 'Winter', Gymnastics: 'Winter',
+  Baseball: 'Spring', Golf: 'Spring', 'Outdoor Track & Field': 'Spring', Soccer: 'Spring', Softball: 'Spring', Tennis: 'Spring', Lacrosse: 'Spring',
+}
+
 export default function TeamsPage() {
   const { state } = useStore()
   const teams = allTeams(state)
-  const LEVEL_ORDER: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2 }
+  const me = state.users.find(u => u.id === state.currentUserId)!
+  const editable = can(me.role, 'edit')
+  const [adding, setAdding] = useState(false)
   const sports = [...new Set(teams.map(t => t.sport))]
   return (
     <>
       <div className="page-head">
         <div>
           <h1 className="page-title">Teams</h1>
-          <p className="page-sub">Fall 2026 programs · {teams.length} teams</p>
+          <p className="page-sub">{teams.length} programs · {new Set(teams.map(t => t.sport)).size} sports</p>
         </div>
+        {editable && <button className="btn primary" onClick={() => setAdding(true)}><I.plus /> Add team</button>}
       </div>
+      {adding && <AddTeamModal onClose={() => setAdding(false)} />}
       {sports.map(sport => {
         const group = teams.filter(t => t.sport === sport).sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level])
         return (
@@ -198,6 +219,66 @@ export function TeamDetail() {
       </div>
       )}
     </>
+  )
+}
+
+function AddTeamModal({ onClose }: { onClose: () => void }) {
+  const { state, add, logActivity, toast } = useStore()
+  const navigate = useNavigate()
+  const [sport, setSport] = useState('')
+  const [gender, setGender] = useState<NonNullable<Team['gender']>>('Boys')
+  const [level, setLevel] = useState<Team['level']>('Varsity')
+
+  const genderLabel = TEAM_GENDERS.find(g => g.value === gender)?.label ?? gender
+  // Name mirrors the seed convention (level + sport) but adds the gender word so
+  // e.g. boys and girls basketball don't collapse to the same name.
+  const name = sport ? `${level} ${gender !== 'Coed' ? genderLabel + ' ' : ''}${sport}`.replace(/\s+/g, ' ').trim() : ''
+  const season = sport ? (SPORT_SEASON[sport] ?? 'Fall') : 'Fall'
+
+  const save = () => {
+    if (!sport) { toast('Pick a sport first', 'error'); return }
+    const dup = state.teams.find(t => t.orgId === state.currentOrgId && t.sport === sport && t.level === level && t.gender === gender)
+    if (dup) { toast('That team already exists', 'error'); return }
+    const id = `t-new-${Date.now()}`
+    const team: Team = {
+      id, orgId: state.currentOrgId, sport, level, gender, name,
+      season, seasonLabel: `${season} 2026`,
+      coachIds: [], rosterStatus: 'not_started', rosterCount: 0,
+      missingInfo: ['Head coach not assigned', 'Roster not submitted'], importantDates: [], roster: [],
+    }
+    add('teams', team)
+    logActivity(`added the ${name} team`, `/teams/${id}`)
+    toast(`${name} created`)
+    navigate(`/teams/${id}`)
+  }
+
+  return (
+    <Modal title="Add a team" onClose={onClose} footer={
+      <>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn primary" onClick={save} disabled={!sport}>Create team</button>
+      </>
+    }>
+      <Field label="Sport" required>
+        <select value={sport} onChange={e => setSport(e.target.value)} aria-label="Sport">
+          <option value="">Select a sport…</option>
+          {SPORTS.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </Field>
+      <div className="form-row">
+        <Field label="Gender">
+          <select value={gender} onChange={e => setGender(e.target.value as NonNullable<Team['gender']>)} aria-label="Gender">
+            {TEAM_GENDERS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Level">
+          <select value={level} onChange={e => setLevel(e.target.value as Team['level'])} aria-label="Level">
+            {TEAM_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </Field>
+      </div>
+      {name && <p className="small muted" style={{ marginBottom: 0 }}>Creates <strong>{name}</strong> · {season} season. You can add coaches and a roster next.</p>}
+    </Modal>
   )
 }
 

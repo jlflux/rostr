@@ -195,7 +195,7 @@ agreements.push({
   fulfillment: [],
   allocations: [
     { id: 'oncology-2-a1', target: 't-fb-v', amount: 8000 },
-    { id: 'oncology-2-a2', target: 't-cheer-v', amount: 4000 },
+    { id: 'oncology-2-a2', target: 't-cheer-v', amount: 4000, note: 'Credit: Ava Sanders (secured through her family connection)' },
     { id: 'oncology-2-a3', target: 'athletics', amount: 8000 },
   ],
   signedDate: '2026-08-10',
@@ -622,7 +622,7 @@ export function buildSeedState(): AppState {
   const byName = new Map(opponents.map(o => [o.name, o.id]))
   for (const e of events) if (e.eventKind === 'single') e.opponentId = byName.get(e.opponent)
   return {
-    version: 11,
+    version: 12,
     orgs,
     currentOrgId: 'org-hhs',
     currentUserId: 'u-owner',

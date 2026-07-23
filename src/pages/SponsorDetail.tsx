@@ -106,6 +106,9 @@ export default function SponsorDetail() {
                   <span style={{ flex: 1 }}>
                     <strong>{a.label ?? 'Sponsorship'}</strong> — {fmtMoney(a.amount)}
                     <div className="tiny">{a.season} · {fmtMoney(ap)} collected{a.allocations && a.allocations.length ? ` · ${a.allocations.map(al => `${allocationLabel(state, al.target)} ${fmtMoney(al.amount)}`).join(', ')}` : ''}</div>
+                    {(a.allocations ?? []).filter(al => al.note?.trim()).map(al => (
+                      <div key={al.id} className="tiny" style={{ color: 'var(--text-2)' }}>↳ {allocationLabel(state, al.target)}: {al.note}</div>
+                    ))}
                   </span>
                   <StatusBadge status={a.paymentStatus} />
                   {financeOk && (
@@ -440,12 +443,16 @@ function BuyModal({ sponsorId, existing, onClose, onSave }: {
         <span className="tiny">{unallocated >= 0 ? `${fmtMoney(unallocated)} to athletic dept` : <span style={{ color: 'var(--danger)' }}>Over by {fmtMoney(-unallocated)}</span>}</span>
       </div>
       {allocs.map((al, i) => (
-        <div key={al.id} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-          <select className="inline-select" style={{ flex: 1 }} value={al.target} onChange={e => setAllocs(allocs.map((x, j) => j === i ? { ...x, target: e.target.value } : x))}>
-            {targets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          <input className="input" type="number" min={0} style={{ width: 130 }} value={al.amount} onChange={e => setAllocs(allocs.map((x, j) => j === i ? { ...x, amount: Number(e.target.value) } : x))} />
-          <button className="btn sm ghost" aria-label="Remove earmark" onClick={() => setAllocs(allocs.filter((_, j) => j !== i))}><I.x /></button>
+        <div key={al.id} style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select className="inline-select" style={{ flex: 1 }} value={al.target} onChange={e => setAllocs(allocs.map((x, j) => j === i ? { ...x, target: e.target.value } : x))}>
+              {targets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <input className="input" type="number" min={0} style={{ width: 130 }} value={al.amount} onChange={e => setAllocs(allocs.map((x, j) => j === i ? { ...x, amount: Number(e.target.value) } : x))} />
+            <button className="btn sm ghost" aria-label="Remove earmark" onClick={() => setAllocs(allocs.filter((_, j) => j !== i))}><I.x /></button>
+          </div>
+          <input className="input" style={{ marginTop: 6 }} value={al.note ?? ''} onChange={e => setAllocs(allocs.map((x, j) => j === i ? { ...x, note: e.target.value } : x))}
+            placeholder="Note (optional) — e.g. which athlete gets credit" aria-label="Earmark note" />
         </div>
       ))}
       <button className="btn sm ghost" onClick={() => setAllocs([...allocs, { id: `alloc-${Date.now()}`, target: teams[0]?.id ?? 'athletics', amount: 0 }])}><I.plus /> Earmark for a team</button>
