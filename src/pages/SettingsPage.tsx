@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, benefitTemplates, can, tierSettings } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
@@ -11,10 +11,23 @@ const SPONSOR_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot
 const AVATAR_COLORS = ['#d60000', '#0e7490', '#15803d', '#b45309', '#7c3aed', '#be185d', '#1d4ed8', '#374151']
 
 export default function SettingsPage() {
-  const { state, update, add, remove, setState, resetDemo, theme, setTheme, toast } = useStore()
+  const { state, update, add, remove, setState, resetDemo, exportState, importState, theme, setTheme, toast } = useStore()
   const [confirmReset, setConfirmReset] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null)
+  const [pendingImport, setPendingImport] = useState<{ raw: string; name: string } | null>(null)
+  const importRef = useRef<HTMLInputElement>(null)
+
+  const doExport = () => {
+    const blob = new Blob([exportState()], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `command-center-backup-${state.demoToday}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast('Backup downloaded')
+  }
   const me = state.users.find(u => u.id === state.currentUserId)!
   const org = state.orgs.find(o => o.id === state.currentOrgId)!
   const isAdmin = can(me.role, 'admin')
@@ -145,6 +158,26 @@ export default function SettingsPage() {
             </Field>
           </Card>
 
+          <Card title="Data & backup">
+            <p className="small muted" style={{ marginTop: 0 }}>
+              Your data currently lives in this browser only. Use a backup file to move everything to another computer or
+              your phone: <strong>Export</strong> here, then <strong>Import</strong> the file on the other device.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn primary" onClick={doExport}>Export backup</button>
+              <button className="btn" onClick={() => importRef.current?.click()}>Import backup…</button>
+              <input ref={importRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={e => {
+                const f = e.target.files?.[0]
+                if (!f) return
+                const reader = new FileReader()
+                reader.onload = () => setPendingImport({ raw: String(reader.result ?? ''), name: f.name })
+                reader.readAsText(f)
+                e.target.value = ''
+              }} />
+            </div>
+            <p className="tiny" style={{ marginBottom: 0 }}>Importing replaces everything currently in this browser with the backup's data. Export first if you want to keep what's here.</p>
+          </Card>
+
           <Card title="Prototype controls">
             <Field label="Sample results">
               <select value={state.showSampleResults ? 'on' : 'off'} onChange={e => {
@@ -193,6 +226,17 @@ export default function SettingsPage() {
             setConfirmDeleteUser(null)
           }}
           onClose={() => setConfirmDeleteUser(null)} />
+      )}
+
+      {pendingImport && (
+        <ConfirmDialog title="Import this backup?" confirmLabel="Import & replace" danger
+          message={`This replaces all data in this browser with the contents of "${pendingImport.name}". This can't be undone.`}
+          onConfirm={() => {
+            if (importState(pendingImport.raw)) toast('Backup imported')
+            else toast("That file couldn't be read as a backup", 'error')
+            setPendingImport(null)
+          }}
+          onClose={() => setPendingImport(null)} />
       )}
 
       {confirmReset && (

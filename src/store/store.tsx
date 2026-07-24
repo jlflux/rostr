@@ -24,6 +24,10 @@ export interface Store {
   setState: (patch: Partial<AppState>) => void
   logActivity: (text: string, link?: string) => void
   resetDemo: () => void
+  /** Serialize the whole dataset to a JSON string for backup. */
+  exportState: () => string
+  /** Replace the dataset from a backup JSON string. Returns false if it isn't valid. */
+  importState: (raw: string) => boolean
   theme: 'light' | 'dark'
   setTheme: (t: 'light' | 'dark') => void
   toast: (msg: string, kind?: 'success' | 'error') => void
@@ -143,10 +147,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setFullState(buildSeedState())
   }, [])
 
+  const exportState = useCallback(() => JSON.stringify(state, null, 2), [state])
+
+  const importState = useCallback((raw: string): boolean => {
+    try {
+      const parsed = JSON.parse(raw)
+      // Sanity-check it looks like our dataset before replacing anything.
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.sponsors) || !Array.isArray(parsed.teams) || !Array.isArray(parsed.users)) return false
+      setFullState(migrate(parsed as AppState))
+      return true
+    } catch {
+      return false
+    }
+  }, [])
+
   const value = useMemo<Store>(() => ({
-    state, update, add, remove, setState, logActivity, resetDemo,
+    state, update, add, remove, setState, logActivity, resetDemo, exportState, importState,
     theme, setTheme: setThemeState, toast, toasts,
-  }), [state, update, add, remove, setState, logActivity, resetDemo, theme, toast, toasts])
+  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, theme, toast, toasts])
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
 }
