@@ -1,7 +1,7 @@
 import rawSchedule from './scheduleEvents.json'
 import type {
-  Activity, Agreement, AppState, Asset, Athlete, CoachRequest, FulfillmentItem, Guardian, Opponent, Organization,
-  SportEvent, Sponsor, StaffRole, StaffSlot, Task, Team, User,
+  Activity, Agreement, AppState, Asset, Athlete, BenefitTemplate, CoachRequest, FulfillmentItem, Guardian, Opponent, Organization,
+  SportEvent, Sponsor, SponsorTier, StaffRole, StaffSlot, Task, Team, User,
 } from '../types'
 
 // The prototype runs on a frozen "demo clock" so the fall 2026 season data
@@ -88,18 +88,26 @@ type SponsorSeed = {
   note?: string; benefit: string
 }
 
-const CHECKLIST: { id: string; label: string }[] = [
-  { id: 'logo', label: 'Logo received' },
-  { id: 'vboard', label: 'Video-board upload complete' },
-  { id: 'commercial', label: 'Commercial received' },
-  { id: 'pa', label: 'PA copy approved' },
-  { id: 'web', label: 'Website placement complete' },
-  { id: 'tickets', label: 'Season tickets sent' },
-  { id: 'parking', label: 'Parking passes sent' },
-  { id: 'sign', label: 'Static signage installed' },
-  { id: 'game', label: 'Assigned to sponsor game' },
-  { id: 'haf', label: 'HAF notified' },
+// Master benefit list. `tiers` decides which sponsorship levels auto-get each item;
+// this both seeds the fulfillment on demo agreements and the editable templates on
+// the Settings → Sponsor benefits page.
+const ALL_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
+const CHECKLIST: { id: string; label: string; tiers: SponsorTier[] }[] = [
+  { id: 'logo', label: 'Logo received', tiers: ALL_TIERS },
+  { id: 'vboard', label: 'Video-board upload complete', tiers: ALL_TIERS },
+  { id: 'web', label: 'Website placement complete', tiers: ALL_TIERS },
+  { id: 'pa', label: 'PA copy approved', tiers: ['Red', 'White', 'Blue', 'Add-On'] },
+  { id: 'commercial', label: 'Commercial received', tiers: ['Red', 'Add-On'] },
+  { id: 'tickets', label: 'Season tickets sent', tiers: ['Red', 'White', 'Blue'] },
+  { id: 'parking', label: 'Parking passes sent', tiers: ['Red', 'White'] },
+  { id: 'sign', label: 'Static signage installed', tiers: ['Red', 'White', 'Blue'] },
+  { id: 'game', label: 'Assigned to sponsor game', tiers: ['Red', 'White', 'Blue', 'Add-On'] },
+  { id: 'haf', label: 'HAF notified', tiers: ['Red', 'White', 'Blue', 'Add-On'] },
 ]
+
+export const benefitTemplates: BenefitTemplate[] = CHECKLIST.map(c => ({
+  id: `bt-${c.id}`, orgId: 'org-hhs', label: c.label, tiers: c.tiers,
+}))
 
 const sponsorSeeds: SponsorSeed[] = [
   // Red tier
@@ -166,7 +174,7 @@ export const sponsors: Sponsor[] = sponsorSeeds.map<Sponsor>(s => ({
 export const agreements: Agreement[] = sponsorSeeds.map(s => {
   const done = new Set(s.done ?? [])
   const fulfillment: FulfillmentItem[] = CHECKLIST
-    .filter(c => !(s.tier === 'Patriot Partner' && ['commercial', 'pa', 'tickets', 'parking', 'sign', 'game', 'haf'].includes(c.id)))
+    .filter(c => c.tiers.includes(s.tier))
     .map(c => ({
       id: `${s.id}-${c.id}`, label: c.label,
       status: done.has(c.id) ? 'complete' : 'pending',
@@ -194,8 +202,8 @@ agreements.push({
   payments: [{ id: 'oncology-2-p1', date: '2026-08-10', amount: 20000, method: 'ACH transfer' }],
   fulfillment: [],
   allocations: [
-    { id: 'oncology-2-a1', target: 't-fb-v', amount: 8000 },
-    { id: 'oncology-2-a2', target: 't-cheer-v', amount: 4000, note: 'Credit: Ava Sanders (secured through her family connection)' },
+    { id: 'oncology-2-a1', target: 'Football', amount: 8000 },
+    { id: 'oncology-2-a2', target: 'Cheerleading', amount: 4000, note: 'Credit: Ava Sanders (secured through her family connection)' },
     { id: 'oncology-2-a3', target: 'athletics', amount: 8000 },
   ],
   signedDate: '2026-08-10',
@@ -636,6 +644,7 @@ export function buildSeedState(): AppState {
     opponents,
     sponsors,
     agreements,
+    benefitTemplates,
     requests,
     assets,
     tasks: buildTasks(events, demoToday),

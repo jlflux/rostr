@@ -1,4 +1,4 @@
-import type { Agreement, AppState, BroadcastCheckItem, CoachRequest, EventStatus, PipelineStage, SportEvent, Task } from '../types'
+import type { Agreement, AppState, BroadcastCheckItem, CoachRequest, EventStatus, FulfillmentItem, PipelineStage, SponsorTier, SportEvent, Task } from '../types'
 import { addDays, weekStart } from './dates'
 
 // ---------- Business/derived logic, kept out of display components ----------
@@ -42,8 +42,14 @@ export function agreementPaid(a: Agreement): number {
   return a.payments.reduce((sum, p) => sum + p.amount, 0)
 }
 
+/** Agreements belonging to sponsors that are actually "accepted" (committed). */
+export function committedAgreements(s: AppState): Agreement[] {
+  const committed = new Set(sponsors(s).filter(sp => sp.stage === 'committed').map(sp => sp.id))
+  return agreements(s).filter(a => committed.has(a.sponsorId))
+}
+
 export function sponsorshipTotals(s: AppState) {
-  const ags = agreements(s)
+  const ags = committedAgreements(s)
   const total = ags.reduce((sum, a) => sum + a.amount, 0)
   const collected = ags.reduce((sum, a) => sum + agreementPaid(a), 0)
   return { total, collected, outstanding: total - collected, count: ags.length }
@@ -358,7 +364,20 @@ export function sponsorAllocations(s: AppState, sponsorId: string): { target: st
 
 export function allocationLabel(s: AppState, target: string): string {
   if (target === 'athletics') return 'Athletic department'
+  // Legacy earmarks pointed at a specific team; new ones use the sport name directly.
   return teams(s).find(t => t.id === target)?.name ?? target
+}
+
+// ---------- Sponsor benefit templates ----------
+
+export const benefitTemplates = (s: AppState) => orgScoped(s, s.benefitTemplates)
+
+/** Fulfillment items a new sponsor of `tier` should start with, from the templates. */
+export function fulfillmentForTier(s: AppState, tier: SponsorTier): FulfillmentItem[] {
+  const stamp = Date.now()
+  return benefitTemplates(s)
+    .filter(t => t.tiers.includes(tier))
+    .map((t, i) => ({ id: `ff-${t.id}-${stamp}-${i}`, label: t.label, status: 'pending' as const }))
 }
 
 /**
@@ -373,7 +392,7 @@ export function revenueByDepartment(s: AppState): { target: string; label: strin
     cur.total += total; cur.collected += collected
     totals.set(target, cur)
   }
-  for (const a of agreements(s)) {
+  for (const a of committedAgreements(s)) {
     const paidRatio = a.amount > 0 ? agreementPaid(a) / a.amount : 0
     const allocs = a.allocations ?? []
     let allocated = 0
@@ -389,7 +408,7 @@ export function revenueByDepartment(s: AppState): { target: string; label: strin
 /** Every team earmark (excludes the athletic-department default), newest-largest first, with its note. */
 export function teamEarmarks(s: AppState): { id: string; sponsorId: string; sponsorName: string; label: string; amount: number; note?: string }[] {
   const out: { id: string; sponsorId: string; sponsorName: string; label: string; amount: number; note?: string }[] = []
-  for (const a of agreements(s)) {
+  for (const a of committedAgreements(s)) {
     const sp = sponsors(s).find(x => x.id === a.sponsorId)
     for (const al of a.allocations ?? []) {
       if (al.target === 'athletics') continue

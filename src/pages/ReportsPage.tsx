@@ -1,5 +1,5 @@
 import { useStore } from '../store/store'
-import { agreementPaid, agreements as allAgreements, fulfillmentProgress, requests as allRequests, revenueByDepartment, sponsors as allSponsors, sponsorshipTotals, tasks as allTasks, teamCompleteness, teamEarmarks, teams as allTeams, events as allEvents } from '../lib/derive'
+import { agreementPaid, committedAgreements, fulfillmentProgress, requests as allRequests, revenueByDepartment, sponsors as allSponsors, sponsorshipTotals, tasks as allTasks, teamCompleteness, teamEarmarks, teams as allTeams, events as allEvents } from '../lib/derive'
 import { fmtDate, fmtMoney } from '../lib/dates'
 import { Badge, Card, Empty, StatCard, StatusBadge } from '../components/ui'
 import { Link } from 'react-router-dom'
@@ -17,8 +17,8 @@ function Bar({ label, value, max, display, brand }: { label: string; value: numb
 export default function ReportsPage() {
   const { state } = useStore()
   const totals = sponsorshipTotals(state)
-  const ags = allAgreements(state)
-  const sps = allSponsors(state)
+  const ags = committedAgreements(state)
+  const sps = allSponsors(state).filter(s => s.stage === 'committed')
   const evs = allEvents(state)
   const reqs = allRequests(state)
   const tks = allTasks(state)
@@ -90,11 +90,11 @@ export default function ReportsPage() {
           )}
         </Card>
 
-        <Card title="Team earmarks & credit notes" pad={false}>
+        <Card title="Sport earmarks & credit notes" pad={false}>
           {earmarks.length === 0 && <div style={{ padding: 16 }}><Empty title="No team earmarks" hint="Split a buy toward a team on the sponsor page to earmark money." /></div>}
           {earmarks.length > 0 && (
             <table className="tbl">
-              <thead><tr><th>Team</th><th>Sponsor</th><th className="num">Amount</th><th>Note</th></tr></thead>
+              <thead><tr><th>Sport</th><th>Sponsor</th><th className="num">Amount</th><th>Note</th></tr></thead>
               <tbody>
                 {earmarks.map(e => (
                   <tr key={e.id}>

@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, can } from '../lib/derive'
+import { ROLE_LABELS, benefitTemplates, can } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { I } from '../components/icons'
-import type { Organization, Role, User } from '../types'
+import type { Organization, Role, SponsorTier, User } from '../types'
+
+const SPONSOR_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
 
 const AVATAR_COLORS = ['#d60000', '#0e7490', '#15803d', '#b45309', '#7c3aed', '#be185d', '#1d4ed8', '#374151']
 
@@ -114,6 +116,8 @@ export default function SettingsPage() {
               </tbody>
             </table>
           </Card>
+
+          <BenefitTemplatesCard />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -201,6 +205,64 @@ export default function SettingsPage() {
   function updateOrg(patch: Partial<Organization>) {
     setState({ orgs: state.orgs.map(o => (o.id === org.id ? { ...o, ...patch } : o)) })
   }
+}
+
+function BenefitTemplatesCard() {
+  const { state, add, update, remove, toast } = useStore()
+  const me = state.users.find(u => u.id === state.currentUserId)!
+  const canEdit = can(me.role, 'finance')
+  const templates = benefitTemplates(state)
+  const [label, setLabel] = useState('')
+  const [tiers, setTiers] = useState<SponsorTier[]>(['Red', 'White', 'Blue'])
+  const flip = (arr: SponsorTier[], t: SponsorTier) => (arr.includes(t) ? arr.filter(x => x !== t) : [...arr, t])
+
+  const TierToggles = ({ value, onToggle }: { value: SponsorTier[]; onToggle: (t: SponsorTier) => void }) => (
+    <div className="pill-row" style={{ gap: 4 }}>
+      {SPONSOR_TIERS.map(t => (
+        <button key={t} type="button" className="tier-toggle" data-on={value.includes(t)} disabled={!canEdit} onClick={() => onToggle(t)}>{t}</button>
+      ))}
+    </div>
+  )
+
+  return (
+    <Card title="Sponsor benefit templates" pad={false}>
+      <p className="small muted" style={{ padding: '12px 16px 0', margin: 0 }}>
+        Define the benefit/fulfillment items and which sponsorship levels each applies to. When you add a sponsor, their
+        fulfillment list is auto-filled from the levels that match — you can still add or remove items on any individual sponsor.
+        {!canEdit && ' (Finance or an administrator can edit these.)'}
+      </p>
+      <table className="tbl" style={{ marginTop: 8 }}>
+        <thead><tr><th>Benefit</th><th>Applies to levels</th>{canEdit && <th style={{ width: 40 }} />}</tr></thead>
+        <tbody>
+          {templates.length === 0 && <tr><td colSpan={3}><div className="empty" style={{ padding: 16 }}><p style={{ margin: 0 }}>No benefits defined yet.</p></div></td></tr>}
+          {templates.map(tpl => (
+            <tr key={tpl.id}>
+              <td style={{ minWidth: 200 }}>
+                {canEdit
+                  ? <input className="input" value={tpl.label} onChange={e => update('benefitTemplates', tpl.id, { label: e.target.value })} />
+                  : tpl.label}
+              </td>
+              <td><TierToggles value={tpl.tiers} onToggle={t => update('benefitTemplates', tpl.id, { tiers: flip(tpl.tiers, t) })} /></td>
+              {canEdit && <td><button className="btn sm ghost danger" aria-label="Delete benefit" title="Delete benefit" onClick={() => { remove('benefitTemplates', tpl.id); toast('Benefit removed') }}><I.x /></button></td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {canEdit && (
+        <div style={{ display: 'flex', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border)', flexWrap: 'wrap', alignItems: 'center' }}>
+          <input className="input" style={{ flex: 1, minWidth: 180 }} placeholder="New benefit (e.g. Radio mention)" value={label} onChange={e => setLabel(e.target.value)} />
+          <TierToggles value={tiers} onToggle={t => setTiers(flip(tiers, t))} />
+          <button className="btn primary sm" onClick={() => {
+            if (!label.trim()) { toast('Enter a benefit name', 'error'); return }
+            if (tiers.length === 0) { toast('Pick at least one level', 'error'); return }
+            add('benefitTemplates', { id: `bt-${Date.now()}`, orgId: state.currentOrgId, label: label.trim(), tiers })
+            setLabel('')
+            toast('Benefit added')
+          }}><I.plus /> Add</button>
+        </div>
+      )}
+    </Card>
+  )
 }
 
 function AddUserModal({ onClose, onSave }: { onClose: () => void; onSave: (u: User) => void }) {

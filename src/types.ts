@@ -258,6 +258,14 @@ export interface Sponsor {
   estValue?: number
 }
 
+/** A reusable benefit/fulfillment line that auto-populates onto new sponsors of the listed tiers. */
+export interface BenefitTemplate {
+  id: string
+  orgId: string
+  label: string
+  tiers: SponsorTier[]
+}
+
 export type PaymentStatus = 'paid' | 'partial' | 'unpaid'
 
 export interface Payment {
@@ -414,6 +422,7 @@ export interface AppState {
   opponents: Opponent[]
   sponsors: Sponsor[]
   agreements: Agreement[]
+  benefitTemplates: BenefitTemplate[]
   requests: CoachRequest[]
   assets: Asset[]
   tasks: Task[]
@@ -427,6 +436,7 @@ export type Collection =
   | 'opponents'
   | 'sponsors'
   | 'agreements'
+  | 'benefitTemplates'
   | 'requests'
   | 'assets'
   | 'tasks'

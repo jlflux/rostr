@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import {
-  PIPELINE_STAGES, agreementPaid, allocationLabel, can, eventTitle, fulfillmentProgress,
+  PIPELINE_STAGES, agreementPaid, allocationLabel, can, eventTitle, fulfillmentForTier, fulfillmentProgress,
   sponsorAgreements, sponsorAllocations, sponsorPaid, sponsorPaymentStatus, sponsorTotal, teams as allTeams, visibleStatus,
 } from '../lib/derive'
 import { fmtDate, fmtDateTime, fmtMoney, fmtTime } from '../lib/dates'
@@ -153,10 +153,21 @@ export default function SponsorDetail() {
               />
             ))}
             {primaryAg && editable && (
-              <AddFulfillment onAdd={(label, dueDate) => {
-                update('agreements', primaryAg.id, { fulfillment: [...primaryAg.fulfillment, { id: `ff-${Date.now()}`, label, status: 'pending', dueDate }] } as Partial<Agreement>)
-                toast('Fulfillment item added')
-              }} />
+              <>
+                <div style={{ padding: '10px 18px 0' }}>
+                  <button className="btn sm ghost" onClick={() => {
+                    const have = new Set(allItems.map(x => x.item.label.toLowerCase()))
+                    const toAdd = fulfillmentForTier(state, s.tier).filter(f => !have.has(f.label.toLowerCase()))
+                    if (!toAdd.length) { toast(`All ${s.tier} benefits are already listed`); return }
+                    update('agreements', primaryAg.id, { fulfillment: [...primaryAg.fulfillment, ...toAdd] } as Partial<Agreement>)
+                    toast(`Added ${toAdd.length} ${s.tier} benefit${toAdd.length === 1 ? '' : 's'}`)
+                  }}><I.plus /> Add {s.tier} tier defaults</button>
+                </div>
+                <AddFulfillment onAdd={(label, dueDate) => {
+                  update('agreements', primaryAg.id, { fulfillment: [...primaryAg.fulfillment, { id: `ff-${Date.now()}`, label, status: 'pending', dueDate }] } as Partial<Agreement>)
+                  toast('Fulfillment item added')
+                }} />
+              </>
             )}
           </Card>
 
@@ -436,7 +447,9 @@ function BuyModal({ sponsorId, existing, onClose, onSave }: {
     })
   }
 
-  const targets = [{ id: 'athletics', name: 'Athletic department' }, ...teams.map(t => ({ id: t.id, name: t.name }))]
+  // Earmark to a whole sport (levels share a budget), not a specific team.
+  const sports = [...new Set(teams.map(t => t.sport))].sort((a, b) => a.localeCompare(b))
+  const targets = [{ id: 'athletics', name: 'Athletic department' }, ...sports.map(sp => ({ id: sp, name: sp }))]
 
   return (
     <Modal title={existing ? 'Edit buy' : 'Add a buy'} onClose={onClose} wide footer={
@@ -476,7 +489,7 @@ function BuyModal({ sponsorId, existing, onClose, onSave }: {
             placeholder="Note (optional) — e.g. which athlete gets credit" aria-label="Earmark note" />
         </div>
       ))}
-      <button className="btn sm ghost" onClick={() => setAllocs([...allocs, { id: `alloc-${Date.now()}`, target: teams[0]?.id ?? 'athletics', amount: 0 }])}><I.plus /> Earmark for a team</button>
+      <button className="btn sm ghost" onClick={() => setAllocs([...allocs, { id: `alloc-${Date.now()}`, target: sports[0] ?? 'athletics', amount: 0 }])}><I.plus /> Earmark for a sport</button>
     </Modal>
   )
 }

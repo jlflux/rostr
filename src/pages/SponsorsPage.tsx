@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, can, fulfillmentProgress, sponsorAgreements, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTotal, sponsors as allSponsors } from '../lib/derive'
+import { PIPELINE_STAGES, can, fulfillmentForTier, fulfillmentProgress, sponsorAgreements, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTotal, sponsors as allSponsors } from '../lib/derive'
 import { fmtMoney } from '../lib/dates'
 import { Badge, Empty, Field, Modal, Progress, SearchBox, Seg, SortTh, StatCard, StatusBadge, sortRows, useSort } from '../components/ui'
 import { I } from '../components/icons'
@@ -247,12 +247,7 @@ function PipelineBoard({ editable }: { editable: boolean }) {
           add('agreements', {
             id: `ag-${sp.id.slice(3)}-${Date.now()}`, orgId: state.currentOrgId, sponsorId: sp.id, season: 'Fall 2026',
             label: `${tier} sponsorship`, amount, paymentStatus: 'unpaid', payments: [],
-            fulfillment: [
-              { id: `${sp.id}-logo`, label: 'Logo received', status: 'pending' },
-              { id: `${sp.id}-vboard`, label: 'Video-board upload complete', status: 'pending' },
-              { id: `${sp.id}-web`, label: 'Website placement complete', status: 'pending' },
-              { id: `${sp.id}-pa`, label: 'PA copy approved', status: 'pending' },
-            ],
+            fulfillment: fulfillmentForTier(state, tier),
             allocations: [{ id: `${sp.id}-alloc-ath`, target: 'athletics', amount }],
           } as Agreement)
           logActivity(`accepted ${sp.name} as a ${tier} sponsor (${fmtMoney(amount)})`, `/sponsors/${sp.id}`)
@@ -368,12 +363,7 @@ function SponsorForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Spo
       {
         id: `ag-new-${Date.now()}`, orgId: state.currentOrgId, sponsorId: id, season: 'Fall 2026', amount: amt,
         paymentStatus: 'unpaid', payments: [],
-        fulfillment: [
-          { id: `${id}-logo`, label: 'Logo received', status: 'pending', dueDate: undefined },
-          { id: `${id}-vboard`, label: 'Video-board upload complete', status: 'pending' },
-          { id: `${id}-web`, label: 'Website placement complete', status: 'pending' },
-          { id: `${id}-pa`, label: 'PA copy approved', status: 'pending' },
-        ],
+        fulfillment: fulfillmentForTier(state, form.tier),
       },
     )
   }

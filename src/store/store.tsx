@@ -67,6 +67,7 @@ function migrate(s: AppState): AppState {
     opponents: s.opponents ?? seed.opponents,
     sponsors: s.sponsors ?? seed.sponsors,
     agreements: s.agreements ?? seed.agreements,
+    benefitTemplates: s.benefitTemplates ?? seed.benefitTemplates,
     requests: s.requests ?? seed.requests,
     assets: s.assets ?? seed.assets,
     tasks: s.tasks ?? seed.tasks,
