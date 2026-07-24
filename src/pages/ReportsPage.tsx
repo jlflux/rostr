@@ -1,7 +1,7 @@
 import { useStore } from '../store/store'
-import { agreementCash, agreementPaid, committedAgreements, fulfillmentProgress, requests as allRequests, revenueByDepartment, sponsors as allSponsors, sponsorshipTotals, tasks as allTasks, teamCompleteness, teamEarmarks, teams as allTeams, events as allEvents } from '../lib/derive'
+import { agreementCash, agreementPaid, committedAgreements, requests as allRequests, revenueByDepartment, sponsors as allSponsors, sponsorshipTotals, tasks as allTasks, teamCompleteness, teams as allTeams, events as allEvents } from '../lib/derive'
 import { fmtDate, fmtMoney } from '../lib/dates'
-import { Badge, Card, Empty, StatCard, StatusBadge } from '../components/ui'
+import { Card, Empty, StatCard } from '../components/ui'
 import { Link } from 'react-router-dom'
 
 function Bar({ label, value, max, display, brand }: { label: string; value: number; max: number; display?: string; brand?: boolean }) {
@@ -10,6 +10,39 @@ function Bar({ label, value, max, display, brand }: { label: string; value: numb
       <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
       <div className={`rep-bar ${brand ? 'brand' : ''}`}><div style={{ width: `${max ? Math.min((value / max) * 100, 100) : 0}%` }} /></div>
       <span className="small num" style={{ textAlign: 'right' }}>{display ?? value}</span>
+    </div>
+  )
+}
+
+// A "nice" round axis maximum a step above the data, so even the biggest bar
+// isn't full — it reads as a value on a scale, not as 100% of everything.
+function niceMax(v: number): number {
+  if (v <= 0) return 1
+  const mag = Math.pow(10, Math.floor(Math.log10(v)))
+  const n = v / mag
+  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10
+  return step * mag
+}
+
+/** Clustered horizontal bars: Total (brand) and Collected (navy) per row, on a shared money scale. */
+function GroupedBars({ rows }: { rows: { key: string; label: string; total: number; collected: number }[] }) {
+  const max = niceMax(Math.max(1, ...rows.map(r => r.total)))
+  return (
+    <div className="gchart">
+      <div className="gchart-legend">
+        <span><span className="sw" style={{ background: 'var(--brand)' }} />Total</span>
+        <span><span className="sw" style={{ background: 'var(--brand-navy)' }} />Collected</span>
+        <span className="tiny" style={{ marginLeft: 'auto' }}>scale 0 – {fmtMoney(max)}</span>
+      </div>
+      {rows.map(r => (
+        <div key={r.key} className="gchart-row">
+          <span className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
+          <div className="gchart-bars">
+            <div className="gchart-bar"><div className="gchart-track"><div className="total" style={{ width: `${(r.total / max) * 100}%` }} /></div><span className="gchart-val">{fmtMoney(r.total)}</span></div>
+            <div className="gchart-bar"><div className="gchart-track"><div className="collected" style={{ width: `${(r.collected / max) * 100}%` }} /></div><span className="gchart-val">{fmtMoney(r.collected)}</span></div>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -30,7 +63,6 @@ export default function ReportsPage() {
     const tierAgs = ags.filter(a => sps.find(s => s.id === a.sponsorId)?.tier === t)
     return { tier: t, total: tierAgs.reduce((n, a) => n + agreementCash(a), 0), collected: tierAgs.reduce((n, a) => n + agreementPaid(a), 0), count: tierAgs.length }
   }).filter(x => x.count > 0)
-  const maxTier = Math.max(...byTier.map(x => x.total))
 
   // Events hosted by sport
   const sports = [...new Set(evs.map(e => e.sport))]
@@ -54,8 +86,6 @@ export default function ReportsPage() {
 
   // Revenue split by department: athletic dept keeps whatever isn't earmarked to a team
   const byDept = revenueByDepartment(state)
-  const maxDept = Math.max(1, ...byDept.map(d => d.total))
-  const earmarks = teamEarmarks(state)
 
   return (
     <>
@@ -76,62 +106,21 @@ export default function ReportsPage() {
       <div className="grid grid-2">
         <Card title="Revenue by department" action={<span className="tiny">Unearmarked money stays with athletics</span>}>
           {byDept.length === 0 && <Empty title="No revenue recorded" />}
-          {byDept.map(d => (
-            <Bar key={d.target} label={d.label} value={d.total} max={maxDept} display={fmtMoney(d.total)} brand={d.target === 'athletics'} />
-          ))}
           {byDept.length > 0 && (
             <>
+              <GroupedBars rows={byDept.map(d => ({ key: d.target, label: d.label, total: d.total, collected: d.collected }))} />
               <div className="divider" />
               <p className="small muted" style={{ margin: 0 }}>
                 {fmtMoney(byDept.find(d => d.target === 'athletics')?.total ?? 0)} to the athletic department ·{' '}
-                {fmtMoney(byDept.filter(d => d.target !== 'athletics').reduce((n, d) => n + d.total, 0))} earmarked to teams
+                {fmtMoney(byDept.filter(d => d.target !== 'athletics').reduce((n, d) => n + d.total, 0))} earmarked to sports
               </p>
             </>
           )}
         </Card>
 
-        <Card title="Sport earmarks & credit notes" pad={false}>
-          {earmarks.length === 0 && <div style={{ padding: 16 }}><Empty title="No team earmarks" hint="Split a buy toward a team on the sponsor page to earmark money." /></div>}
-          {earmarks.length > 0 && (
-            <table className="tbl">
-              <thead><tr><th>Sport</th><th>Sponsor</th><th className="num">Amount</th><th>Note</th></tr></thead>
-              <tbody>
-                {earmarks.map(e => (
-                  <tr key={e.id}>
-                    <td>{e.label}</td>
-                    <td><Link className="link" to={`/sponsors/${e.sponsorId}`}>{e.sponsorName}</Link></td>
-                    <td className="num">{fmtMoney(e.amount)}</td>
-                    <td className="small muted">{e.note || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Card>
-
         <Card title="Sponsorship revenue by tier">
-          {byTier.map(x => <Bar key={x.tier} label={`${x.tier} (${x.count})`} value={x.total} max={maxTier} display={fmtMoney(x.total)} brand />)}
-          <div className="divider" />
-          {byTier.map(x => <Bar key={x.tier} label={`${x.tier} collected`} value={x.collected} max={maxTier} display={fmtMoney(x.collected)} />)}
-        </Card>
-
-        <Card title="Sponsor fulfillment" pad={false}>
-          <table className="tbl">
-            <thead><tr><th>Sponsor</th><th>Payment</th><th style={{ width: 130 }}>Fulfillment</th></tr></thead>
-            <tbody>
-              {ags.filter(a => a.amount >= 3000).map(a => {
-                const s = sps.find(x => x.id === a.sponsorId)!
-                const p = fulfillmentProgress(a)
-                return (
-                  <tr key={a.id}>
-                    <td><Link className="link" to={`/sponsors/${s.id}`}>{s.name}</Link></td>
-                    <td><StatusBadge status={a.paymentStatus} /></td>
-                    <td><span className="small num">{p.done}/{p.total} complete</span></td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          {byTier.length === 0 && <Empty title="No revenue recorded" />}
+          {byTier.length > 0 && <GroupedBars rows={byTier.map(x => ({ key: x.tier, label: `${x.tier} (${x.count})`, total: x.total, collected: x.collected }))} />}
         </Card>
 
         <Card title="Upcoming renewals" pad={false}>

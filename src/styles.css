@@ -420,6 +420,19 @@ select.inline-select {
 .rep-bar > div { height: 100%; background: var(--brand-navy); }
 [data-theme='dark'] .rep-bar > div { background: #4a6ba8; }
 .rep-bar.brand > div { background: var(--brand); }
+/* Clustered horizontal bar chart (Reports) */
+.gchart { display: flex; flex-direction: column; gap: 13px; }
+.gchart-legend { display: flex; align-items: center; gap: 16px; font-size: 0.78rem; color: var(--text-3); margin-bottom: 4px; }
+.gchart-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.gchart-row { display: grid; grid-template-columns: 140px 1fr; gap: 12px; align-items: center; }
+.gchart-bars { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.gchart-bar { display: flex; align-items: center; gap: 8px; }
+.gchart-track { flex: 1; height: 13px; background: var(--neutral-bg); border-radius: 5px; overflow: hidden; }
+.gchart-track > div { height: 100%; border-radius: 5px; min-width: 2px; }
+.gchart-track > .total { background: var(--brand); }
+.gchart-track > .collected { background: var(--brand-navy); }
+[data-theme='dark'] .gchart-track > .collected { background: #4a6ba8; }
+.gchart-val { width: 82px; text-align: right; font-size: 0.8rem; font-variant-numeric: tabular-nums; color: var(--text-2); }
 
 /* misc */
 .divider { border-top: 1px solid var(--border); margin: 14px 0; }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, can, fulfillmentForTier, fulfillmentProgress, newBuyDefaults, sponsorAgreements, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTrade, sponsors as allSponsors, tierSetting } from '../lib/derive'
+import { PIPELINE_STAGES, can, fulfillmentForTier, fulfillmentProgress, newBuyDefaults, sponsorAgreements, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTrade, sponsors as allSponsors, teamEarmarks, tierSetting } from '../lib/derive'
 import { fmtMoney, todayISO } from '../lib/dates'
 import { Badge, Empty, Field, Modal, Progress, SearchBox, Seg, SortTh, StatCard, StatusBadge, sortRows, useSort } from '../components/ui'
 import { I } from '../components/icons'
@@ -27,7 +27,7 @@ export default function SponsorsPage() {
   const [tier, setTier] = useState('')
   const [payment, setPayment] = useState('')
   const [creating, setCreating] = useState<false | 'sponsor' | 'prospect'>(false)
-  const [view, setView] = useState<'committed' | 'pipeline'>('committed')
+  const [view, setView] = useState<'committed' | 'pipeline' | 'earmarks'>('committed')
   const me = state.users.find(u => u.id === state.currentUserId)!
   const totals = sponsorProgramTotals(state)
   const editable = can(me.role, 'edit')
@@ -97,7 +97,7 @@ export default function SponsorsPage() {
       </div>
 
       <div className="toolbar">
-        <Seg options={[{ value: 'committed', label: `Sponsors (${allSponsors(state).filter(s => s.stage === 'committed').length})` }, { value: 'pipeline', label: `Sales pipeline (${pipeline.length})` }]} value={view} onChange={setView} />
+        <Seg options={[{ value: 'committed', label: `Sponsors (${allSponsors(state).filter(s => s.stage === 'committed').length})` }, { value: 'pipeline', label: `Sales pipeline (${pipeline.length})` }, { value: 'earmarks', label: `Sport earmarks (${teamEarmarks(state).length})` }]} value={view} onChange={setView} />
         <div className="spacer" />
         {view === 'committed' && (
           <>
@@ -115,6 +115,8 @@ export default function SponsorsPage() {
       </div>
 
       {view === 'pipeline' && <PipelineBoard editable={editable} />}
+
+      {view === 'earmarks' && <EarmarksView />}
 
       {view === 'committed' && (
 
@@ -257,6 +259,49 @@ function PipelineBoard({ editable }: { editable: boolean }) {
           setAccepting(null)
           navigate(`/sponsors/${sp.id}`)
         }} />
+      )}
+    </>
+  )
+}
+
+function EarmarksView() {
+  const { state } = useStore()
+  const earmarks = teamEarmarks(state)
+  const total = earmarks.reduce((n, e) => n + e.amount, 0)
+  // Subtotals per sport, largest first.
+  const bySport = [...earmarks.reduce((m, e) => m.set(e.label, (m.get(e.label) ?? 0) + e.amount), new Map<string, number>())]
+    .sort((a, b) => b[1] - a[1])
+
+  return (
+    <>
+      <p className="small muted" style={{ marginTop: 0 }}>
+        Cash earmarked to specific sports across all sponsors (everything else goes to the athletic department).
+        {' '}Use the note to record who gets credit for the money.
+      </p>
+      {earmarks.length === 0 ? (
+        <div className="card"><Empty icon="◎" title="No sport earmarks yet" hint="On a sponsor's buy, earmark cash to a sport to see it here." /></div>
+      ) : (
+        <>
+          <div className="pill-row" style={{ marginBottom: 12 }}>
+            <Badge tone="brand">{fmtMoney(total)} earmarked to sports</Badge>
+            {bySport.map(([sport, amt]) => <Badge key={sport} tone="outline">{sport}: {fmtMoney(amt)}</Badge>)}
+          </div>
+          <div className="card tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>Sport</th><th>Sponsor</th><th className="num">Amount</th><th>Note / credit</th></tr></thead>
+              <tbody>
+                {earmarks.map(e => (
+                  <tr key={e.id}>
+                    <td className="primary">{e.label}</td>
+                    <td><Link className="link" to={`/sponsors/${e.sponsorId}`}>{e.sponsorName}</Link></td>
+                    <td className="num">{fmtMoney(e.amount)}</td>
+                    <td className="small muted">{e.note || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </>
   )
