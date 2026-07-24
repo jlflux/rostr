@@ -11,7 +11,7 @@ const SPONSOR_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot
 const AVATAR_COLORS = ['#d60000', '#0e7490', '#15803d', '#b45309', '#7c3aed', '#be185d', '#1d4ed8', '#374151']
 
 export default function SettingsPage() {
-  const { state, update, add, remove, setState, resetDemo, exportState, importState, theme, setTheme, toast } = useStore()
+  const { state, update, add, remove, setState, resetDemo, exportState, importState, cloudEnabled, cloudStatus, cloudPushNow, cloudPullNow, theme, setTheme, toast } = useStore()
   const [confirmReset, setConfirmReset] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null)
@@ -158,10 +158,42 @@ export default function SettingsPage() {
             </Field>
           </Card>
 
+          <Card title="Cloud sync" action={cloudEnabled
+            ? <Badge tone={cloudStatus === 'saved' || cloudStatus === 'idle' ? 'ok' : cloudStatus === 'error' ? 'danger' : 'neutral'}>
+                {cloudStatus === 'syncing' ? 'Syncing…' : cloudStatus === 'saved' ? 'Saved' : cloudStatus === 'error' ? 'Error' : 'Connected'}
+              </Badge>
+            : <Badge tone="outline">Not connected</Badge>}>
+            {cloudEnabled ? (
+              <>
+                <p className="small muted" style={{ marginTop: 0 }}>
+                  This device is connected to your shared cloud dataset. Changes save automatically and every device that
+                  opens the site sees the same data. To seed it the first time, open this on the computer that has all your
+                  data and click <strong>Save to cloud</strong>.
+                </p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button className="btn primary" disabled={cloudStatus === 'syncing'} onClick={async () => { await cloudPushNow(); toast('Saved to cloud') }}>Save to cloud</button>
+                  <button className="btn" disabled={cloudStatus === 'syncing'} onClick={async () => { await cloudPullNow(); toast('Loaded latest from cloud') }}>Load from cloud</button>
+                </div>
+                {cloudStatus === 'error' && <p className="tiny" style={{ color: 'var(--danger)', marginBottom: 0 }}>Couldn't reach the cloud. Check your connection and the project settings, then try again.</p>}
+              </>
+            ) : (
+              <>
+                <p className="small muted" style={{ marginTop: 0 }}>
+                  Not connected yet. Connect a free Supabase project so your data lives online and stays in sync across every
+                  computer and phone — no more per-device copies. Full step-by-step instructions are in <strong>SUPABASE_SETUP.md</strong> in the project.
+                </p>
+                <p className="tiny" style={{ marginBottom: 0 }}>
+                  In short: create a Supabase project, run the one SQL snippet, then add <code>VITE_SUPABASE_URL</code> and{' '}
+                  <code>VITE_SUPABASE_KEY</code> as environment variables in Vercel and redeploy. Until then, use the backup file below to move data between devices.
+                </p>
+              </>
+            )}
+          </Card>
+
           <Card title="Data & backup">
             <p className="small muted" style={{ marginTop: 0 }}>
-              Your data currently lives in this browser only. Use a backup file to move everything to another computer or
-              your phone: <strong>Export</strong> here, then <strong>Import</strong> the file on the other device.
+              Download a full snapshot of your data as a file — a handy archive, or a way to move everything to another
+              device: <strong>Export</strong> here, then <strong>Import</strong> the file on the other device.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button className="btn primary" onClick={doExport}>Export backup</button>

@@ -1,6 +1,9 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, Collection } from '../types'
 import { buildSeedState } from '../data/seed'
+import { cloudEnabled, cloudPull, cloudPush } from '../lib/cloud'
+
+export type CloudStatus = 'off' | 'idle' | 'syncing' | 'saved' | 'error'
 
 const STORAGE_KEY = 'headqtrs:state:v13'
 const THEME_KEY = 'headqtrs:theme'
@@ -28,6 +31,13 @@ export interface Store {
   exportState: () => string
   /** Replace the dataset from a backup JSON string. Returns false if it isn't valid. */
   importState: (raw: string) => boolean
+  /** Whether a cloud project is connected (env-configured). */
+  cloudEnabled: boolean
+  cloudStatus: CloudStatus
+  /** Save this device's data to the shared cloud now. */
+  cloudPushNow: () => Promise<void>
+  /** Load the shared cloud data onto this device now (keeps your local "view as"). */
+  cloudPullNow: () => Promise<void>
   theme: 'light' | 'dark'
   setTheme: (t: 'light' | 'dark') => void
   toast: (msg: string, kind?: 'success' | 'error') => void
@@ -93,6 +103,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
   const [toasts, setToasts] = useState<Store['toasts']>([])
+  const [cloudStatus, setCloudStatus] = useState<CloudStatus>(cloudEnabled() ? 'idle' : 'off')
+
+  // Cloud sync bookkeeping: latest state (for manual actions), the last snapshot we
+  // synced (so pulling doesn't echo back as a push), whether the first pull ran,
+  // and a debounce handle for auto-save.
+  const stateRef = useRef(state)
+  useEffect(() => { stateRef.current = state }, [state])
+  const lastSyncedJson = useRef<string | null>(null)
+  const cloudReady = useRef(false)
+  const pushTimer = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
     try {
@@ -100,6 +120,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // storage full / private mode — prototype keeps working in memory
     }
+  }, [state])
+
+  // On startup, if a cloud project is connected, load the shared dataset once.
+  useEffect(() => {
+    if (!cloudEnabled()) return
+    let cancelled = false
+    setCloudStatus('syncing')
+    cloudPull()
+      .then(res => {
+        if (cancelled) return
+        if (res) {
+          setFullState(prev => {
+            const applied = { ...migrate(res.data), currentUserId: prev.currentUserId }
+            lastSyncedJson.current = JSON.stringify(applied)
+            return applied
+          })
+        }
+        cloudReady.current = true
+        setCloudStatus('idle')
+      })
+      .catch(() => { cloudReady.current = true; setCloudStatus('error') })
+    return () => { cancelled = true }
+  }, [])
+
+  // Auto-save to the cloud (debounced) whenever the data changes after the first load.
+  useEffect(() => {
+    if (!cloudEnabled() || !cloudReady.current) return
+    const json = JSON.stringify(state)
+    if (json === lastSyncedJson.current) return
+    setCloudStatus('syncing')
+    clearTimeout(pushTimer.current)
+    pushTimer.current = setTimeout(() => {
+      cloudPush(state)
+        .then(() => { lastSyncedJson.current = json; setCloudStatus('saved') })
+        .catch(() => setCloudStatus('error'))
+    }, 1200)
+    return () => clearTimeout(pushTimer.current)
   }, [state])
 
   useEffect(() => {
@@ -161,10 +218,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const cloudPushNow = useCallback(async () => {
+    if (!cloudEnabled()) return
+    setCloudStatus('syncing')
+    try {
+      await cloudPush(stateRef.current)
+      lastSyncedJson.current = JSON.stringify(stateRef.current)
+      cloudReady.current = true
+      setCloudStatus('saved')
+    } catch {
+      setCloudStatus('error')
+    }
+  }, [])
+
+  const cloudPullNow = useCallback(async () => {
+    if (!cloudEnabled()) return
+    setCloudStatus('syncing')
+    try {
+      const res = await cloudPull()
+      if (res) {
+        setFullState(prev => {
+          const applied = { ...migrate(res.data), currentUserId: prev.currentUserId }
+          lastSyncedJson.current = JSON.stringify(applied)
+          return applied
+        })
+      }
+      cloudReady.current = true
+      setCloudStatus('idle')
+    } catch {
+      setCloudStatus('error')
+    }
+  }, [])
+
   const value = useMemo<Store>(() => ({
     state, update, add, remove, setState, logActivity, resetDemo, exportState, importState,
+    cloudEnabled: cloudEnabled(), cloudStatus, cloudPushNow, cloudPullNow,
     theme, setTheme: setThemeState, toast, toasts,
-  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, theme, toast, toasts])
+  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudPushNow, cloudPullNow, theme, toast, toasts])
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
 }
