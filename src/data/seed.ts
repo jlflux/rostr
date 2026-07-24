@@ -142,12 +142,12 @@ const sponsorSeeds: SponsorSeed[] = [
 ]
 
 // Pre-sale pipeline prospects — no agreement yet
-const prospectSeeds: Array<{ id: string; name: string; stage: Sponsor['stage']; contact: string; tier: Sponsor['tier']; note?: string }> = [
-  { id: 'sp-pro-regions', name: 'Regions Bank', stage: 'maybe', contact: 'Community sponsorships', tier: 'Red', note: 'Interested in Red tier; wants impression numbers from last season before committing.' },
-  { id: 'sp-pro-steelcity', name: 'Steel City Pops', stage: 'contacted', contact: 'Owner — Edgewood location', tier: 'Blue', note: 'Emailed 9/12, following up at fall festival.' },
-  { id: 'sp-pro-dentistry', name: 'Homewood Family Dentistry', stage: 'contacted', contact: 'Office manager', tier: 'Blue', note: 'Left voicemail 9/18.' },
-  { id: 'sp-pro-vulcan', name: 'Vulcan Termite & Pest', stage: 'prospect', contact: 'TBD', tier: 'White', note: 'Suggested by booster board — no outreach yet.' },
-  { id: 'sp-pro-bagels', name: 'Big Blue Bagels', stage: 'prospect', contact: 'TBD', tier: 'Patriot Partner', note: 'Coach Tate has a parent connection.' },
+const prospectSeeds: Array<{ id: string; name: string; stage: Sponsor['stage']; contact: string; tier: Sponsor['tier']; est?: number; note?: string }> = [
+  { id: 'sp-pro-regions', name: 'Regions Bank', stage: 'maybe', contact: 'Community sponsorships', tier: 'Red', est: 10000, note: 'Interested in Red tier; wants impression numbers from last season before committing.' },
+  { id: 'sp-pro-steelcity', name: 'Steel City Pops', stage: 'contacted', contact: 'Owner — Edgewood location', tier: 'Blue', est: 3000, note: 'Emailed 9/12, following up at fall festival.' },
+  { id: 'sp-pro-dentistry', name: 'Homewood Family Dentistry', stage: 'contacted', contact: 'Office manager', tier: 'Blue', est: 3000, note: 'Left voicemail 9/18.' },
+  { id: 'sp-pro-vulcan', name: 'Vulcan Termite & Pest', stage: 'prospect', contact: 'TBD', tier: 'White', est: 5000, note: 'Suggested by booster board — no outreach yet.' },
+  { id: 'sp-pro-bagels', name: 'Big Blue Bagels', stage: 'prospect', contact: 'TBD', tier: 'Patriot Partner', est: 500, note: 'Coach Tate has a parent connection.' },
   { id: 'sp-pro-medical', name: 'Brookwood Urgent Care', stage: 'declined', contact: 'Regional marketing', tier: 'White', note: 'Passed for this year — budget spent; revisit in spring for 2027–28.' },
 ]
 
@@ -159,7 +159,7 @@ export const sponsors: Sponsor[] = sponsorSeeds.map<Sponsor>(s => ({
 })).concat(prospectSeeds.map<Sponsor>(p => ({
   id: p.id, orgId: 'org-hhs', name: p.name, stage: p.stage, tier: p.tier, contactName: p.contact,
   email: undefined, phone: undefined, logoStatus: 'missing', renewalDate: '2027-06-01',
-  benefitSummary: `${p.tier} tier (proposed)`,
+  benefitSummary: `${p.tier} tier (proposed)`, estValue: p.est,
   notes: p.note ? [{ id: `${p.id}-n1`, at: '2026-09-15T10:00:00', authorId: 'u-ad', text: p.note }] : [],
 })))
 

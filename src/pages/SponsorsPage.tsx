@@ -182,10 +182,10 @@ function PipelineBoard({ editable }: { editable: boolean }) {
   const navigate = useNavigate()
   const [accepting, setAccepting] = useState<Sponsor | null>(null)
   const pipeline = allSponsors(state).filter(s => s.stage !== 'committed')
-  type PKey = 'name' | 'contact' | 'tier'
+  type PKey = 'name' | 'contact' | 'tier' | 'value'
   const { sort, onSort } = useSort<PKey>('name')
   const sortStage = (items: Sponsor[]) => sortRows(items, sort, (sp, key): unknown =>
-    key === 'contact' ? sp.contactName : key === 'tier' ? TIER_ORDER.indexOf(sp.tier) : sp.name)
+    key === 'contact' ? sp.contactName : key === 'tier' ? TIER_ORDER.indexOf(sp.tier) : key === 'value' ? (sp.estValue ?? 0) : sp.name)
 
   const changeStage = (sp: Sponsor, stage: PipelineStage) => {
     if (stage === 'committed') { setAccepting(sp); return } // capture the deal first
@@ -213,15 +213,17 @@ function PipelineBoard({ editable }: { editable: boolean }) {
                   <SortTh label="Business" k="name" sort={sort} onSort={onSort} />
                   <SortTh label="Contact" k="contact" sort={sort} onSort={onSort} />
                   <SortTh label="Target tier" k="tier" sort={sort} onSort={onSort} />
+                  <SortTh label="Est. value" k="value" sort={sort} onSort={onSort} className="num" />
                   <th>Latest note</th><th style={{ width: 150 }}>Stage</th>
                 </tr></thead>
                 <tbody>
-                  {items.length === 0 && <tr><td colSpan={5}><div className="empty" style={{ padding: '18px' }}><p style={{ margin: 0 }}>No sponsors in this stage.</p></div></td></tr>}
+                  {items.length === 0 && <tr><td colSpan={6}><div className="empty" style={{ padding: '18px' }}><p style={{ margin: 0 }}>No sponsors in this stage.</p></div></td></tr>}
                   {sortStage(items).map(sp => (
                     <tr key={sp.id} className="clickable" onClick={() => navigate(`/sponsors/${sp.id}`)}>
                       <td><span className="primary">{sp.name}</span></td>
                       <td className="muted small">{sp.contactName}</td>
                       <td><TierBadge tier={sp.tier} /></td>
+                      <td className="num">{sp.estValue ? fmtMoney(sp.estValue) : '—'}</td>
                       <td className="muted small" style={{ maxWidth: 380 }}>{sp.notes[0]?.text ?? '—'}</td>
                       <td onClick={e => e.stopPropagation()}>
                         {editable ? (
@@ -264,7 +266,7 @@ function PipelineBoard({ editable }: { editable: boolean }) {
 }
 
 function AcceptModal({ sponsor, onClose, onAccept }: { sponsor: Sponsor; onClose: () => void; onAccept: (amount: number, tier: SponsorTier) => void }) {
-  const [amount, setAmount] = useState('3000')
+  const [amount, setAmount] = useState(sponsor.estValue ? String(sponsor.estValue) : '3000')
   const [tier, setTier] = useState<SponsorTier>(sponsor.tier)
   const [err, setErr] = useState('')
   return (
@@ -295,7 +297,7 @@ function AcceptModal({ sponsor, onClose, onAccept }: { sponsor: Sponsor; onClose
 
 function ProspectForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Sponsor) => void }) {
   const { state } = useStore()
-  const [form, setForm] = useState({ name: '', contactName: '', tier: 'Blue' as SponsorTier, stage: 'prospect' as PipelineStage, note: '' })
+  const [form, setForm] = useState({ name: '', contactName: '', tier: 'Blue' as SponsorTier, stage: 'prospect' as PipelineStage, estValue: '', note: '' })
   const [err, setErr] = useState('')
   return (
     <Modal title="New pipeline prospect" onClose={onClose} footer={
@@ -308,6 +310,7 @@ function ProspectForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Sp
             id, orgId: state.currentOrgId, name: form.name.trim(), stage: form.stage, tier: form.tier,
             contactName: form.contactName.trim() || 'TBD', logoStatus: 'missing', renewalDate: '2027-06-01',
             benefitSummary: `${form.tier} tier (proposed)`,
+            estValue: Number(form.estValue) > 0 ? Number(form.estValue) : undefined,
             notes: form.note.trim() ? [{ id: `${id}-n1`, at: new Date().toISOString(), authorId: state.currentUserId, text: form.note.trim() }] : [],
           })
         }}>Add to pipeline</button>
@@ -328,6 +331,9 @@ function ProspectForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Sp
           </select>
         </Field>
       </div>
+      <Field label="Estimated value ($)">
+        <input type="number" min={0} value={form.estValue} onChange={e => setForm(f => ({ ...f, estValue: e.target.value }))} placeholder="e.g. 3000 — counts toward Total potential" />
+      </Field>
       <Field label="Contact">
         <input value={form.contactName} onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} placeholder="Who are we talking to?" />
       </Field>

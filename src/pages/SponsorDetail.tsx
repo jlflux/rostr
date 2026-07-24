@@ -487,7 +487,9 @@ function EditSponsorModal({ sponsor: s, onClose, onSave }: { sponsor: Sponsor; o
   const [form, setForm] = useState({
     name: s.name, tier: s.tier, contactName: s.contactName, email: s.email ?? '', phone: s.phone ?? '',
     website: s.website ?? '', renewalDate: s.renewalDate, benefitSummary: s.benefitSummary, logoStatus: s.logoStatus,
+    estValue: s.estValue != null ? String(s.estValue) : '',
   })
+  const isPipeline = s.stage !== 'committed'
   const [errors, setErrors] = useState<Record<string, string>>({})
   const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }))
 
@@ -504,6 +506,7 @@ function EditSponsorModal({ sponsor: s, onClose, onSave }: { sponsor: Sponsor; o
       email: form.email.trim() || undefined, phone: form.phone.trim() || undefined,
       website: form.website.trim() || undefined, renewalDate: form.renewalDate,
       benefitSummary: form.benefitSummary.trim(), logoStatus: form.logoStatus,
+      estValue: Number(form.estValue) > 0 ? Number(form.estValue) : undefined,
     })
   }
 
@@ -547,9 +550,16 @@ function EditSponsorModal({ sponsor: s, onClose, onSave }: { sponsor: Sponsor; o
           <input value={form.website} onChange={e => set({ website: e.target.value })} placeholder="https://…" />
         </Field>
       </div>
-      <Field label="Renewal date">
-        <input type="date" value={form.renewalDate} onChange={e => set({ renewalDate: e.target.value })} />
-      </Field>
+      <div className="form-row">
+        <Field label="Renewal date">
+          <input type="date" value={form.renewalDate} onChange={e => set({ renewalDate: e.target.value })} />
+        </Field>
+        {isPipeline && (
+          <Field label="Estimated value ($)">
+            <input type="number" min={0} value={form.estValue} onChange={e => set({ estValue: e.target.value })} placeholder="Counts toward Total potential" />
+          </Field>
+        )}
+      </div>
       <Field label="Benefit summary">
         <textarea rows={2} value={form.benefitSummary} onChange={e => set({ benefitSummary: e.target.value })} />
       </Field>
@@ -559,10 +569,15 @@ function EditSponsorModal({ sponsor: s, onClose, onSave }: { sponsor: Sponsor; o
 
 const PAY_METHODS = ['Check', 'ACH transfer', 'Card (online)', 'Cash']
 
+// Real present-day date (local), used as the default for new payments.
+function todayISO() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function PaymentsModal({ agreement, onClose, onSave }: { agreement: Agreement; onClose: () => void; onSave: (payments: Payment[]) => void }) {
-  const { state } = useStore()
   const [rows, setRows] = useState<Payment[]>(agreement.payments.map(p => ({ ...p })))
-  const [draft, setDraft] = useState({ amount: '', method: 'Check', date: state.demoToday })
+  const [draft, setDraft] = useState({ amount: '', method: 'Check', date: todayISO() })
   const [err, setErr] = useState('')
 
   const collected = rows.reduce((n, p) => n + (Number(p.amount) || 0), 0)
@@ -574,16 +589,25 @@ function PaymentsModal({ agreement, onClose, onSave }: { agreement: Agreement; o
     if (Number.isNaN(amt) || amt <= 0) { setErr('Enter a positive payment amount.'); return }
     if (!draft.date) { setErr('Pick the payment date.'); return }
     setRows([...rows, { id: `pay-${Date.now()}`, date: draft.date, amount: amt, method: draft.method }])
-    setDraft({ amount: '', method: draft.method, date: state.demoToday })
+    setDraft({ amount: '', method: draft.method, date: todayISO() })
     setErr('')
   }
 
   const save = () => {
-    for (const r of rows) {
+    // Include a payment the user typed in the "Add" row but didn't click Add for,
+    // so entering an amount and hitting Save just works.
+    const final = [...rows]
+    if (draft.amount.trim() !== '') {
+      const amt = Number(draft.amount)
+      if (Number.isNaN(amt) || amt <= 0) { setErr('Enter a positive amount for the new payment (or clear the box).'); return }
+      if (!draft.date) { setErr('Pick a date for the new payment.'); return }
+      final.push({ id: `pay-${Date.now()}`, date: draft.date, amount: amt, method: draft.method })
+    }
+    for (const r of final) {
       if (Number.isNaN(Number(r.amount)) || Number(r.amount) <= 0) { setErr('Every payment needs a positive amount.'); return }
       if (!r.date) { setErr('Every payment needs a date.'); return }
     }
-    onSave(rows.map(r => ({ ...r, amount: Number(r.amount) })))
+    onSave(final.map(r => ({ ...r, amount: Number(r.amount) })))
   }
 
   return (

@@ -254,6 +254,8 @@ export interface Sponsor {
   renewalDate: string
   notes: SponsorNote[]
   benefitSummary: string
+  /** Expected deal value while still a prospect (drives "Total potential"). Committed sponsors use their agreement amounts instead. */
+  estValue?: number
 }
 
 export type PaymentStatus = 'paid' | 'partial' | 'unpaid'
