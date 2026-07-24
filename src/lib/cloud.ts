@@ -27,15 +27,39 @@ function headers(cfg: CloudConfig, extra?: Record<string, string>): Record<strin
   return { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, 'Content-Type': 'application/json', ...extra }
 }
 
+// Fetch with a human-readable error that includes the HTTP status and Supabase's
+// own message, so the UI can tell the user exactly what to fix.
+async function request(url: string, init: RequestInit): Promise<Response> {
+  let res: Response
+  try {
+    res = await fetch(url, init)
+  } catch {
+    let host = url
+    try { host = new URL(url).host } catch { /* keep url */ }
+    throw new Error(`Couldn't reach ${host}. Check that VITE_SUPABASE_URL is your project URL (https://…supabase.co) and that you're online.`)
+  }
+  if (!res.ok) {
+    let detail = ''
+    try { detail = (await res.text()).slice(0, 300) } catch { /* ignore */ }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`${res.status}: access denied. Check the anon key and that the "workspace open access" SQL policy was run.${detail ? ` (${detail})` : ''}`)
+    }
+    if (res.status === 404) {
+      throw new Error(`404: not found. Check the project URL, and that the SQL creating the "workspaces" table was run.${detail ? ` (${detail})` : ''}`)
+    }
+    throw new Error(`${res.status} ${res.statusText}${detail ? ` — ${detail}` : ''}`)
+  }
+  return res
+}
+
 /** Fetch the shared dataset, or null if none has been saved yet. */
 export async function cloudPull(): Promise<{ data: AppState; updatedAt: string } | null> {
   const cfg = cloudConfig()
   if (!cfg) return null
-  const res = await fetch(
+  const res = await request(
     `${cfg.url}/rest/v1/workspaces?id=eq.${encodeURIComponent(cfg.workspace)}&select=data,updated_at`,
     { headers: headers(cfg) },
   )
-  if (!res.ok) throw new Error(`Cloud pull failed (${res.status})`)
   const rows = (await res.json()) as { data: AppState; updated_at: string }[]
   return rows.length ? { data: rows[0].data, updatedAt: rows[0].updated_at } : null
 }
@@ -45,10 +69,9 @@ export async function cloudPush(state: AppState): Promise<void> {
   const cfg = cloudConfig()
   if (!cfg) return
   const body = [{ id: cfg.workspace, data: state, updated_at: new Date().toISOString() }]
-  const res = await fetch(`${cfg.url}/rest/v1/workspaces?on_conflict=id`, {
+  await request(`${cfg.url}/rest/v1/workspaces?on_conflict=id`, {
     method: 'POST',
     headers: headers(cfg, { Prefer: 'resolution=merge-duplicates,return=minimal' }),
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`Cloud save failed (${res.status})`)
 }

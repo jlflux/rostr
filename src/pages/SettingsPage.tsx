@@ -11,7 +11,7 @@ const SPONSOR_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot
 const AVATAR_COLORS = ['#d60000', '#0e7490', '#15803d', '#b45309', '#7c3aed', '#be185d', '#1d4ed8', '#374151']
 
 export default function SettingsPage() {
-  const { state, update, add, remove, setState, resetDemo, exportState, importState, cloudEnabled, cloudStatus, cloudPushNow, cloudPullNow, theme, setTheme, toast } = useStore()
+  const { state, update, add, remove, setState, resetDemo, exportState, importState, cloudEnabled, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, setTheme, toast } = useStore()
   const [confirmReset, setConfirmReset] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null)
@@ -174,7 +174,18 @@ export default function SettingsPage() {
                   <button className="btn primary" disabled={cloudStatus === 'syncing'} onClick={async () => { await cloudPushNow(); toast('Saved to cloud') }}>Save to cloud</button>
                   <button className="btn" disabled={cloudStatus === 'syncing'} onClick={async () => { await cloudPullNow(); toast('Loaded latest from cloud') }}>Load from cloud</button>
                 </div>
-                {cloudStatus === 'error' && <p className="tiny" style={{ color: 'var(--danger)', marginBottom: 0 }}>Couldn't reach the cloud. Check your connection and the project settings, then try again.</p>}
+                {cloudStatus === 'error' && (
+                  <div style={{ marginTop: 10, padding: '10px 12px', border: '1px solid var(--danger)', borderRadius: 8, background: 'color-mix(in srgb, var(--danger) 8%, transparent)' }}>
+                    <div className="small" style={{ fontWeight: 700, color: 'var(--danger)', marginBottom: 4 }}>Cloud error</div>
+                    <div className="small" style={{ wordBreak: 'break-word' }}>{cloudError ?? 'Unknown error.'}</div>
+                    <div className="tiny" style={{ marginTop: 6 }}>
+                      Most common fixes: (1) run the SQL from SUPABASE_SETUP.md so the <code>workspaces</code> table and its
+                      access policy exist; (2) confirm <code>VITE_SUPABASE_URL</code> is the project URL ending in
+                      <code>.supabase.co</code>; (3) confirm <code>VITE_SUPABASE_KEY</code> is the <strong>anon/public</strong> key;
+                      (4) redeploy in Vercel after changing any variable.
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <>

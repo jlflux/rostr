@@ -34,6 +34,8 @@ export interface Store {
   /** Whether a cloud project is connected (env-configured). */
   cloudEnabled: boolean
   cloudStatus: CloudStatus
+  /** Human-readable reason the last cloud action failed, if any. */
+  cloudError: string | null
   /** Save this device's data to the shared cloud now. */
   cloudPushNow: () => Promise<void>
   /** Load the shared cloud data onto this device now (keeps your local "view as"). */
@@ -104,6 +106,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   })
   const [toasts, setToasts] = useState<Store['toasts']>([])
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>(cloudEnabled() ? 'idle' : 'off')
+  const [cloudError, setCloudError] = useState<string | null>(null)
 
   // Cloud sync bookkeeping: latest state (for manual actions), the last snapshot we
   // synced (so pulling doesn't echo back as a push), whether the first pull ran,
@@ -140,7 +143,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         cloudReady.current = true
         setCloudStatus('idle')
       })
-      .catch(() => { cloudReady.current = true; setCloudStatus('error') })
+      .catch((e: unknown) => { cloudReady.current = true; setCloudError(String((e as Error)?.message ?? e)); setCloudStatus('error') })
     return () => { cancelled = true }
   }, [])
 
@@ -153,8 +156,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     clearTimeout(pushTimer.current)
     pushTimer.current = setTimeout(() => {
       cloudPush(state)
-        .then(() => { lastSyncedJson.current = json; setCloudStatus('saved') })
-        .catch(() => setCloudStatus('error'))
+        .then(() => { lastSyncedJson.current = json; setCloudError(null); setCloudStatus('saved') })
+        .catch((e: unknown) => { setCloudError(String((e as Error)?.message ?? e)); setCloudStatus('error') })
     }, 1200)
     return () => clearTimeout(pushTimer.current)
   }, [state])
@@ -225,8 +228,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await cloudPush(stateRef.current)
       lastSyncedJson.current = JSON.stringify(stateRef.current)
       cloudReady.current = true
+      setCloudError(null)
       setCloudStatus('saved')
-    } catch {
+    } catch (e: unknown) {
+      setCloudError(String((e as Error)?.message ?? e))
       setCloudStatus('error')
     }
   }, [])
@@ -244,17 +249,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         })
       }
       cloudReady.current = true
+      setCloudError(null)
       setCloudStatus('idle')
-    } catch {
+    } catch (e: unknown) {
+      setCloudError(String((e as Error)?.message ?? e))
       setCloudStatus('error')
     }
   }, [])
 
   const value = useMemo<Store>(() => ({
     state, update, add, remove, setState, logActivity, resetDemo, exportState, importState,
-    cloudEnabled: cloudEnabled(), cloudStatus, cloudPushNow, cloudPullNow,
+    cloudEnabled: cloudEnabled(), cloudStatus, cloudError, cloudPushNow, cloudPullNow,
     theme, setTheme: setThemeState, toast, toasts,
-  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudPushNow, cloudPullNow, theme, toast, toasts])
+  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, toast, toasts])
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
 }
