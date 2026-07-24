@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { PIPELINE_STAGES, can, fulfillmentProgress, sponsorAgreements, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsors as allSponsors, sponsorshipTotals } from '../lib/derive'
 import { fmtMoney } from '../lib/dates'
-import { Badge, Empty, Field, Modal, Progress, SearchBox, Seg, StatCard, StatusBadge } from '../components/ui'
+import { Badge, Empty, Field, Modal, Progress, SearchBox, Seg, SortTh, StatCard, StatusBadge, sortRows, useSort } from '../components/ui'
 import { I } from '../components/icons'
 import type { Agreement, PipelineStage, Sponsor, SponsorTier } from '../types'
 
@@ -33,21 +33,43 @@ export default function SponsorsPage() {
   const editable = can(me.role, 'edit')
   const pipeline = allSponsors(state).filter(s => s.stage !== 'committed')
 
+  type SortKey = 'name' | 'tier' | 'total' | 'outstanding' | 'payment' | 'logo' | 'fulfillment'
+  const { sort, onSort } = useSort<SortKey>('tier')
+
   const rows = useMemo(() => {
     let sps = allSponsors(state).filter(s => s.stage === 'committed')
     const term = q.trim().toLowerCase()
     if (term) sps = sps.filter(s => s.name.toLowerCase().includes(term) || s.contactName.toLowerCase().includes(term))
     if (tier) sps = sps.filter(s => s.tier === tier)
-    let out = sps.map(s => ({
-      sponsor: s,
-      total: sponsorTotal(state, s.id),
-      paid: sponsorPaid(state, s.id),
-      pay: sponsorPaymentStatus(state, s.id),
-      buys: sponsorAgreements(state, s.id).length,
-    }))
+    let out = sps.map(s => {
+      const ags = sponsorAgreements(state, s.id)
+      const prog = ags.reduce((acc, a) => { const p = fulfillmentProgress(a); return { done: acc.done + p.done, total: acc.total + p.total } }, { done: 0, total: 0 })
+      return {
+        sponsor: s,
+        total: sponsorTotal(state, s.id),
+        paid: sponsorPaid(state, s.id),
+        pay: sponsorPaymentStatus(state, s.id),
+        buys: ags.length,
+        prog,
+      }
+    })
     if (payment) out = out.filter(r => r.pay === payment)
-    return out.sort((a, b) => TIER_ORDER.indexOf(a.sponsor.tier) - TIER_ORDER.indexOf(b.sponsor.tier) || b.total - a.total)
+    // Stable base order (highest value first) so within-tier ties stay sensible.
+    return out.sort((a, b) => b.total - a.total)
   }, [state, q, tier, payment])
+
+  const sorted = useMemo(() => sortRows(rows, sort, (r, key): unknown => {
+    switch (key) {
+      case 'name': return r.sponsor.name
+      case 'tier': return TIER_ORDER.indexOf(r.sponsor.tier)
+      case 'total': return r.total
+      case 'outstanding': return Math.max(r.total - r.paid, 0)
+      case 'payment': return r.pay
+      case 'logo': return r.sponsor.logoStatus
+      case 'fulfillment': return r.prog.total ? r.prog.done / r.prog.total : -1
+      default: return ''
+    }
+  }), [rows, sort])
 
   return (
     <>
@@ -96,13 +118,19 @@ export default function SponsorsPage() {
       <div className="card tbl-wrap">
         <table className="tbl">
           <thead>
-            <tr><th>Sponsor</th><th>Tier</th><th className="num">Total value</th><th className="num">Outstanding</th><th>Payment</th><th>Logo</th><th style={{ minWidth: 140 }}>Fulfillment</th></tr>
+            <tr>
+              <SortTh label="Sponsor" k="name" sort={sort} onSort={onSort} />
+              <SortTh label="Tier" k="tier" sort={sort} onSort={onSort} />
+              <SortTh label="Total value" k="total" sort={sort} onSort={onSort} className="num" />
+              <SortTh label="Outstanding" k="outstanding" sort={sort} onSort={onSort} className="num" />
+              <SortTh label="Payment" k="payment" sort={sort} onSort={onSort} />
+              <SortTh label="Logo" k="logo" sort={sort} onSort={onSort} />
+              <SortTh label="Fulfillment" k="fulfillment" sort={sort} onSort={onSort} style={{ minWidth: 140 }} />
+            </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={7}><div className="empty"><h4>No sponsors match</h4><p>Adjust the search or filters.</p></div></td></tr>}
-            {rows.map(({ sponsor: s, total, paid, pay, buys }) => {
-              const ags = sponsorAgreements(state, s.id)
-              const prog = ags.reduce((acc, a) => { const p = fulfillmentProgress(a); return { done: acc.done + p.done, total: acc.total + p.total } }, { done: 0, total: 0 })
+            {sorted.length === 0 && <tr><td colSpan={7}><div className="empty"><h4>No sponsors match</h4><p>Adjust the search or filters.</p></div></td></tr>}
+            {sorted.map(({ sponsor: s, total, paid, pay, buys, prog }) => {
               return (
                 <tr key={s.id} className="clickable" onClick={() => navigate(`/sponsors/${s.id}`)}>
                   <td><span className="primary">{s.name}</span><div className="tiny">{s.contactName}{buys > 1 ? ` · ${buys} buys` : ''}</div></td>
@@ -152,6 +180,10 @@ function PipelineBoard({ editable }: { editable: boolean }) {
   const navigate = useNavigate()
   const [accepting, setAccepting] = useState<Sponsor | null>(null)
   const pipeline = allSponsors(state).filter(s => s.stage !== 'committed')
+  type PKey = 'name' | 'contact' | 'tier'
+  const { sort, onSort } = useSort<PKey>('name')
+  const sortStage = (items: Sponsor[]) => sortRows(items, sort, (sp, key): unknown =>
+    key === 'contact' ? sp.contactName : key === 'tier' ? TIER_ORDER.indexOf(sp.tier) : sp.name)
 
   const changeStage = (sp: Sponsor, stage: PipelineStage) => {
     if (stage === 'committed') { setAccepting(sp); return } // capture the deal first
@@ -175,10 +207,15 @@ function PipelineBoard({ editable }: { editable: boolean }) {
             </h2>
             <div className="card tbl-wrap">
               <table className="tbl">
-                <thead><tr><th>Business</th><th>Contact</th><th>Target tier</th><th>Latest note</th><th style={{ width: 150 }}>Stage</th></tr></thead>
+                <thead><tr>
+                  <SortTh label="Business" k="name" sort={sort} onSort={onSort} />
+                  <SortTh label="Contact" k="contact" sort={sort} onSort={onSort} />
+                  <SortTh label="Target tier" k="tier" sort={sort} onSort={onSort} />
+                  <th>Latest note</th><th style={{ width: 150 }}>Stage</th>
+                </tr></thead>
                 <tbody>
                   {items.length === 0 && <tr><td colSpan={5}><div className="empty" style={{ padding: '18px' }}><p style={{ margin: 0 }}>No sponsors in this stage.</p></div></td></tr>}
-                  {items.map(sp => (
+                  {sortStage(items).map(sp => (
                     <tr key={sp.id} className="clickable" onClick={() => navigate(`/sponsors/${sp.id}`)}>
                       <td><span className="primary">{sp.name}</span></td>
                       <td className="muted small">{sp.contactName}</td>

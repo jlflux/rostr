@@ -219,6 +219,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .tbl tbody tr.clickable { cursor: pointer; }
 .tbl td .primary { font-weight: 600; }
 .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl th.sortable { cursor: pointer; user-select: none; }
+.tbl th.sortable:hover { color: var(--text); background: var(--surface-2); }
+.tbl th.sortable.sorted { color: var(--text); }
+.tbl th.sortable .sort-th { display: inline-flex; align-items: center; gap: 5px; }
+.tbl th.sortable.num .sort-th { flex-direction: row-reverse; }
+.sort-caret { font-size: 0.62rem; opacity: 0.45; line-height: 1; }
+.tbl th.sortable.sorted .sort-caret { opacity: 1; color: var(--brand); }
 .chev { display: inline-flex; color: var(--brand, var(--text-3)); transition: transform 0.15s ease; }
 .chev.open { transform: rotate(90deg); }
 .athlete-name { font-weight: 600; color: var(--brand); }

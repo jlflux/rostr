@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { I } from './icons'
 import type { User } from '../types'
 
@@ -189,6 +189,48 @@ export function Check({ checked, onChange, disabled }: { checked: boolean; onCha
     <button className={`checkbox ${checked ? 'checked' : ''}`} onClick={onChange} disabled={disabled} aria-checked={checked} role="checkbox">
       {checked && <I.check />}
     </button>
+  )
+}
+
+// ---------- Sortable table headers ----------
+
+export type SortDir = 'asc' | 'desc'
+export interface SortState<K extends string> { key: K; dir: SortDir }
+
+/** Track a table's sort column + direction. Clicking the same column flips direction. */
+export function useSort<K extends string>(key: K, dir: SortDir = 'asc') {
+  const [sort, setSort] = useState<SortState<K>>({ key, dir })
+  const onSort = (k: K) => setSort(s => (s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' }))
+  return { sort, onSort }
+}
+
+/** Compare two values for `sortRows`: numbers numerically, everything else A→Z (case-insensitive). */
+export function cmpValues(a: unknown, b: unknown): number {
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return String(a).localeCompare(String(b), undefined, { sensitivity: 'base', numeric: true })
+}
+
+/** Sort a copy of `rows` by the value `get` returns for the active key, respecting direction. */
+export function sortRows<T, K extends string>(rows: T[], sort: SortState<K>, get: (row: T, key: K) => unknown): T[] {
+  const sign = sort.dir === 'asc' ? 1 : -1
+  return [...rows].sort((a, b) => sign * cmpValues(get(a, sort.key), get(b, sort.key)))
+}
+
+/** A clickable `<th>` that shows the current sort direction. */
+export function SortTh<K extends string>({ label, k, sort, onSort, className, style }: {
+  label: React.ReactNode; k: K; sort: SortState<K>; onSort: (k: K) => void; className?: string; style?: React.CSSProperties
+}) {
+  const active = sort.key === k
+  return (
+    <th
+      className={`sortable ${active ? 'sorted' : ''} ${className ?? ''}`}
+      style={style}
+      onClick={() => onSort(k)}
+      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      title="Click to sort"
+    >
+      <span className="sort-th">{label}<span className="sort-caret" aria-hidden>{active ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></span>
+    </th>
   )
 }
 

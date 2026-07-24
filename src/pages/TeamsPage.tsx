@@ -31,7 +31,7 @@ export default function TeamsPage() {
   const me = state.users.find(u => u.id === state.currentUserId)!
   const editable = can(me.role, 'edit')
   const [adding, setAdding] = useState(false)
-  const sports = [...new Set(teams.map(t => t.sport))]
+  const sports = [...new Set(teams.map(t => t.sport))].sort((a, b) => a.localeCompare(b))
   return (
     <>
       <div className="page-head">
