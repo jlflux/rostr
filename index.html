@@ -16,5 +16,33 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Blank-screen self-heal: if the app hasn't rendered a few seconds after
+      // load, a stale cache or service worker is the usual cause. Clear them and
+      // reload exactly once (guarded so a genuine error can't loop).
+      (function () {
+        function heal() {
+          var root = document.getElementById('root');
+          if (root && root.childElementCount > 0) { sessionStorage.removeItem('cc-recover'); return; }
+          if (sessionStorage.getItem('cc-recover')) return;
+          sessionStorage.setItem('cc-recover', '1');
+          var reload = function () { location.reload(); };
+          Promise.resolve()
+            .then(function () {
+              if ('serviceWorker' in navigator)
+                return navigator.serviceWorker.getRegistrations().then(function (rs) {
+                  return Promise.all(rs.map(function (r) { return r.unregister(); }));
+                });
+            })
+            .then(function () {
+              if (window.caches) return caches.keys().then(function (ks) {
+                return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+              });
+            })
+            .then(reload, reload);
+        }
+        window.addEventListener('load', function () { setTimeout(heal, 4000); });
+      })();
+    </script>
   </body>
 </html>
