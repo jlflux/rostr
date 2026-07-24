@@ -1,5 +1,5 @@
 import { useStore } from '../store/store'
-import { agreementPaid, committedAgreements, fulfillmentProgress, requests as allRequests, revenueByDepartment, sponsors as allSponsors, sponsorshipTotals, tasks as allTasks, teamCompleteness, teamEarmarks, teams as allTeams, events as allEvents } from '../lib/derive'
+import { agreementCash, agreementPaid, committedAgreements, fulfillmentProgress, requests as allRequests, revenueByDepartment, sponsors as allSponsors, sponsorshipTotals, tasks as allTasks, teamCompleteness, teamEarmarks, teams as allTeams, events as allEvents } from '../lib/derive'
 import { fmtDate, fmtMoney } from '../lib/dates'
 import { Badge, Card, Empty, StatCard, StatusBadge } from '../components/ui'
 import { Link } from 'react-router-dom'
@@ -28,7 +28,7 @@ export default function ReportsPage() {
   const tiers = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
   const byTier = tiers.map(t => {
     const tierAgs = ags.filter(a => sps.find(s => s.id === a.sponsorId)?.tier === t)
-    return { tier: t, total: tierAgs.reduce((n, a) => n + a.amount, 0), collected: tierAgs.reduce((n, a) => n + agreementPaid(a), 0), count: tierAgs.length }
+    return { tier: t, total: tierAgs.reduce((n, a) => n + agreementCash(a), 0), collected: tierAgs.reduce((n, a) => n + agreementPaid(a), 0), count: tierAgs.length }
   }).filter(x => x.count > 0)
   const maxTier = Math.max(...byTier.map(x => x.total))
 

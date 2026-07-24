@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, can, fulfillmentForTier, fulfillmentProgress, sponsorAgreements, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTotal, sponsors as allSponsors } from '../lib/derive'
-import { fmtMoney } from '../lib/dates'
+import { PIPELINE_STAGES, can, fulfillmentForTier, fulfillmentProgress, newBuyDefaults, sponsorAgreements, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTrade, sponsors as allSponsors, tierSetting } from '../lib/derive'
+import { fmtMoney, todayISO } from '../lib/dates'
 import { Badge, Empty, Field, Modal, Progress, SearchBox, Seg, SortTh, StatCard, StatusBadge, sortRows, useSort } from '../components/ui'
 import { I } from '../components/icons'
 import type { Agreement, PipelineStage, Sponsor, SponsorTier } from '../types'
@@ -46,7 +46,8 @@ export default function SponsorsPage() {
       const prog = ags.reduce((acc, a) => { const p = fulfillmentProgress(a); return { done: acc.done + p.done, total: acc.total + p.total } }, { done: 0, total: 0 })
       return {
         sponsor: s,
-        total: sponsorTotal(state, s.id),
+        total: sponsorCash(state, s.id),   // cash = what counts toward revenue
+        trade: sponsorTrade(state, s.id),
         paid: sponsorPaid(state, s.id),
         pay: sponsorPaymentStatus(state, s.id),
         buys: ags.length,
@@ -87,7 +88,7 @@ export default function SponsorsPage() {
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 16 }}>
-        <StatCard label="Total sponsorship" value={fmtMoney(totals.total)} hint={`${totals.committedCount} accepted sponsor${totals.committedCount === 1 ? '' : 's'}`} />
+        <StatCard label="Total sponsorship" value={fmtMoney(totals.total)} hint={`${totals.committedCount} accepted · cash only${totals.trade > 0 ? ` · +${fmtMoney(totals.trade)} trade` : ''}`} />
         <StatCard label="Amount collected" value={fmtMoney(totals.collected)} tone="ok"
           hint={`${fmtMoney(totals.outstanding)} outstanding / owed`} />
         <StatCard label="Total potential" value={fmtMoney(totals.potential)}
@@ -123,7 +124,7 @@ export default function SponsorsPage() {
             <tr>
               <SortTh label="Sponsor" k="name" sort={sort} onSort={onSort} />
               <SortTh label="Tier" k="tier" sort={sort} onSort={onSort} />
-              <SortTh label="Total value" k="total" sort={sort} onSort={onSort} className="num" />
+              <SortTh label="Cash value" k="total" sort={sort} onSort={onSort} className="num" />
               <SortTh label="Outstanding" k="outstanding" sort={sort} onSort={onSort} className="num" />
               <SortTh label="Payment" k="payment" sort={sort} onSort={onSort} />
               <SortTh label="Logo" k="logo" sort={sort} onSort={onSort} />
@@ -132,12 +133,12 @@ export default function SponsorsPage() {
           </thead>
           <tbody>
             {sorted.length === 0 && <tr><td colSpan={7}><div className="empty"><h4>No sponsors match</h4><p>Adjust the search or filters.</p></div></td></tr>}
-            {sorted.map(({ sponsor: s, total, paid, pay, buys, prog }) => {
+            {sorted.map(({ sponsor: s, total, trade, paid, pay, buys, prog }) => {
               return (
                 <tr key={s.id} className="clickable" onClick={() => navigate(`/sponsors/${s.id}`)}>
                   <td><span className="primary">{s.name}</span><div className="tiny">{s.contactName}{buys > 1 ? ` · ${buys} buys` : ''}</div></td>
                   <td><TierBadge tier={s.tier} /></td>
-                  <td className="num">{total ? fmtMoney(total) : '—'}</td>
+                  <td className="num">{total ? fmtMoney(total) : '—'}{trade > 0 && <div className="tiny">+{fmtMoney(trade)} trade</div>}</td>
                   <td className="num" style={{ color: paid < total ? 'var(--danger)' : undefined }}>
                     {total ? fmtMoney(Math.max(total - paid, 0)) : '—'}
                   </td>
@@ -244,11 +245,12 @@ function PipelineBoard({ editable }: { editable: boolean }) {
         <AcceptModal sponsor={accepting} onClose={() => setAccepting(null)} onAccept={(amount, tier) => {
           const sp = accepting
           update('sponsors', sp.id, { stage: 'committed', tier, benefitSummary: `${tier} tier package` })
+          const defaults = newBuyDefaults(state, tier, amount, todayISO())
           add('agreements', {
             id: `ag-${sp.id.slice(3)}-${Date.now()}`, orgId: state.currentOrgId, sponsorId: sp.id, season: 'Fall 2026',
-            label: `${tier} sponsorship`, amount, paymentStatus: 'unpaid', payments: [],
+            label: `${tier} sponsorship`, amount, paymentStatus: defaults.paymentStatus, payments: defaults.payments,
             fulfillment: fulfillmentForTier(state, tier),
-            allocations: [{ id: `${sp.id}-alloc-ath`, target: 'athletics', amount }],
+            allocations: defaults.allocations.length ? defaults.allocations : undefined,
           } as Agreement)
           logActivity(`accepted ${sp.name} as a ${tier} sponsor (${fmtMoney(amount)})`, `/sponsors/${sp.id}`)
           toast(`${sp.name} accepted — now in the sponsor directory`)
@@ -261,9 +263,13 @@ function PipelineBoard({ editable }: { editable: boolean }) {
 }
 
 function AcceptModal({ sponsor, onClose, onAccept }: { sponsor: Sponsor; onClose: () => void; onAccept: (amount: number, tier: SponsorTier) => void }) {
-  const [amount, setAmount] = useState(sponsor.estValue ? String(sponsor.estValue) : '3000')
+  const { state } = useStore()
+  const tierDefault = (t: SponsorTier) => tierSetting(state, t)?.defaultAmount
   const [tier, setTier] = useState<SponsorTier>(sponsor.tier)
+  const [amount, setAmount] = useState(String(sponsor.estValue ?? tierDefault(sponsor.tier) ?? 3000))
   const [err, setErr] = useState('')
+  const pickTier = (t: SponsorTier) => { setTier(t); const d = tierDefault(t); if (d != null) setAmount(String(d)) }
+  const ts = tierSetting(state, tier)
   return (
     <Modal title={`Accept ${sponsor.name}`} onClose={onClose} footer={
       <>
@@ -278,7 +284,7 @@ function AcceptModal({ sponsor, onClose, onAccept }: { sponsor: Sponsor; onClose
       <p className="small muted" style={{ marginTop: 0 }}>This creates {sponsor.name}'s first agreement and moves them into the sponsor directory. You can add more buys or edit anything afterward.</p>
       <div className="form-row">
         <Field label="Tier">
-          <select value={tier} onChange={e => setTier(e.target.value as SponsorTier)}>
+          <select value={tier} onChange={e => pickTier(e.target.value as SponsorTier)}>
             {TIER_ORDER.map(t => <option key={t}>{t}</option>)}
           </select>
         </Field>
@@ -286,6 +292,12 @@ function AcceptModal({ sponsor, onClose, onAccept }: { sponsor: Sponsor; onClose
           <input type="number" min={0} value={amount} onChange={e => setAmount(e.target.value)} />
         </Field>
       </div>
+      {(ts?.autoPaid || ts?.earmarkSport) && (
+        <p className="tiny" style={{ marginBottom: 0 }}>
+          {ts?.autoPaid && <span style={{ color: 'var(--ok)' }}>Recorded as paid (prepaid tier). </span>}
+          {ts?.earmarkSport && <>Earmarked to {ts.earmarkSport} by default.</>}
+        </p>
+      )}
     </Modal>
   )
 }
@@ -341,19 +353,36 @@ function ProspectForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Sp
 
 function SponsorForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Sponsor, a: Agreement) => void }) {
   const { state } = useStore()
-  const [form, setForm] = useState({ name: '', tier: 'Blue' as SponsorTier, contactName: '', email: '', phone: '', amount: '3000', renewalDate: '2027-06-01' })
+  const initialTier: SponsorTier = 'Blue'
+  const [form, setForm] = useState<{ name: string; tier: SponsorTier; contactName: string; email: string; phone: string; renewalDate: string; amount: string; trade: string }>({
+    name: '', tier: initialTier, contactName: '', email: '', phone: '', renewalDate: '2027-06-01',
+    amount: tierSetting(state, initialTier)?.defaultAmount != null ? String(tierSetting(state, initialTier)!.defaultAmount) : '',
+    trade: '',
+  })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Switching tier prefills the agreement amount from that tier's default (still editable).
+  const pickTier = (t: SponsorTier) => setForm(f => {
+    const def = tierSetting(state, t)?.defaultAmount
+    return { ...f, tier: t, amount: def != null ? String(def) : f.amount }
+  })
+
+  const amtNum = Number(form.amount)
+  const tradeNum = Number(form.trade) || 0
+  const cash = (Number.isNaN(amtNum) ? 0 : amtNum) - tradeNum
+  const ts = tierSetting(state, form.tier)
 
   const submit = () => {
     const errs: Record<string, string> = {}
     if (!form.name.trim()) errs.name = 'Business name is required.'
     if (!form.contactName.trim()) errs.contactName = 'A contact name is required.'
     if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) errs.email = 'Enter a valid email address.'
-    const amt = Number(form.amount)
-    if (Number.isNaN(amt) || amt <= 0) errs.amount = 'Enter a positive dollar amount.'
+    if (Number.isNaN(amtNum) || amtNum <= 0) errs.amount = 'Enter a positive dollar amount.'
+    if (tradeNum > amtNum) errs.trade = 'Trade can’t exceed the buy amount.'
     setErrors(errs)
     if (Object.keys(errs).length) return
     const id = `sp-new-${Date.now()}`
+    const defaults = newBuyDefaults(state, form.tier, cash, todayISO())
     onSave(
       {
         id, orgId: state.currentOrgId, name: form.name.trim(), stage: 'committed', tier: form.tier, contactName: form.contactName.trim(),
@@ -361,9 +390,11 @@ function SponsorForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Spo
         renewalDate: form.renewalDate, notes: [], benefitSummary: `${form.tier} tier package`,
       },
       {
-        id: `ag-new-${Date.now()}`, orgId: state.currentOrgId, sponsorId: id, season: 'Fall 2026', amount: amt,
-        paymentStatus: 'unpaid', payments: [],
+        id: `ag-new-${Date.now()}`, orgId: state.currentOrgId, sponsorId: id, season: 'Fall 2026', amount: amtNum,
+        tradeValue: tradeNum > 0 ? tradeNum : undefined,
+        paymentStatus: defaults.paymentStatus, payments: defaults.payments,
         fulfillment: fulfillmentForTier(state, form.tier),
+        allocations: defaults.allocations.length ? defaults.allocations : undefined,
       },
     )
   }
@@ -380,13 +411,25 @@ function SponsorForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Spo
       </Field>
       <div className="form-row">
         <Field label="Tier" required>
-          <select value={form.tier} onChange={e => setForm(f => ({ ...f, tier: e.target.value as SponsorTier }))}>
+          <select value={form.tier} onChange={e => pickTier(e.target.value as SponsorTier)}>
             {TIER_ORDER.map(t => <option key={t}>{t}</option>)}
           </select>
         </Field>
         <Field label="Agreement amount ($)" required error={errors.amount}>
           <input type="number" min={0} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
         </Field>
+      </div>
+      <div className="form-row">
+        <Field label="Of that, paid in trade ($)" error={errors.trade}>
+          <input type="number" min={0} value={form.trade} onChange={e => setForm(f => ({ ...f, trade: e.target.value }))} placeholder="0 — leave blank if all cash" />
+        </Field>
+        <div className="field" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <span className="small muted">
+            {tradeNum > 0 ? <><strong>{fmtMoney(cash)}</strong> cash counts toward revenue</> : 'All cash'}
+            {ts?.autoPaid && <><br /><span style={{ color: 'var(--ok)' }}>Recorded as paid (prepaid tier)</span></>}
+            {ts?.earmarkSport && <><br />Earmarked to {ts.earmarkSport}</>}
+          </span>
+        </div>
       </div>
       <div className="form-row">
         <Field label="Contact name" required error={errors.contactName}>

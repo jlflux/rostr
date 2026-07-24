@@ -8,6 +8,11 @@ export function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/** Real present-day date (local), e.g. for defaulting a payment date. */
+export function todayISO(): string {
+  return toISO(new Date())
+}
+
 export function addDays(iso: string, days: number): string {
   return toISO(new Date(parseISO(iso).getTime() + days * DAY_MS))
 }

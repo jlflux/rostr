@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, benefitTemplates, can } from '../lib/derive'
+import { ROLE_LABELS, benefitTemplates, can, tierSettings } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
+import { fmtMoney } from '../lib/dates'
 import { I } from '../components/icons'
 import type { Organization, Role, SponsorTier, User } from '../types'
 
@@ -117,6 +118,7 @@ export default function SettingsPage() {
             </table>
           </Card>
 
+          <TierSettingsCard />
           <BenefitTemplatesCard />
         </div>
 
@@ -205,6 +207,53 @@ export default function SettingsPage() {
   function updateOrg(patch: Partial<Organization>) {
     setState({ orgs: state.orgs.map(o => (o.id === org.id ? { ...o, ...patch } : o)) })
   }
+}
+
+function TierSettingsCard() {
+  const { state, update } = useStore()
+  const me = state.users.find(u => u.id === state.currentUserId)!
+  const canEdit = can(me.role, 'finance')
+  const sports = [...new Set(state.teams.map(t => t.sport))].sort((a, b) => a.localeCompare(b))
+  const order = SPONSOR_TIERS
+  const rows = [...tierSettings(state)].sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier))
+
+  return (
+    <Card title="Sponsorship levels" pad={false}>
+      <p className="small muted" style={{ padding: '12px 16px 0', margin: 0 }}>
+        Set a default agreement amount per level, whether it's recorded as paid on entry (e.g. a prepaid web-portal level),
+        and a sport its money is earmarked to by default. Everything stays editable on each individual sponsor.
+        {!canEdit && ' (Finance or an administrator can edit these.)'}
+      </p>
+      <table className="tbl" style={{ marginTop: 8 }}>
+        <thead><tr><th>Level</th><th>Default amount</th><th>On entry</th><th>Default earmark</th></tr></thead>
+        <tbody>
+          {rows.map(t => (
+            <tr key={t.id}>
+              <td><strong className="small">{t.tier}</strong></td>
+              <td>
+                {canEdit
+                  ? <input className="input" type="number" min={0} style={{ width: 120 }} value={t.defaultAmount ?? ''} placeholder="Custom"
+                      onChange={e => update('tierSettings', t.id, { defaultAmount: e.target.value === '' ? undefined : Number(e.target.value) })} />
+                  : (t.defaultAmount != null ? fmtMoney(t.defaultAmount) : 'Custom')}
+              </td>
+              <td>
+                <button type="button" className="tier-toggle" data-on={t.autoPaid} disabled={!canEdit}
+                  onClick={() => update('tierSettings', t.id, { autoPaid: !t.autoPaid })}>{t.autoPaid ? 'Paid' : 'Invoiced'}</button>
+              </td>
+              <td>
+                {canEdit
+                  ? <select className="inline-select" value={t.earmarkSport ?? ''} onChange={e => update('tierSettings', t.id, { earmarkSport: e.target.value || undefined })}>
+                      <option value="">Athletic dept</option>
+                      {sports.map(sp => <option key={sp}>{sp}</option>)}
+                    </select>
+                  : (t.earmarkSport ?? 'Athletic dept')}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  )
 }
 
 function BenefitTemplatesCard() {

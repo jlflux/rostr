@@ -1,7 +1,7 @@
 import rawSchedule from './scheduleEvents.json'
 import type {
   Activity, Agreement, AppState, Asset, Athlete, BenefitTemplate, CoachRequest, FulfillmentItem, Guardian, Opponent, Organization,
-  SportEvent, Sponsor, SponsorTier, StaffRole, StaffSlot, Task, Team, User,
+  SportEvent, Sponsor, SponsorTier, StaffRole, StaffSlot, Task, Team, TierSetting, User,
 } from '../types'
 
 // The prototype runs on a frozen "demo clock" so the fall 2026 season data
@@ -109,6 +109,16 @@ export const benefitTemplates: BenefitTemplate[] = CHECKLIST.map(c => ({
   id: `bt-${c.id}`, orgId: 'org-hhs', label: c.label, tiers: c.tiers,
 }))
 
+// Per-tier defaults. Red/White/Blue are invoiced (not auto-paid); Patriot Partner
+// is sold through a prepaid web portal (auto-paid) and defaults to cheerleading.
+export const tierSettings: TierSetting[] = [
+  { id: 'Red', orgId: 'org-hhs', tier: 'Red', defaultAmount: 12000, autoPaid: false },
+  { id: 'White', orgId: 'org-hhs', tier: 'White', defaultAmount: 6000, autoPaid: false },
+  { id: 'Blue', orgId: 'org-hhs', tier: 'Blue', defaultAmount: 3000, autoPaid: false },
+  { id: 'Add-On', orgId: 'org-hhs', tier: 'Add-On', defaultAmount: undefined, autoPaid: false },
+  { id: 'Patriot Partner', orgId: 'org-hhs', tier: 'Patriot Partner', defaultAmount: 475.5, autoPaid: true, earmarkSport: 'Cheerleading' },
+]
+
 const sponsorSeeds: SponsorSeed[] = [
   // Red tier
   { id: 'sp-oncology', name: 'Alabama Oncology', tier: 'Red', contact: 'Ben Jones', amount: 17000, paid: 17000, paidDate: '2026-06-16', logo: 'received', done: ['logo', 'web', 'haf'], benefit: 'Presenting sponsor — video board, PA reads, signage, 8 season tickets' },
@@ -187,7 +197,8 @@ export const agreements: Agreement[] = sponsorSeeds.map(s => {
     paymentStatus: s.paid >= s.amount ? 'paid' : s.paid > 0 ? 'partial' : 'unpaid',
     payments: s.paid > 0 ? [{ id: `${s.id}-p1`, date: s.paidDate ?? '2026-07-01', amount: s.paid, method: 'Check' }] : [],
     fulfillment,
-    allocations: [{ id: `${s.id}-alloc-ath`, target: 'athletics', amount: s.amount }],
+    // No explicit earmark: unallocated cash falls to the athletic department by default.
+    allocations: [],
     signedDate: s.paidDate ?? undefined,
   }
 })
@@ -202,9 +213,9 @@ agreements.push({
   payments: [{ id: 'oncology-2-p1', date: '2026-08-10', amount: 20000, method: 'ACH transfer' }],
   fulfillment: [],
   allocations: [
+    // Remaining $8,000 falls to the athletic department automatically.
     { id: 'oncology-2-a1', target: 'Football', amount: 8000 },
     { id: 'oncology-2-a2', target: 'Cheerleading', amount: 4000, note: 'Credit: Ava Sanders (secured through her family connection)' },
-    { id: 'oncology-2-a3', target: 'athletics', amount: 8000 },
   ],
   signedDate: '2026-08-10',
 })
@@ -645,6 +656,7 @@ export function buildSeedState(): AppState {
     sponsors,
     agreements,
     benefitTemplates,
+    tierSettings,
     requests,
     assets,
     tasks: buildTasks(events, demoToday),

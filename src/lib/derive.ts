@@ -1,4 +1,4 @@
-import type { Agreement, AppState, BroadcastCheckItem, CoachRequest, EventStatus, FulfillmentItem, PipelineStage, SponsorTier, SportEvent, Task } from '../types'
+import type { Agreement, AppState, BroadcastCheckItem, CoachRequest, EventStatus, FulfillmentItem, Payment, PaymentStatus, PipelineStage, SponsorTier, SportEvent, Task } from '../types'
 import { addDays, weekStart } from './dates'
 
 // ---------- Business/derived logic, kept out of display components ----------
@@ -42,6 +42,11 @@ export function agreementPaid(a: Agreement): number {
   return a.payments.reduce((sum, p) => sum + p.amount, 0)
 }
 
+/** Cash portion of a buy (what counts toward revenue). Trade value is excluded. */
+export function agreementCash(a: Agreement): number {
+  return a.amount - (a.tradeValue ?? 0)
+}
+
 /** Agreements belonging to sponsors that are actually "accepted" (committed). */
 export function committedAgreements(s: AppState): Agreement[] {
   const committed = new Set(sponsors(s).filter(sp => sp.stage === 'committed').map(sp => sp.id))
@@ -50,7 +55,7 @@ export function committedAgreements(s: AppState): Agreement[] {
 
 export function sponsorshipTotals(s: AppState) {
   const ags = committedAgreements(s)
-  const total = ags.reduce((sum, a) => sum + a.amount, 0)
+  const total = ags.reduce((sum, a) => sum + agreementCash(a), 0)
   const collected = ags.reduce((sum, a) => sum + agreementPaid(a), 0)
   return { total, collected, outstanding: total - collected, count: ags.length }
 }
@@ -304,8 +309,19 @@ export function sponsorAgreements(s: AppState, sponsorId: string): Agreement[] {
   return agreements(s).filter(a => a.sponsorId === sponsorId)
 }
 
+/** Gross deal size across a sponsor's buys (cash + trade). */
 export function sponsorTotal(s: AppState, sponsorId: string): number {
   return sponsorAgreements(s, sponsorId).reduce((n, a) => n + a.amount, 0)
+}
+
+/** Cash value across a sponsor's buys — the part that counts toward revenue. */
+export function sponsorCash(s: AppState, sponsorId: string): number {
+  return sponsorAgreements(s, sponsorId).reduce((n, a) => n + agreementCash(a), 0)
+}
+
+/** Trade (non-cash) value across a sponsor's buys. */
+export function sponsorTrade(s: AppState, sponsorId: string): number {
+  return sponsorAgreements(s, sponsorId).reduce((n, a) => n + (a.tradeValue ?? 0), 0)
 }
 
 export function sponsorPaid(s: AppState, sponsorId: string): number {
@@ -313,10 +329,10 @@ export function sponsorPaid(s: AppState, sponsorId: string): number {
 }
 
 export function sponsorPaymentStatus(s: AppState, sponsorId: string): 'paid' | 'partial' | 'unpaid' {
-  const total = sponsorTotal(s, sponsorId)
+  const cash = sponsorCash(s, sponsorId)
   const paid = sponsorPaid(s, sponsorId)
-  if (total === 0) return 'unpaid'
-  if (paid >= total) return 'paid'
+  if (cash <= 0) return paid > 0 ? 'paid' : 'unpaid'
+  if (paid >= cash) return 'paid'
   return paid > 0 ? 'partial' : 'unpaid'
 }
 
@@ -332,8 +348,9 @@ export function sponsorProgramTotals(s: AppState) {
   const committedIds = new Set(committed.map(sp => sp.id))
   const committedAgs = agreements(s).filter(a => committedIds.has(a.sponsorId))
 
-  const total = committedAgs.reduce((n, a) => n + a.amount, 0)
+  const total = committedAgs.reduce((n, a) => n + agreementCash(a), 0)
   const collected = committedAgs.reduce((n, a) => n + agreementPaid(a), 0)
+  const trade = committedAgs.reduce((n, a) => n + (a.tradeValue ?? 0), 0)
 
   const pipeline = sps.filter(sp => sp.stage !== 'committed' && sp.stage !== 'declined')
   const pipelineValue = pipeline.reduce((n, sp) => n + (sp.estValue ?? 0), 0)
@@ -346,7 +363,7 @@ export function sponsorProgramTotals(s: AppState) {
   }).length
 
   return {
-    total, collected, outstanding: total - collected,
+    total, collected, outstanding: total - collected, trade,
     committedCount: committed.length,
     potential: total + pipelineValue, pipelineValue, pipelineCount: pipeline.length,
     missingAssets,
@@ -366,6 +383,30 @@ export function allocationLabel(s: AppState, target: string): string {
   if (target === 'athletics') return 'Athletic department'
   // Legacy earmarks pointed at a specific team; new ones use the sport name directly.
   return teams(s).find(t => t.id === target)?.name ?? target
+}
+
+// ---------- Sponsor tier settings ----------
+
+export const tierSettings = (s: AppState) => orgScoped(s, s.tierSettings)
+export function tierSetting(s: AppState, tier: SponsorTier) {
+  return tierSettings(s).find(t => t.tier === tier)
+}
+
+/**
+ * Payment + earmark defaults for a brand-new buy of `tier`, honoring the tier
+ * settings: auto-paid tiers get a full cash payment recorded; a default earmark
+ * sport puts the cash toward that sport (otherwise it falls to athletics).
+ */
+export function newBuyDefaults(s: AppState, tier: SponsorTier, cash: number, when: string) {
+  const ts = tierSetting(s, tier)
+  const stamp = Date.now()
+  const payments: Payment[] = ts?.autoPaid && cash > 0
+    ? [{ id: `pay-${stamp}`, date: when, amount: cash, method: 'Card (online)' }]
+    : []
+  const allocations = ts?.earmarkSport && cash > 0
+    ? [{ id: `alloc-${stamp}`, target: ts.earmarkSport, amount: cash }]
+    : []
+  return { payments, paymentStatus: (payments.length ? 'paid' : 'unpaid') as PaymentStatus, allocations }
 }
 
 // ---------- Sponsor benefit templates ----------
@@ -393,11 +434,12 @@ export function revenueByDepartment(s: AppState): { target: string; label: strin
     totals.set(target, cur)
   }
   for (const a of committedAgreements(s)) {
-    const paidRatio = a.amount > 0 ? agreementPaid(a) / a.amount : 0
+    const cash = agreementCash(a)
+    const paidRatio = cash > 0 ? agreementPaid(a) / cash : 0
     const allocs = a.allocations ?? []
     let allocated = 0
     for (const al of allocs) { bump(al.target, al.amount, al.amount * paidRatio); allocated += al.amount }
-    const remainder = a.amount - allocated
+    const remainder = cash - allocated
     if (remainder > 0) bump('athletics', remainder, remainder * paidRatio)
   }
   return [...totals.entries()]

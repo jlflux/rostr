@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import {
-  PIPELINE_STAGES, agreementPaid, allocationLabel, can, eventTitle, fulfillmentForTier, fulfillmentProgress,
-  sponsorAgreements, sponsorAllocations, sponsorPaid, sponsorPaymentStatus, sponsorTotal, teams as allTeams, visibleStatus,
+  PIPELINE_STAGES, agreementCash, agreementPaid, allocationLabel, can, eventTitle, fulfillmentForTier, fulfillmentProgress,
+  sponsorAgreements, sponsorAllocations, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsorTrade, teams as allTeams, visibleStatus,
 } from '../lib/derive'
-import { fmtDate, fmtDateTime, fmtMoney, fmtTime } from '../lib/dates'
+import { fmtDate, fmtDateTime, fmtMoney, fmtTime, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, Modal, Progress, StatusBadge } from '../components/ui'
 import { StageBadge, TierBadge } from './SponsorsPage'
 import { I } from '../components/icons'
@@ -28,7 +28,9 @@ export default function SponsorDetail() {
   const editable = can(me.role, 'edit')
   const financeOk = can(me.role, 'finance')
   const ags = sponsorAgreements(state, s.id)
-  const total = sponsorTotal(state, s.id)
+  const total = sponsorTotal(state, s.id)   // gross (cash + trade)
+  const cash = sponsorCash(state, s.id)     // counts toward revenue
+  const trade = sponsorTrade(state, s.id)
   const paid = sponsorPaid(state, s.id)
   const payStatus = sponsorPaymentStatus(state, s.id)
   const allocations = sponsorAllocations(state, s.id)
@@ -92,9 +94,9 @@ export default function SponsorDetail() {
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 16 }}>
-        <div className="card stat-card"><span className="label">Total value</span><span className="value">{fmtMoney(total)}</span><span className="hint">{ags.length} buy{ags.length === 1 ? '' : 's'}</span></div>
+        <div className="card stat-card"><span className="label">Cash value</span><span className="value">{fmtMoney(cash)}</span><span className="hint">{trade > 0 ? `${fmtMoney(total)} deal · +${fmtMoney(trade)} trade` : `${ags.length} buy${ags.length === 1 ? '' : 's'}`}</span></div>
         <div className="card stat-card ok"><span className="label">Collected</span><span className="value">{fmtMoney(paid)}</span></div>
-        <div className={`card stat-card ${paid < total ? 'alert' : 'ok'}`}><span className="label">Outstanding</span><span className="value">{fmtMoney(Math.max(total - paid, 0))}</span></div>
+        <div className={`card stat-card ${paid < cash ? 'alert' : 'ok'}`}><span className="label">Outstanding</span><span className="value">{fmtMoney(Math.max(cash - paid, 0))}</span></div>
         <div className="card stat-card"><span className="label">Fulfillment</span><span className="value">{prog.done}/{prog.total}</span><div style={{ marginTop: 6 }}><Progress value={prog.done} max={prog.total} /></div></div>
       </div>
 
@@ -107,8 +109,9 @@ export default function SponsorDetail() {
               return (
                 <div key={a.id} className="notif-item" style={{ alignItems: 'flex-start' }}>
                   <span style={{ flex: 1 }}>
-                    <strong>{a.label ?? 'Sponsorship'}</strong> — {fmtMoney(a.amount)}
-                    <div className="tiny">{a.season} · {fmtMoney(ap)} collected{ap > a.amount ? ` · overpaid ${fmtMoney(ap - a.amount)}` : ''}{a.allocations && a.allocations.length ? ` · ${a.allocations.map(al => `${allocationLabel(state, al.target)} ${fmtMoney(al.amount)}`).join(', ')}` : ''}</div>
+                    <strong>{a.label ?? 'Sponsorship'}</strong> — {fmtMoney(a.amount)}{a.tradeValue ? <span className="tiny"> ({fmtMoney(agreementCash(a))} cash + {fmtMoney(a.tradeValue)} trade)</span> : ''}
+                    <div className="tiny">{a.season} · {fmtMoney(ap)} collected{ap > agreementCash(a) ? ` · overpaid ${fmtMoney(ap - agreementCash(a))}` : ''}{a.allocations && a.allocations.length ? ` · ${a.allocations.map(al => `${allocationLabel(state, al.target)} ${fmtMoney(al.amount)}`).join(', ')}` : ''}</div>
+                    {a.tradeNote && <div className="tiny" style={{ color: 'var(--text-2)' }}>↳ Trade: {a.tradeNote}</div>}
                     {(a.allocations ?? []).filter(al => al.note?.trim()).map(al => (
                       <div key={al.id} className="tiny" style={{ color: 'var(--text-2)' }}>↳ {allocationLabel(state, al.target)}: {al.note}</div>
                     ))}
@@ -422,17 +425,24 @@ function BuyModal({ sponsorId, existing, onClose, onSave }: {
   const [label, setLabel] = useState(existing?.label ?? 'Additional donation')
   const [season, setSeason] = useState(existing?.season ?? 'Fall 2026')
   const [amount, setAmount] = useState(existing ? String(existing.amount) : '')
-  const [allocs, setAllocs] = useState<Allocation[]>(existing?.allocations ?? [])
+  const [trade, setTrade] = useState(existing?.tradeValue ? String(existing.tradeValue) : '')
+  const [tradeNote, setTradeNote] = useState(existing?.tradeNote ?? '')
+  // Athletics is the implicit default, so hide any explicit athletics earmark from the editor;
+  // it's recreated from the unallocated remainder on save.
+  const [allocs, setAllocs] = useState<Allocation[]>((existing?.allocations ?? []).filter(a => a.target !== 'athletics'))
   const [err, setErr] = useState('')
 
   const amt = Number(amount)
+  const tradeAmt = Number(trade) || 0
+  const cash = (Number.isNaN(amt) ? 0 : amt) - tradeAmt   // only cash is earmarked / counts as revenue
   const allocated = allocs.reduce((n, a) => n + a.amount, 0)
-  const unallocated = (Number.isNaN(amt) ? 0 : amt) - allocated
+  const unallocated = cash - allocated
 
   const submit = () => {
     if (Number.isNaN(amt) || amt <= 0) { setErr('Enter the buy amount.'); return }
-    if (allocated > amt) { setErr('Earmarked amounts exceed the buy total.'); return }
-    // Any unallocated remainder goes to the athletic department
+    if (tradeAmt > amt) { setErr('Trade can’t exceed the buy amount.'); return }
+    if (allocated > cash) { setErr('Earmarked amounts exceed the cash value.'); return }
+    // Any unallocated cash remainder falls to the athletic department automatically.
     let finalAllocs = allocs.filter(a => a.amount > 0)
     if (unallocated > 0) {
       const ath = finalAllocs.find(a => a.target === 'athletics')
@@ -442,14 +452,15 @@ function BuyModal({ sponsorId, existing, onClose, onSave }: {
     onSave({
       id: existing?.id ?? `ag-${sponsorId.slice(3)}-${Date.now()}`,
       orgId: state.currentOrgId, sponsorId, season: season.trim() || 'Fall 2026', label: label.trim() || 'Sponsorship',
-      amount: amt, paymentStatus: existing?.paymentStatus ?? 'unpaid', payments: existing?.payments ?? [],
+      amount: amt, tradeValue: tradeAmt > 0 ? tradeAmt : undefined, tradeNote: tradeAmt > 0 && tradeNote.trim() ? tradeNote.trim() : undefined,
+      paymentStatus: existing?.paymentStatus ?? 'unpaid', payments: existing?.payments ?? [],
       fulfillment: existing?.fulfillment ?? [], allocations: finalAllocs, signedDate: existing?.signedDate,
     })
   }
 
-  // Earmark to a whole sport (levels share a budget), not a specific team.
+  // Earmark to a whole sport (levels share a budget). Athletics is the default — no need to pick it.
   const sports = [...new Set(teams.map(t => t.sport))].sort((a, b) => a.localeCompare(b))
-  const targets = [{ id: 'athletics', name: 'Athletic department' }, ...sports.map(sp => ({ id: sp, name: sp }))]
+  const targets = sports.map(sp => ({ id: sp, name: sp }))
 
   return (
     <Modal title={existing ? 'Edit buy' : 'Add a buy'} onClose={onClose} wide footer={
@@ -471,9 +482,23 @@ function BuyModal({ sponsorId, existing, onClose, onSave }: {
         <input value={season} onChange={e => setSeason(e.target.value)} placeholder="e.g. Fall 2026" />
       </Field>
 
+      <div className="form-row">
+        <Field label="Of that, paid in trade ($)">
+          <input type="number" min={0} value={trade} onChange={e => setTrade(e.target.value)} placeholder="0 — leave blank if all cash" />
+        </Field>
+        <div className="field" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <span className="small muted">{tradeAmt > 0 ? <><strong>{fmtMoney(cash)}</strong> cash counts toward revenue</> : 'All cash'}</span>
+        </div>
+      </div>
+      {tradeAmt > 0 && (
+        <Field label="Trade note (how it's used)">
+          <input value={tradeNote} onChange={e => setTradeNote(e.target.value)} placeholder="e.g. $1,500 food for banquet & concessions" />
+        </Field>
+      )}
+
       <div className="divider" />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <strong className="small">Earmark this money (optional)</strong>
+        <strong className="small">Earmark cash to a sport (optional)</strong>
         <span className="tiny">{unallocated >= 0 ? `${fmtMoney(unallocated)} to athletic dept` : <span style={{ color: 'var(--danger)' }}>Over by {fmtMoney(-unallocated)}</span>}</span>
       </div>
       {allocs.map((al, i) => (
@@ -582,19 +607,14 @@ function EditSponsorModal({ sponsor: s, onClose, onSave }: { sponsor: Sponsor; o
 
 const PAY_METHODS = ['Check', 'ACH transfer', 'Card (online)', 'Cash']
 
-// Real present-day date (local), used as the default for new payments.
-function todayISO() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 function PaymentsModal({ agreement, onClose, onSave }: { agreement: Agreement; onClose: () => void; onSave: (payments: Payment[]) => void }) {
   const [rows, setRows] = useState<Payment[]>(agreement.payments.map(p => ({ ...p })))
   const [draft, setDraft] = useState({ amount: '', method: 'Check', date: todayISO() })
   const [err, setErr] = useState('')
 
+  const cashDue = agreementCash(agreement)   // payments are against cash, not trade
   const collected = rows.reduce((n, p) => n + (Number(p.amount) || 0), 0)
-  const remaining = agreement.amount - collected
+  const remaining = cashDue - collected
   const setRow = (i: number, patch: Partial<Payment>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
 
   const addDraft = () => {
@@ -631,7 +651,8 @@ function PaymentsModal({ agreement, onClose, onSave }: { agreement: Agreement; o
       </>
     }>
       <div className="pill-row" style={{ marginTop: 0, marginBottom: 12 }}>
-        <Badge tone="outline">Buy total {fmtMoney(agreement.amount)}</Badge>
+        <Badge tone="outline">Cash due {fmtMoney(cashDue)}</Badge>
+        {agreement.tradeValue ? <Badge tone="neutral">+{fmtMoney(agreement.tradeValue)} trade (not collected)</Badge> : null}
         <Badge tone={collected > 0 ? 'ok' : 'neutral'}>Collected {fmtMoney(collected)}</Badge>
         {remaining > 0 && <Badge tone="warn">{fmtMoney(remaining)} remaining</Badge>}
         {remaining < 0 && <Badge tone="danger">Overpaid by {fmtMoney(-remaining)}</Badge>}

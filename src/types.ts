@@ -292,11 +292,28 @@ export interface Agreement {
   /** Short label for this buy, e.g. "White sponsorship" or "Additional donation" */
   label?: string
   amount: number
+  /** Portion of `amount` paid in trade (goods/services), not cash. Only cash (amount − trade) counts toward revenue. */
+  tradeValue?: number
+  /** How the trade portion is/was used. */
+  tradeNote?: string
   paymentStatus: PaymentStatus
   payments: Payment[]
   fulfillment: FulfillmentItem[]
   allocations?: Allocation[]
   signedDate?: string
+}
+
+/** Per-tier defaults configured on the Settings → Sponsorship levels page. */
+export interface TierSetting {
+  id: string
+  orgId: string
+  tier: SponsorTier
+  /** Prefilled agreement amount when this tier is chosen; undefined = custom (no prefill). */
+  defaultAmount?: number
+  /** New buys of this tier are recorded as paid immediately (e.g. web-portal Patriot Partner). */
+  autoPaid: boolean
+  /** Sport this tier's money is earmarked to by default (blank = athletic department). */
+  earmarkSport?: string
 }
 
 export type RequestType =
@@ -423,6 +440,7 @@ export interface AppState {
   sponsors: Sponsor[]
   agreements: Agreement[]
   benefitTemplates: BenefitTemplate[]
+  tierSettings: TierSetting[]
   requests: CoachRequest[]
   assets: Asset[]
   tasks: Task[]
@@ -437,6 +455,7 @@ export type Collection =
   | 'sponsors'
   | 'agreements'
   | 'benefitTemplates'
+  | 'tierSettings'
   | 'requests'
   | 'assets'
   | 'tasks'
