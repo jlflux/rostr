@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import {
   PIPELINE_STAGES, agreementPaid, allocationLabel, can, eventTitle, fulfillmentProgress,
   sponsorAgreements, sponsorAllocations, sponsorPaid, sponsorPaymentStatus, sponsorTotal, teams as allTeams, visibleStatus,
 } from '../lib/derive'
 import { fmtDate, fmtDateTime, fmtMoney, fmtTime } from '../lib/dates'
-import { Avatar, Badge, Card, Check, Empty, Field, Modal, Progress, StatusBadge } from '../components/ui'
+import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, Modal, Progress, StatusBadge } from '../components/ui'
 import { StageBadge, TierBadge } from './SponsorsPage'
 import { I } from '../components/icons'
 import type { Agreement, Allocation, FulfillmentItem, FulfillmentStatus, Payment, PipelineStage, Sponsor, SponsorTier, User } from '../types'
@@ -15,10 +15,12 @@ const TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner
 
 export default function SponsorDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { state, update, add, remove, logActivity, toast } = useStore()
   const [editingSponsor, setEditingSponsor] = useState(false)
   const [buyModal, setBuyModal] = useState<Agreement | 'new' | null>(null)
   const [payingBuy, setPayingBuy] = useState<Agreement | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const me = state.users.find(u => u.id === state.currentUserId)!
   const s = state.sponsors.find(x => x.id === id)
   if (!s) return <Card><Empty icon="?" title="Sponsor not found" /></Card>
@@ -84,6 +86,7 @@ export default function SponsorDetail() {
             </select>
           )}
           {editable && <button className="btn" onClick={() => setEditingSponsor(true)}>Edit sponsor</button>}
+          {editable && <button className="btn danger" onClick={() => setConfirmDelete(true)}>Delete</button>}
           {financeOk && <button className="btn primary" onClick={() => setBuyModal('new')}><I.plus /> Add buy</button>}
         </div>
       </div>
@@ -105,15 +108,20 @@ export default function SponsorDetail() {
                 <div key={a.id} className="notif-item" style={{ alignItems: 'flex-start' }}>
                   <span style={{ flex: 1 }}>
                     <strong>{a.label ?? 'Sponsorship'}</strong> — {fmtMoney(a.amount)}
-                    <div className="tiny">{a.season} · {fmtMoney(ap)} collected{a.allocations && a.allocations.length ? ` · ${a.allocations.map(al => `${allocationLabel(state, al.target)} ${fmtMoney(al.amount)}`).join(', ')}` : ''}</div>
+                    <div className="tiny">{a.season} · {fmtMoney(ap)} collected{ap > a.amount ? ` · overpaid ${fmtMoney(ap - a.amount)}` : ''}{a.allocations && a.allocations.length ? ` · ${a.allocations.map(al => `${allocationLabel(state, al.target)} ${fmtMoney(al.amount)}`).join(', ')}` : ''}</div>
                     {(a.allocations ?? []).filter(al => al.note?.trim()).map(al => (
                       <div key={al.id} className="tiny" style={{ color: 'var(--text-2)' }}>↳ {allocationLabel(state, al.target)}: {al.note}</div>
                     ))}
+                    {a.payments.length > 0 && (
+                      <div className="tiny" style={{ color: 'var(--text-3)', marginTop: 2 }}>
+                        {a.payments.map(p => `${fmtDate(p.date, { month: 'short', day: 'numeric' })} ${fmtMoney(p.amount)} (${p.method})`).join(' · ')}
+                      </div>
+                    )}
                   </span>
                   <StatusBadge status={a.paymentStatus} />
                   {financeOk && (
                     <span style={{ display: 'flex', gap: 2 }}>
-                      {a.paymentStatus !== 'paid' && <button className="btn sm ghost" title="Record payment" aria-label="Record payment" onClick={() => setPayingBuy(a)}>Pay</button>}
+                      <button className="btn sm ghost" title="Record & edit payments" aria-label="Manage payments" onClick={() => setPayingBuy(a)}>Payments</button>
                       <button className="btn sm ghost" aria-label="Edit buy" title="Edit buy" onClick={() => setBuyModal(a)}><I.edit /></button>
                       <button className="btn sm ghost" aria-label="Delete buy" title="Delete buy" onClick={() => {
                         if (ags.length === 1) { toast('A sponsor keeps at least one buy — edit it instead', 'error'); return }
@@ -209,6 +217,20 @@ export default function SponsorDetail() {
         </div>
       </div>
 
+      {confirmDelete && (
+        <ConfirmDialog
+          title={`Delete ${s.name}?`}
+          message={`This permanently removes ${s.name}${ags.length ? ` and their ${ags.length} buy${ags.length === 1 ? '' : 's'} (${fmtMoney(total)})` : ''} from the sponsor program. This can't be undone.`}
+          confirmLabel="Delete sponsor" danger
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            ags.forEach(a => remove('agreements', a.id))
+            remove('sponsors', s.id)
+            logActivity(`deleted sponsor ${s.name}`)
+            toast(`${s.name} deleted`)
+            navigate('/sponsors')
+          }} />
+      )}
       {editingSponsor && (
         <EditSponsorModal sponsor={s} onClose={() => setEditingSponsor(false)}
           onSave={patch => { update('sponsors', s.id, patch); logActivity(`edited sponsor ${patch.name ?? s.name}`, `/sponsors/${s.id}`); toast('Sponsor updated'); setEditingSponsor(false) }} />
@@ -222,12 +244,11 @@ export default function SponsorDetail() {
           }} />
       )}
       {payingBuy && (
-        <PaymentModal outstanding={payingBuy.amount - agreementPaid(payingBuy)} onClose={() => setPayingBuy(null)} onSave={(amount, method, date) => {
-          const payments: Payment[] = [...payingBuy.payments, { id: `pay-${Date.now()}`, date, amount, method }]
+        <PaymentsModal agreement={payingBuy} onClose={() => setPayingBuy(null)} onSave={payments => {
           const t = payments.reduce((n, p) => n + p.amount, 0)
-          update('agreements', payingBuy.id, { payments, paymentStatus: t >= payingBuy.amount ? 'paid' : t > 0 ? 'partial' : 'unpaid' } as Partial<Agreement>)
-          logActivity(`recorded ${fmtMoney(amount)} payment from ${s.name}`, `/sponsors/${s.id}`)
-          toast(`Payment of ${fmtMoney(amount)} recorded`)
+          update('agreements', payingBuy.id, { payments, paymentStatus: t >= payingBuy.amount && t > 0 ? 'paid' : t > 0 ? 'partial' : 'unpaid' } as Partial<Agreement>)
+          logActivity(`updated payments for ${s.name} (${fmtMoney(t)} collected)`, `/sponsors/${s.id}`)
+          toast('Payments updated')
           setPayingBuy(null)
         }} />
       )}
@@ -536,38 +557,85 @@ function EditSponsorModal({ sponsor: s, onClose, onSave }: { sponsor: Sponsor; o
   )
 }
 
-function PaymentModal({ outstanding, onClose, onSave }: { outstanding: number; onClose: () => void; onSave: (amount: number, method: string, date: string) => void }) {
+const PAY_METHODS = ['Check', 'ACH transfer', 'Card (online)', 'Cash']
+
+function PaymentsModal({ agreement, onClose, onSave }: { agreement: Agreement; onClose: () => void; onSave: (payments: Payment[]) => void }) {
   const { state } = useStore()
-  const [amount, setAmount] = useState(Math.max(outstanding, 0).toFixed(2))
-  const [method, setMethod] = useState('Check')
-  const [date, setDate] = useState(state.demoToday)
+  const [rows, setRows] = useState<Payment[]>(agreement.payments.map(p => ({ ...p })))
+  const [draft, setDraft] = useState({ amount: '', method: 'Check', date: state.demoToday })
   const [err, setErr] = useState('')
+
+  const collected = rows.reduce((n, p) => n + (Number(p.amount) || 0), 0)
+  const remaining = agreement.amount - collected
+  const setRow = (i: number, patch: Partial<Payment>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+
+  const addDraft = () => {
+    const amt = Number(draft.amount)
+    if (Number.isNaN(amt) || amt <= 0) { setErr('Enter a positive payment amount.'); return }
+    if (!draft.date) { setErr('Pick the payment date.'); return }
+    setRows([...rows, { id: `pay-${Date.now()}`, date: draft.date, amount: amt, method: draft.method }])
+    setDraft({ amount: '', method: draft.method, date: state.demoToday })
+    setErr('')
+  }
+
+  const save = () => {
+    for (const r of rows) {
+      if (Number.isNaN(Number(r.amount)) || Number(r.amount) <= 0) { setErr('Every payment needs a positive amount.'); return }
+      if (!r.date) { setErr('Every payment needs a date.'); return }
+    }
+    onSave(rows.map(r => ({ ...r, amount: Number(r.amount) })))
+  }
+
   return (
-    <Modal title="Record payment" onClose={onClose} footer={
+    <Modal title={`Payments — ${agreement.label ?? 'Sponsorship'}`} onClose={onClose} wide footer={
       <>
         <button className="btn" onClick={onClose}>Cancel</button>
-        <button className="btn primary" onClick={() => {
-          const n = Number(amount)
-          if (Number.isNaN(n) || n <= 0) { setErr('Enter a positive amount.'); return }
-          if (!date) { setErr('Select the payment date.'); return }
-          onSave(n, method, date)
-        }}>Save payment</button>
+        <button className="btn primary" onClick={save}>Save payments</button>
       </>
     }>
-      <p className="small muted" style={{ marginTop: 0 }}>Outstanding on this buy: <strong>{fmtMoney(outstanding)}</strong></p>
-      <div className="form-row">
-        <Field label="Amount ($)" required error={err}>
-          <input type="number" min={0} step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
+      <div className="pill-row" style={{ marginTop: 0, marginBottom: 12 }}>
+        <Badge tone="outline">Buy total {fmtMoney(agreement.amount)}</Badge>
+        <Badge tone={collected > 0 ? 'ok' : 'neutral'}>Collected {fmtMoney(collected)}</Badge>
+        {remaining > 0 && <Badge tone="warn">{fmtMoney(remaining)} remaining</Badge>}
+        {remaining < 0 && <Badge tone="danger">Overpaid by {fmtMoney(-remaining)}</Badge>}
+        {remaining === 0 && collected > 0 && <Badge tone="ok">Paid in full</Badge>}
+      </div>
+
+      {rows.length === 0 && <p className="small muted" style={{ marginTop: 0 }}>No payments recorded yet. Add one below.</p>}
+      {rows.map((p, i) => (
+        <div key={p.id} className="form-row" style={{ alignItems: 'flex-end', gap: 8, marginBottom: 8 }}>
+          <Field label={`Payment ${i + 1} — amount ($)`}>
+            <input type="number" min={0} step="0.01" value={p.amount} onChange={e => setRow(i, { amount: Number(e.target.value) })} />
+          </Field>
+          <Field label="Method">
+            <select value={p.method} onChange={e => setRow(i, { method: e.target.value })}>
+              {PAY_METHODS.map(m => <option key={m}>{m}</option>)}
+              {!PAY_METHODS.includes(p.method) && <option>{p.method}</option>}
+            </select>
+          </Field>
+          <Field label="Date">
+            <input type="date" value={p.date} onChange={e => setRow(i, { date: e.target.value })} />
+          </Field>
+          <button className="btn sm ghost" aria-label={`Delete payment ${i + 1}`} title="Delete payment" style={{ marginBottom: 6 }} onClick={() => setRows(rows.filter((_, j) => j !== i))}><I.x /></button>
+        </div>
+      ))}
+
+      <div className="divider" />
+      <div className="tiny" style={{ marginBottom: 6 }}>Add a payment</div>
+      <div className="form-row" style={{ alignItems: 'flex-end', gap: 8 }}>
+        <Field label="Amount ($)" error={err}>
+          <input type="number" min={0} step="0.01" value={draft.amount} onChange={e => setDraft(d => ({ ...d, amount: e.target.value }))} placeholder={remaining > 0 ? remaining.toFixed(2) : '0.00'} />
         </Field>
         <Field label="Method">
-          <select value={method} onChange={e => setMethod(e.target.value)}>
-            <option>Check</option><option>ACH transfer</option><option>Card (online)</option><option>Cash</option>
+          <select value={draft.method} onChange={e => setDraft(d => ({ ...d, method: e.target.value }))}>
+            {PAY_METHODS.map(m => <option key={m}>{m}</option>)}
           </select>
         </Field>
+        <Field label="Date">
+          <input type="date" value={draft.date} onChange={e => setDraft(d => ({ ...d, date: e.target.value }))} />
+        </Field>
+        <button className="btn sm" style={{ marginBottom: 6 }} onClick={addDraft}><I.plus /> Add</button>
       </div>
-      <Field label="Date received" required>
-        <input type="date" value={date} onChange={e => setDate(e.target.value)} />
-      </Field>
     </Modal>
   )
 }

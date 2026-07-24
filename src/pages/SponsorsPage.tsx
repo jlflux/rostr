@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, can, fulfillmentProgress, sponsorAgreements, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsors as allSponsors, sponsorshipTotals } from '../lib/derive'
+import { PIPELINE_STAGES, can, fulfillmentProgress, sponsorAgreements, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTotal, sponsors as allSponsors } from '../lib/derive'
 import { fmtMoney } from '../lib/dates'
 import { Badge, Empty, Field, Modal, Progress, SearchBox, Seg, SortTh, StatCard, StatusBadge, sortRows, useSort } from '../components/ui'
 import { I } from '../components/icons'
@@ -29,7 +29,7 @@ export default function SponsorsPage() {
   const [creating, setCreating] = useState<false | 'sponsor' | 'prospect'>(false)
   const [view, setView] = useState<'committed' | 'pipeline'>('committed')
   const me = state.users.find(u => u.id === state.currentUserId)!
-  const totals = sponsorshipTotals(state)
+  const totals = sponsorProgramTotals(state)
   const editable = can(me.role, 'edit')
   const pipeline = allSponsors(state).filter(s => s.stage !== 'committed')
 
@@ -76,7 +76,7 @@ export default function SponsorsPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Sponsors</h1>
-          <p className="page-sub">Fall 2026 sponsorship program · {totals.count} agreements</p>
+          <p className="page-sub">Fall 2026 sponsorship program · {totals.committedCount} accepted sponsors</p>
         </div>
         {editable && (
           <div style={{ display: 'flex', gap: 8 }}>
@@ -87,10 +87,12 @@ export default function SponsorsPage() {
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 16 }}>
-        <StatCard label="Total sponsorship" value={fmtMoney(totals.total)} hint={`${totals.count} agreements`} />
-        <StatCard label="Collected" value={fmtMoney(totals.collected)} tone="ok" hint={`${Math.round((totals.collected / Math.max(totals.total, 1)) * 100)}% of committed`} />
-        <StatCard label="Outstanding" value={fmtMoney(totals.outstanding)} tone={totals.outstanding > 0 ? 'alert' : 'ok'} />
-        <StatCard label="Missing logos" value={allSponsors(state).filter(s => s.stage === 'committed' && s.logoStatus !== 'received').length} tone="warn" hint="Blocking video-board & web placement" />
+        <StatCard label="Total sponsorship" value={fmtMoney(totals.total)} hint={`${totals.committedCount} accepted sponsor${totals.committedCount === 1 ? '' : 's'}`} />
+        <StatCard label="Amount collected" value={fmtMoney(totals.collected)} tone="ok"
+          hint={`${fmtMoney(totals.outstanding)} outstanding / owed`} />
+        <StatCard label="Total potential" value={fmtMoney(totals.potential)}
+          hint={totals.pipelineCount > 0 ? `incl. ${fmtMoney(totals.pipelineValue)} from ${totals.pipelineCount} in pipeline` : 'no active pipeline'} />
+        <StatCard label="Missing assets" value={totals.missingAssets} tone={totals.missingAssets > 0 ? 'warn' : 'ok'} hint="Sponsors without a full fulfillment bar" />
       </div>
 
       <div className="toolbar">

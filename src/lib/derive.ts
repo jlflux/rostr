@@ -314,6 +314,50 @@ export function sponsorPaymentStatus(s: AppState, sponsorId: string): 'paid' | '
   return paid > 0 ? 'partial' : 'unpaid'
 }
 
+/** Estimated value used to price a pipeline prospect when no committed amount exists. */
+const TIER_FALLBACK_VALUE: Record<string, number> = { Red: 10000, White: 5000, Blue: 3000, 'Add-On': 2500, 'Patriot Partner': 500 }
+
+/**
+ * Headline numbers for the Sponsors page. "Accepted" = committed sponsors only, so
+ * declining/removing a sponsor immediately drops their money from the totals.
+ * Potential adds an estimate for sponsors still in the pipeline (valued at their
+ * target tier's average committed amount, or a fallback if that tier has none yet).
+ */
+export function sponsorProgramTotals(s: AppState) {
+  const sps = sponsors(s)
+  const committed = sps.filter(sp => sp.stage === 'committed')
+  const committedIds = new Set(committed.map(sp => sp.id))
+  const committedAgs = agreements(s).filter(a => committedIds.has(a.sponsorId))
+
+  const total = committedAgs.reduce((n, a) => n + a.amount, 0)
+  const collected = committedAgs.reduce((n, a) => n + agreementPaid(a), 0)
+
+  // Average committed value per tier, used to value pipeline prospects.
+  const tierSum = new Map<string, { sum: number; n: number }>()
+  for (const sp of committed) {
+    const t = committedAgs.filter(a => a.sponsorId === sp.id).reduce((n, a) => n + a.amount, 0)
+    if (t > 0) { const cur = tierSum.get(sp.tier) ?? { sum: 0, n: 0 }; cur.sum += t; cur.n++; tierSum.set(sp.tier, cur) }
+  }
+  const tierValue = (tier: string) => { const b = tierSum.get(tier); return b && b.n ? b.sum / b.n : (TIER_FALLBACK_VALUE[tier] ?? 0) }
+
+  const pipeline = sps.filter(sp => sp.stage !== 'committed' && sp.stage !== 'declined')
+  const pipelineValue = pipeline.reduce((n, sp) => n + tierValue(sp.tier), 0)
+
+  // "Missing assets" = committed sponsors whose fulfillment bar isn't full.
+  const missingAssets = committed.filter(sp => {
+    const prog = committedAgs.filter(a => a.sponsorId === sp.id)
+      .reduce((acc, a) => { const p = fulfillmentProgress(a); return { done: acc.done + p.done, total: acc.total + p.total } }, { done: 0, total: 0 })
+    return prog.total > 0 && prog.done < prog.total
+  }).length
+
+  return {
+    total, collected, outstanding: total - collected,
+    committedCount: committed.length,
+    potential: total + pipelineValue, pipelineValue, pipelineCount: pipeline.length,
+    missingAssets,
+  }
+}
+
 /** Money earmarked to each team/department across all of a sponsor's buys. */
 export function sponsorAllocations(s: AppState, sponsorId: string): { target: string; amount: number }[] {
   const totals = new Map<string, number>()
