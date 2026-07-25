@@ -79,9 +79,7 @@ function LoginScreen({ orgName }: { orgName?: string }) {
     const err = await verifyCode(addr, code)
     setBusy(false)
     // On success the auth listener swaps this screen out for the app.
-    if (err) setError(err === 'Token has expired or is invalid'
-      ? 'That code is incorrect or has expired. Check the latest email, or send a new code.'
-      : err)
+    if (err) setError(err)
   }
 
   return (
