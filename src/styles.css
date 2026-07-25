@@ -412,6 +412,18 @@ select.inline-select {
 .asset-card { overflow: hidden; display: flex; flex-direction: column; }
 .asset-thumb { position: relative; height: 108px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 1.15rem; letter-spacing: 1px; overflow: hidden; }
 .asset-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Neutral checkerboard behind image thumbnails so transparent logos read cleanly
+   (instead of a random accent color showing through). */
+.asset-thumb.is-image {
+  background-color: #f8fafc;
+  background-image:
+    linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
 .asset-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
 .asset-name { font-size: 0.85rem; font-weight: 650; line-height: 1.3; }
 

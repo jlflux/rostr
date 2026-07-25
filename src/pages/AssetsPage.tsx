@@ -230,7 +230,7 @@ function AssetCard({ a, canApprove, canDelete, onApprove, onDownload, onDelete }
 
   return (
     <div className="card asset-card">
-      <div className="asset-thumb" style={{ background: a.tint }}>
+      <div className={`asset-thumb${isImageAsset(a) ? ' is-image' : ''}`} style={isImageAsset(a) ? undefined : { background: a.tint }}>
         {isImageAsset(a)
           ? <StoredImage src={a.storagePath} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<>{a.fileType}</>} />
           : a.fileType}

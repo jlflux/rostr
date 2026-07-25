@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, broadcastState, can, canView, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateLong, fmtTime, relDue } from '../lib/dates'
+import { resolveSignedUrl } from '../lib/storage'
+import { StoredImage } from '../components/StoredImage'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, HomeAwayBadge, Modal, PriorityBadge, StatusBadge } from '../components/ui'
 import { EventForm } from './EventsPage'
 import { I, SportIcon } from '../components/icons'
@@ -142,13 +144,30 @@ export default function EventDetail() {
       {tab === 'assets' && (
         <Card title="Related assets" pad={false}>
           {eventAssets.length === 0 && <Empty icon="▣" title="No linked assets" hint="Assets tagged to this event's team, sponsors, or opponent will appear here." />}
-          {eventAssets.map(a => (
-            <Link key={a.id} to="/assets" className="notif-item">
-              <span className="org-mark" style={{ background: a.tint }}>{a.fileType.slice(0, 3)}</span>
-              <span style={{ flex: 1 }}>{a.name}<div className="tiny">{a.type} · {a.fileType}</div></span>
-              <StatusBadge status={a.approvalStatus} />
-            </Link>
-          ))}
+          {eventAssets.map(a => {
+            const isImage = !!a.storagePath && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(a.fileType.toLowerCase())
+            const download = async () => {
+              if (a.storagePath) {
+                const url = await resolveSignedUrl(a.storagePath)
+                if (url) window.open(url, '_blank', 'noopener')
+                else toast('Could not open file — sign in to view uploads.', 'error')
+              } else toast(`Downloading ${a.name} (mock)`)
+            }
+            return (
+              <div key={a.id} className="notif-item">
+                <span className="org-mark" style={isImage ? { overflow: 'hidden', padding: 0 } : { background: a.tint }}>
+                  {isImage
+                    ? <StoredImage src={a.storagePath} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<>{a.fileType.slice(0, 3)}</>} />
+                    : a.fileType.slice(0, 3)}
+                </span>
+                <Link to="/assets" style={{ flex: 1, color: 'inherit', textDecoration: 'none' }}>
+                  {a.name}<div className="tiny">{a.type} · {a.fileType}</div>
+                </Link>
+                <StatusBadge status={a.approvalStatus} />
+                <button className="btn sm" onClick={download}>Download</button>
+              </div>
+            )
+          })}
         </Card>
       )}
       {tab === 'results' && <Results e={e} editable={editable} />}
