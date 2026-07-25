@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useStore } from '../store/store'
+import { useStore, type Skin } from '../store/store'
 import { ROLE_LABELS, benefitTemplates, can, tierSettings } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { fmtMoney } from '../lib/dates'
@@ -10,10 +10,18 @@ import type { Organization, Role, SponsorTier, User } from '../types'
 
 const SPONSOR_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
 
+/** Visual styles offered in Settings → Appearance. Cosmetic only. */
+const SKIN_OPTIONS: { id: Skin; label: string; hint: string; swatch: string[] }[] = [
+  { id: 'classic', label: 'Classic', hint: 'The current look — black sidebar, red accent', swatch: ['#151515', '#ea1a45', '#f4f5f7'] },
+  { id: 'aurora', label: 'Aurora', hint: 'Light sidebar, indigo accent, airy spacing', swatch: ['#ffffff', '#6366f1', '#f7f8fb'] },
+  { id: 'graphite', label: 'Graphite', hint: 'Slate chrome, steel blue, compact and crisp', swatch: ['#181b22', '#3b6df3', '#f5f6f8'] },
+  { id: 'varsity', label: 'Varsity', hint: 'Navy sidebar with school red — athletics-forward', swatch: ['#12223c', '#d60000', '#f4f6f9'] },
+]
+
 const AVATAR_COLORS = ['#d60000', '#0e7490', '#15803d', '#b45309', '#7c3aed', '#be185d', '#1d4ed8', '#374151']
 
 export default function SettingsPage() {
-  const { state, update, add, remove, setState, resetDemo, exportState, importState, cloudEnabled, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, setTheme, toast } = useStore()
+  const { state, update, add, remove, setState, resetDemo, exportState, importState, cloudEnabled, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, setTheme, skin, setSkin, toast } = useStore()
   const [confirmReset, setConfirmReset] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null)
@@ -166,6 +174,40 @@ export default function SettingsPage() {
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
               </select>
+            </Field>
+            <Field label="Style">
+              <div style={{ display: 'grid', gap: 8 }}>
+                {SKIN_OPTIONS.map(s => (
+                  <button key={s.id} type="button" onClick={() => setSkin(s.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', textAlign: 'left',
+                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                      border: `1px solid ${skin === s.id ? 'var(--app-accent)' : 'var(--border)'}`,
+                      background: skin === s.id ? 'var(--surface-2)' : 'var(--surface)',
+                      color: 'inherit',
+                    }}>
+                    <span style={{ display: 'flex', flexShrink: 0 }}>
+                      {s.swatch.map((c, i) => (
+                        <span key={i} style={{
+                          width: 15, height: 26, background: c,
+                          borderTopLeftRadius: i === 0 ? 5 : 0, borderBottomLeftRadius: i === 0 ? 5 : 0,
+                          borderTopRightRadius: i === s.swatch.length - 1 ? 5 : 0,
+                          borderBottomRightRadius: i === s.swatch.length - 1 ? 5 : 0,
+                          border: '1px solid rgba(0,0,0,0.08)', borderLeftWidth: i === 0 ? 1 : 0,
+                        }} />
+                      ))}
+                    </span>
+                    <span style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 650, fontSize: '0.88rem' }}>{s.label}</div>
+                      <div className="tiny">{s.hint}</div>
+                    </span>
+                    {skin === s.id && <Badge tone="ok">Active</Badge>}
+                  </button>
+                ))}
+              </div>
+              <p className="tiny" style={{ marginTop: 8, marginBottom: 0 }}>
+                Styling only — every feature works the same in each style. Applies to this device.
+              </p>
             </Field>
           </Card>
 

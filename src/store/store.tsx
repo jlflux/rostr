@@ -7,6 +7,11 @@ export type CloudStatus = 'off' | 'idle' | 'syncing' | 'saved' | 'error'
 
 const STORAGE_KEY = 'headqtrs:state:v13'
 const THEME_KEY = 'headqtrs:theme'
+const SKIN_KEY = 'headqtrs:skin'
+
+/** Visual styles. 'classic' is the original look and stays the default. */
+export const SKINS = ['classic', 'aurora', 'graphite', 'varsity'] as const
+export type Skin = (typeof SKINS)[number]
 
 // The schema (shape) version. Bump this ONLY for a breaking change to the data
 // shape, and add a matching step in `migrate`. Adding a new *optional* field to a
@@ -42,6 +47,9 @@ export interface Store {
   cloudPullNow: () => Promise<void>
   theme: 'light' | 'dark'
   setTheme: (t: 'light' | 'dark') => void
+  /** Visual style. Purely cosmetic — no feature depends on it. */
+  skin: Skin
+  setSkin: (s: Skin) => void
   toast: (msg: string, kind?: 'success' | 'error') => void
   toasts: { id: number; msg: string; kind: 'success' | 'error' }[]
 }
@@ -103,6 +111,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem(THEME_KEY)
     if (saved === 'light' || saved === 'dark') return saved
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
+  const [skin, setSkinState] = useState<Skin>(() => {
+    const saved = localStorage.getItem(SKIN_KEY)
+    return (SKINS as readonly string[]).includes(saved ?? '') ? (saved as Skin) : 'classic'
   })
   const [toasts, setToasts] = useState<Store['toasts']>([])
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>(cloudEnabled() ? 'idle' : 'off')
@@ -166,6 +178,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.dataset.theme = theme
     localStorage.setItem(THEME_KEY, theme)
   }, [theme])
+
+  useEffect(() => {
+    document.documentElement.dataset.skin = skin
+    localStorage.setItem(SKIN_KEY, skin)
+  }, [skin])
 
   const toast = useCallback((msg: string, kind: 'success' | 'error' = 'success') => {
     const id = Date.now() + Math.random()
@@ -260,8 +277,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<Store>(() => ({
     state, update, add, remove, setState, logActivity, resetDemo, exportState, importState,
     cloudEnabled: cloudEnabled(), cloudStatus, cloudError, cloudPushNow, cloudPullNow,
-    theme, setTheme: setThemeState, toast, toasts,
-  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, toast, toasts])
+    theme, setTheme: setThemeState, skin, setSkin: setSkinState, toast, toasts,
+  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, skin, toast, toasts])
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
 }
