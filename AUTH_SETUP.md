@@ -79,8 +79,55 @@ sign-ins will fail. Paste this as the body of each:
 `{{ .Token }}` is the code and `{{ .ConfirmationURL }}` is the link. Keeping both
 means the code works everywhere and the link still works in a browser.
 
+Editing these templates is free and needs no other setup — you do **not** need a
+custom email provider to do this.
+
 *(Optional: **Authentication → Providers → Email** lets you change how long a code
 stays valid. One hour is the default and is a reasonable setting.)*
+
+## Step 2c — Connect an email provider (SMTP) ⚠️ REQUIRED before staff can log in
+
+Supabase's built-in email sender **will not deliver to your staff.** Since
+September 2024, if you haven't connected your own email provider, Supabase only
+sends auth emails to addresses that are members of your Supabase organization —
+everyone else gets nothing, with no bounce and no error. It's also capped at about
+**2 emails per hour** for the entire project.
+
+So you can test the login flow with your own address today, but the moment you add
+a coach, their code silently never arrives. Connect a provider before rolling this
+out to anyone.
+
+### What you need
+
+1. **A domain you can add DNS records to.** You'll send from something like
+   `noreply@fluxmedia.org`. The provider gives you a few DNS records (DKIM/SPF) to
+   paste in, which proves you own the domain and keeps codes out of spam folders.
+2. **An email provider account.** Any SMTP provider works. Reasonable options:
+   - **Resend** — simplest setup, free tier covers a few thousand emails a month.
+     Host `smtp.resend.com`, port `587`, username `resend`, password = your API key.
+   - **Brevo** — free tier around 300/day. Host `smtp-relay.brevo.com`, port `587`.
+   - **Amazon SES** — cheapest at volume, but the most setup and a sandbox mode you
+     must request out of first.
+
+   Free-tier limits change, so confirm current numbers when you sign up. For a staff
+   of this size, any of these is far more than enough.
+
+### What to enter in Supabase
+
+**Authentication → Emails → SMTP Settings**, enable custom SMTP, then fill in:
+
+| Field | What it is |
+| --- | --- |
+| Sender email | The "from" address, e.g. `noreply@fluxmedia.org` (must be on your verified domain) |
+| Sender name | What staff see as the sender, e.g. `Homewood Athletics` |
+| Host | From your provider, e.g. `smtp.resend.com` |
+| Port | `587` in almost all cases |
+| Username | From your provider (Resend uses the literal word `resend`) |
+| Password | Your provider's API key or SMTP password |
+
+Then go to **Authentication → Rate Limits** and raise the email limit — it defaults
+to 30/hour once SMTP is connected, which is fine, but worth a look if you ever
+onboard a lot of people at once.
 
 ## Step 3 — Let the app reach data whether or not someone is logged in
 
@@ -149,10 +196,10 @@ After this, a signed-out visitor can't reach the data at all.
   lockdown (data readable only by emails on your list) is a further step we can add
   when you want it. For an internal tool this level is a big, sensible improvement
   to start with.
-- **Codes not arriving?** Supabase's built-in email sender is rate-limited and meant
-  for testing (a handful of messages per hour). Once real staff are using this,
-  connect a proper sender under **Authentication → SMTP Settings**, or codes will
-  silently stop going out during a busy stretch.
+- **Codes not arriving?** By far the most likely cause is Step 2c: without your own
+  email provider connected, Supabase only delivers to members of your Supabase
+  organization, and silently drops everything else. Second most likely is the
+  ~2/hour cap on the built-in sender. Both are fixed by connecting SMTP.
 - **Passwords instead?** We can add email + password login if you'd still prefer it.
   Worth knowing: the emailed code already solves the installed-app problem, and it
   removes password resets, weak passwords, and shared logins as things you'd have to
