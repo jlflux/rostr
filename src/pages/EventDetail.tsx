@@ -42,7 +42,15 @@ export default function EventDetail() {
   const team = state.teams.find(t => t.id === e.teamId)
   const tasks = state.tasks.filter(t => t.eventId === e.id)
   const activationSponsorIds = e.sponsorActivations.map(a => a.sponsorId)
-  const eventAssets = state.assets.filter(a => activationSponsorIds.includes(a.sponsorId ?? '') || a.teamId === e.teamId)
+  // Primary logos of every opponent on this event (single or multi-opponent).
+  const opponentIds = [e.opponentId, ...(e.opponentIds ?? [])].filter(Boolean) as string[]
+  const opponentLogoIds = state.opponents
+    .filter(o => opponentIds.includes(o.id) && o.logoAssetId)
+    .map(o => o.logoAssetId!)
+  const eventAssets = state.assets.filter(a =>
+    activationSponsorIds.includes(a.sponsorId ?? '') ||
+    a.teamId === e.teamId ||
+    opponentLogoIds.includes(a.id))
   const conflictIds = conflicts.get(e.id) ?? []
   const openSlots = e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length
   const score = visibleScore(state, e)
@@ -133,7 +141,7 @@ export default function EventDetail() {
       {tab === 'tasks' && <EventTasks e={e} tasks={tasks} editable={editable} />}
       {tab === 'assets' && (
         <Card title="Related assets" pad={false}>
-          {eventAssets.length === 0 && <Empty icon="▣" title="No linked assets" hint="Assets tagged to this event's team or sponsors will appear here." />}
+          {eventAssets.length === 0 && <Empty icon="▣" title="No linked assets" hint="Assets tagged to this event's team, sponsors, or opponent will appear here." />}
           {eventAssets.map(a => (
             <Link key={a.id} to="/assets" className="notif-item">
               <span className="org-mark" style={{ background: a.tint }}>{a.fileType.slice(0, 3)}</span>

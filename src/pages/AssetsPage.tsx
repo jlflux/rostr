@@ -226,7 +226,6 @@ function AssetCard({ a, canApprove, canDelete, onApprove, onDownload, onDelete }
   const { state, update, toast } = useStore()
   const sp = state.sponsors.find(s => s.id === a.sponsorId)
   const team = state.teams.find(t => t.id === a.teamId)
-  const uploader = state.users.find(u => u.id === a.uploadedById)
   const primaryFor = state.opponents.find(o => o.logoAssetId === a.id)
 
   return (
@@ -243,7 +242,7 @@ function AssetCard({ a, canApprove, canDelete, onApprove, onDownload, onDelete }
           {team && <Badge>{team.name}</Badge>}
           {primaryFor && <Badge tone="navy">Primary logo · {primaryFor.name}</Badge>}
         </div>
-        <div className="tiny">{fmtSize(a.sizeKB)} · {uploader?.name.split(' ')[0]} · {fmtDate(a.uploadedAt)}</div>
+        <div className="tiny">{fmtSize(a.sizeKB)} · {fmtDate(a.uploadedAt)}</div>
         {a.type === 'Opponent Logo' && (
           <select className="inline-select" value={primaryFor?.id ?? ''} aria-label="Assign as opponent primary logo"
             onChange={e => {
