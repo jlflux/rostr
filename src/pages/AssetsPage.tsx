@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react'
 import { useStore } from '../store/store'
 import { assets as allAssets, can } from '../lib/derive'
 import { fmtDate } from '../lib/dates'
-import { Badge, Empty, Field, Modal, SearchBox, StatusBadge } from '../components/ui'
+import { Badge, ConfirmDialog, Empty, Field, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
 import { StoredImage } from '../components/StoredImage'
-import { resolveSignedUrl, storageEnabled, uploadToStorage } from '../lib/storage'
+import { removeFromStorage, resolveSignedUrl, storageEnabled, uploadToStorage } from '../lib/storage'
 import type { Asset, AssetType, Opponent } from '../types'
 
 const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']
@@ -40,13 +40,27 @@ function fmtSize(kb: number): string {
 interface Path { type?: AssetType; teamId?: string }
 
 export default function AssetsPage() {
-  const { state, add, update, logActivity, toast } = useStore()
+  const { state, add, update, remove, logActivity, toast } = useStore()
   const [q, setQ] = useState('')
   const [path, setPath] = useState<Path>({})
   const [approval, setApproval] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<Asset | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
   const me = state.users.find(u => u.id === state.currentUserId)!
   const canApprove = ['school_admin', 'comms_admin', 'platform_owner'].includes(me.role)
+  const canEdit = can(me.role, 'edit')
+  const isAdmin = can(me.role, 'admin')
+  const placeholders = allAssets(state).filter(a => !a.storagePath)
+
+  /** Delete one asset: remove its stored file, clear any opponent logo link, drop the record. */
+  function deleteAsset(a: Asset) {
+    removeFromStorage(a.storagePath)
+    const primaryFor = state.opponents.find(o => o.logoAssetId === a.id)
+    if (primaryFor) update('opponents', primaryFor.id, { logoAssetId: undefined } as Partial<Opponent>)
+    remove('assets', a.id)
+    logActivity(`deleted asset “${a.name}”`, '/assets')
+  }
   const searching = q.trim().length > 0
 
   const folder = FOLDERS.find(f => f.type === path.type)
@@ -83,7 +97,14 @@ export default function AssetsPage() {
           <h1 className="page-title">Asset library</h1>
           <p className="page-sub">{allAssets(state).length} files organized by folder · search finds anything anywhere</p>
         </div>
-        {can(me.role, 'edit') && <button className="btn primary" onClick={() => setUploading(true)}><I.plus /> Upload asset</button>}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {isAdmin && placeholders.length > 0 && (
+            <button className="btn ghost danger" onClick={() => setConfirmClear(true)}>
+              <I.x /> Clear {placeholders.length} placeholder{placeholders.length === 1 ? '' : 's'}
+            </button>
+          )}
+          {canEdit && <button className="btn primary" onClick={() => setUploading(true)}><I.plus /> Upload asset</button>}
+        </div>
       </div>
 
       <div className="toolbar">
@@ -158,7 +179,8 @@ export default function AssetsPage() {
         ) : (
           <div className="asset-grid">
             {visible.map(a => (
-              <AssetCard key={a.id} a={a} canApprove={canApprove}
+              <AssetCard key={a.id} a={a} canApprove={canApprove} canDelete={canEdit}
+                onDelete={() => setConfirmDelete(a)}
                 onApprove={ok => { update('assets', a.id, { approvalStatus: ok ? 'approved' : 'rejected' }); toast(ok ? `Approved “${a.name}”` : `Rejected “${a.name}”`, ok ? 'success' : 'error') }}
                 onDownload={async () => {
                   if (a.storagePath) {
@@ -178,12 +200,28 @@ export default function AssetsPage() {
         toast('Asset uploaded (mock) — pending approval')
         setUploading(false)
       }} />}
+
+      {confirmDelete && (
+        <ConfirmDialog title={`Delete “${confirmDelete.name}”?`} danger confirmLabel="Delete asset"
+          message={confirmDelete.storagePath
+            ? 'This permanently removes the asset and its uploaded file. This cannot be undone.'
+            : 'This permanently removes this asset record. This cannot be undone.'}
+          onConfirm={() => { deleteAsset(confirmDelete); toast(`Deleted “${confirmDelete.name}”`) }}
+          onClose={() => setConfirmDelete(null)} />
+      )}
+
+      {confirmClear && (
+        <ConfirmDialog title={`Clear ${placeholders.length} placeholder asset${placeholders.length === 1 ? '' : 's'}?`} danger confirmLabel="Delete them all"
+          message={`This removes every asset that doesn't have an uploaded file (the sample/placeholder records). Your ${allAssets(state).length - placeholders.length} uploaded file${allAssets(state).length - placeholders.length === 1 ? '' : 's'} will be kept. This cannot be undone.`}
+          onConfirm={() => { const n = placeholders.length; placeholders.forEach(deleteAsset); toast(`Cleared ${n} placeholder asset${n === 1 ? '' : 's'}`) }}
+          onClose={() => setConfirmClear(false)} />
+      )}
     </>
   )
 }
 
-function AssetCard({ a, canApprove, onApprove, onDownload }: {
-  a: Asset; canApprove: boolean; onApprove: (ok: boolean) => void; onDownload: () => void
+function AssetCard({ a, canApprove, canDelete, onApprove, onDownload, onDelete }: {
+  a: Asset; canApprove: boolean; canDelete: boolean; onApprove: (ok: boolean) => void; onDownload: () => void; onDelete: () => void
 }) {
   const { state, update, toast } = useStore()
   const sp = state.sponsors.find(s => s.id === a.sponsorId)
@@ -229,6 +267,7 @@ function AssetCard({ a, canApprove, onApprove, onDownload }: {
               </>
             )}
             <button className="btn sm" onClick={onDownload}>Download</button>
+            {canDelete && <button className="btn sm ghost danger" aria-label="Delete asset" title="Delete asset" onClick={onDelete}><I.x /></button>}
           </span>
         </div>
       </div>
