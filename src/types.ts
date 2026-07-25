@@ -386,6 +386,8 @@ export interface Asset {
   uploadedById: string
   uploadedAt: string
   tint: string
+  /** `storage:`-prefixed reference to the uploaded file, when one exists. */
+  storagePath?: string
 }
 
 export type TaskStatus = 'open' | 'in_progress' | 'done'

@@ -4,6 +4,8 @@ import { ROLE_LABELS, benefitTemplates, can, tierSettings } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { fmtMoney } from '../lib/dates'
 import { I } from '../components/icons'
+import { StoredImage } from '../components/StoredImage'
+import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
 import type { Organization, Role, SponsorTier, User } from '../types'
 
 const SPONSOR_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
@@ -68,17 +70,26 @@ export default function SettingsPage() {
             <Field label="School logo (shown in the sidebar)">
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className="avatar lg" style={{ background: org.theme.primary, overflow: 'hidden' }}>
-                  {org.logoUrl ? <img src={org.logoUrl} alt="School logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : org.initials}
+                  {org.logoUrl ? <StoredImage src={org.logoUrl} alt="School logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<>{org.initials}</>} /> : org.initials}
                 </span>
-                <input type="file" accept="image/*" disabled={!isAdmin} onChange={e => {
+                <input type="file" accept="image/*" disabled={!isAdmin} onChange={async e => {
                   const f = e.target.files?.[0]
                   if (!f) return
-                  if (f.size > 400 * 1024) { toast('Logo must be under 400 KB for the prototype', 'error'); return }
-                  const reader = new FileReader()
-                  reader.onload = () => { updateOrg({ logoUrl: String(reader.result) }); toast('School logo updated') }
-                  reader.readAsDataURL(f)
+                  if (storageEnabled()) {
+                    const res = await uploadToStorage(f, 'logos')
+                    if ('error' in res) { toast(`Logo upload failed: ${res.error}`, 'error'); return }
+                    const prev = org.logoUrl
+                    updateOrg({ logoUrl: res.ref })
+                    toast('School logo updated')
+                    removeFromStorage(prev)
+                  } else {
+                    if (f.size > 400 * 1024) { toast('Logo must be under 400 KB for the prototype', 'error'); return }
+                    const reader = new FileReader()
+                    reader.onload = () => { updateOrg({ logoUrl: String(reader.result) }); toast('School logo updated') }
+                    reader.readAsDataURL(f)
+                  }
                 }} />
-                {org.logoUrl && isAdmin && <button className="btn sm ghost" onClick={() => { updateOrg({ logoUrl: undefined }); toast('Logo removed') }}>Remove</button>}
+                {org.logoUrl && isAdmin && <button className="btn sm ghost" onClick={() => { const prev = org.logoUrl; updateOrg({ logoUrl: undefined }); removeFromStorage(prev); toast('Logo removed') }}>Remove</button>}
               </div>
             </Field>
             {!isAdmin && <p className="tiny">Only school administrators can edit branding. Switch to an Administrator (e.g. Rick Baguley) via the profile menu to try it.</p>}

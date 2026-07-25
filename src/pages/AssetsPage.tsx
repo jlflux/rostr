@@ -4,7 +4,12 @@ import { assets as allAssets, can } from '../lib/derive'
 import { fmtDate } from '../lib/dates'
 import { Badge, Empty, Field, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
+import { StoredImage } from '../components/StoredImage'
+import { resolveSignedUrl, storageEnabled, uploadToStorage } from '../lib/storage'
 import type { Asset, AssetType, Opponent } from '../types'
+
+const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']
+const isImageAsset = (a: Asset): boolean => !!a.storagePath && IMAGE_EXTS.includes(a.fileType.toLowerCase())
 
 const ASSET_TYPES: AssetType[] = [
   'School Branding', 'Team Logo', 'Opponent Logo', 'Sponsor Logo', 'Athlete Headshot', 'Team Photo',
@@ -155,7 +160,13 @@ export default function AssetsPage() {
             {visible.map(a => (
               <AssetCard key={a.id} a={a} canApprove={canApprove}
                 onApprove={ok => { update('assets', a.id, { approvalStatus: ok ? 'approved' : 'rejected' }); toast(ok ? `Approved “${a.name}”` : `Rejected “${a.name}”`, ok ? 'success' : 'error') }}
-                onDownload={() => toast(`Downloading ${a.name} (mock)`)} />
+                onDownload={async () => {
+                  if (a.storagePath) {
+                    const url = await resolveSignedUrl(a.storagePath)
+                    if (url) window.open(url, '_blank', 'noopener')
+                    else toast('Could not open file — sign in to view uploads.', 'error')
+                  } else toast(`Downloading ${a.name} (mock)`)
+                }} />
             ))}
           </div>
         )
@@ -182,7 +193,11 @@ function AssetCard({ a, canApprove, onApprove, onDownload }: {
 
   return (
     <div className="card asset-card">
-      <div className="asset-thumb" style={{ background: a.tint }}>{a.fileType}</div>
+      <div className="asset-thumb" style={{ background: a.tint }}>
+        {isImageAsset(a)
+          ? <StoredImage src={a.storagePath} alt={a.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<>{a.fileType}</>} />
+          : a.fileType}
+      </div>
       <div className="asset-body">
         <span className="asset-name">{a.name}</span>
         <div className="pill-row">
@@ -230,29 +245,62 @@ function UploadForm({ defaultType, defaultTeamId, onClose, onSave }: {
     sport: '', sponsorId: '', teamId: defaultTeamId ?? '', opponentId: '', setPrimary: false,
   })
   const [err, setErr] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const canUpload = storageEnabled()
   const tints = ['#d60000', '#12223c', '#0e7490', '#15803d', '#b45309', '#7c3aed']
   const { update } = useStore()
+
+  async function save() {
+    const fallbackName = file ? file.name.replace(/\.[^.]+$/, '') : ''
+    const name = form.name.trim() || fallbackName
+    if (!name) { setErr('Give the asset a descriptive name or choose a file.'); return }
+    let storagePath: string | undefined
+    let fileType = form.fileType
+    let sizeKB = 500 + Math.floor(Math.random() * 5000)
+    if (file && canUpload) {
+      setBusy(true)
+      const res = await uploadToStorage(file, form.type)
+      setBusy(false)
+      if ('error' in res) { setErr(`Upload failed: ${res.error}`); return }
+      storagePath = res.ref
+      fileType = (file.name.split('.').pop() || form.fileType).toUpperCase()
+      sizeKB = Math.max(1, Math.round(file.size / 1024))
+    }
+    const id = `as-new-${Date.now()}`
+    onSave({
+      id, orgId: state.currentOrgId, name, type: form.type,
+      fileType, sizeKB, storagePath,
+      sport: form.sport || undefined, teamId: form.teamId || undefined, sponsorId: form.sponsorId || undefined,
+      season: 'Fall 2026', approvalStatus: 'pending', uploadedById: state.currentUserId,
+      uploadedAt: state.demoToday, tint: tints[Math.floor(Math.random() * tints.length)],
+    })
+    if (form.type === 'Opponent Logo' && form.opponentId && form.setPrimary) {
+      update('opponents', form.opponentId, { logoAssetId: id } as Partial<Opponent>)
+    }
+  }
+
   return (
-    <Modal title="Upload asset (mock)" onClose={onClose} footer={
+    <Modal title={canUpload ? 'Upload asset' : 'Upload asset (mock)'} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={onClose}>Cancel</button>
-        <button className="btn primary" onClick={() => {
-          if (!form.name.trim()) { setErr('Give the asset a descriptive name.'); return }
-          const id = `as-new-${Date.now()}`
-          onSave({
-            id, orgId: state.currentOrgId, name: form.name.trim(), type: form.type,
-            fileType: form.fileType, sizeKB: 500 + Math.floor(Math.random() * 5000),
-            sport: form.sport || undefined, teamId: form.teamId || undefined, sponsorId: form.sponsorId || undefined,
-            season: 'Fall 2026', approvalStatus: 'pending', uploadedById: state.currentUserId,
-            uploadedAt: state.demoToday, tint: tints[Math.floor(Math.random() * tints.length)],
-          })
-          if (form.type === 'Opponent Logo' && form.opponentId && form.setPrimary) {
-            update('opponents', form.opponentId, { logoAssetId: id } as Partial<Opponent>)
-          }
-        }}>Upload</button>
+        <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+        <button className="btn primary" onClick={save} disabled={busy}>{busy ? 'Uploading…' : 'Upload'}</button>
       </>
     }>
-      <p className="small muted" style={{ marginTop: 0 }}>No file actually uploads in this prototype — this creates a catalog record{defaultType ? ` in the ${defaultType} folder` : ''}.</p>
+      {canUpload ? (
+        <Field label="File">
+          <input type="file" onChange={e => {
+            const f = e.target.files?.[0] ?? null
+            setFile(f)
+            if (f && !form.name.trim()) setForm(v => ({ ...v, name: f.name.replace(/\.[^.]+$/, '') }))
+          }} />
+          <p className="tiny muted" style={{ marginBottom: 0, marginTop: 4 }}>
+            {file ? `${file.name} · ${Math.max(1, Math.round(file.size / 1024))} KB` : 'Choose the image or file to upload. Viewing uploaded files requires being signed in.'}
+          </p>
+        </Field>
+      ) : (
+        <p className="small muted" style={{ marginTop: 0 }}>No file actually uploads in this prototype — this creates a catalog record{defaultType ? ` in the ${defaultType} folder` : ''}.</p>
+      )}
       <Field label="Asset name" required error={err}>
         <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Vestavia Hills Rebels logo" />
       </Field>

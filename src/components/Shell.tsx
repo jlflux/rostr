@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { useAuth } from '../lib/auth'
+import { StoredImage } from './StoredImage'
 import { I } from './icons'
 import { Avatar } from './ui'
 import { ROLE_LABELS, canView, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
@@ -247,7 +248,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <aside className={`sidebar ${navOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <span className="mark">
-            {org.logoUrl ? <img src={org.logoUrl} alt={`${org.shortName} logo`} /> : org.initials}
+            {org.logoUrl ? <StoredImage src={org.logoUrl} alt={`${org.shortName} logo`} fallback={<>{org.initials}</>} /> : org.initials}
           </span>
           <span>{org.shortName}<small>Athletics Command Center</small></span>
         </div>
