@@ -5,6 +5,8 @@ import { activeOpponents, can, eventTitle, trashedOpponents } from '../lib/deriv
 import { addDays, fmtDate, fmtTime } from '../lib/dates'
 import { Badge, Card, Empty, Field, Modal, SearchBox } from '../components/ui'
 import { I } from '../components/icons'
+import { StoredImage } from '../components/StoredImage'
+import { resolveSignedUrl } from '../lib/storage'
 import type { Opponent } from '../types'
 
 const OPP_TINTS = ['#b45309', '#166534', '#1d4ed8', '#7c3aed', '#be185d', '#0e7490', '#ca8a04', '#4d7c0f']
@@ -126,6 +128,32 @@ export default function OpponentsPage() {
   )
 }
 
+/** Shows the opponent's primary logo with a preview and a download button. */
+function LogoPreview({ asset }: { asset: import('../types').Asset }) {
+  const { toast } = useStore()
+  const isImage = !!asset.storagePath && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(asset.fileType.toLowerCase())
+  const download = async () => {
+    if (asset.storagePath) {
+      const url = await resolveSignedUrl(asset.storagePath)
+      if (url) window.open(url, '_blank', 'noopener')
+      else toast('Could not open file — sign in to view uploads.', 'error')
+    } else toast(`Downloading ${asset.name} (mock)`)
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {isImage && (
+        <span style={{ width: 40, height: 40, borderRadius: 8, overflow: 'hidden', flexShrink: 0, display: 'inline-block' }}>
+          <StoredImage src={asset.storagePath} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<Badge tone="ok">On file</Badge>} />
+        </span>
+      )}
+      <div style={{ textAlign: 'right' }}>
+        <div className="tiny" style={{ fontWeight: 600 }}>Logo on file</div>
+        <button className="btn sm" onClick={download}>Download</button>
+      </div>
+    </div>
+  )
+}
+
 function OpponentDetailModal({ opponent: o, onClose }: { opponent: Opponent; onClose: () => void }) {
   const { state, toast } = useStore()
   const [editing, setEditing] = useState(false)
@@ -155,8 +183,8 @@ function OpponentDetailModal({ opponent: o, onClose }: { opponent: Opponent; onC
           <div className="tiny">{o.city ? `${o.city}, ${o.state ?? ''}` : 'Location not entered'}{o.colors ? ` · ${o.colors}` : ''}</div>
         </div>
         <div style={{ marginLeft: 'auto' }}>
-          {o.logoAssetId
-            ? <Badge tone="ok">Logo: {logoAsset?.name ?? 'on file'}</Badge>
+          {logoAsset
+            ? <LogoPreview asset={logoAsset} />
             : <Link to="/assets" className="btn sm" onClick={onClose}>Upload logo →</Link>}
         </div>
       </div>
