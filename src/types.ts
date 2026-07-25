@@ -15,6 +15,17 @@ export interface OrgTheme {
   accent: string
 }
 
+/** Per-school configuration set by the platform owner. All fields optional so an
+ *  org with no config behaves exactly as before. */
+export interface OrgConfig {
+  /** Sections switched off for this school, on top of role permissions. */
+  hiddenSections?: string[]
+  /** Renamed sections, e.g. { requests: 'Work orders' }. */
+  sectionLabels?: Record<string, string>
+  /** Visual style this school gets unless someone picks their own. */
+  defaultSkin?: string
+}
+
 export interface Organization {
   id: string
   name: string
@@ -28,6 +39,8 @@ export interface Organization {
   logoUrl?: string
   /** Uploaded browser-tab icon. Falls back to the logo when unset. */
   faviconUrl?: string
+  /** Platform-owner configuration for this school. */
+  config?: OrgConfig
 }
 
 export interface User {
@@ -452,6 +465,7 @@ export interface AppState {
 }
 
 export type Collection =
+  | 'orgs'
   | 'users'
   | 'teams'
   | 'events'

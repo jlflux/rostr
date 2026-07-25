@@ -6,7 +6,7 @@ import { StoredImage } from './StoredImage'
 import { resolveSignedUrl } from '../lib/storage'
 import { I } from './icons'
 import { Avatar } from './ui'
-import { ROLE_LABELS, canView, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
+import { ROLE_LABELS, SECTION_LABELS, canSee, sectionLabel, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
 import { fmtDateTime } from '../lib/dates'
 
 function useClickOutside(onClose: () => void) {
@@ -41,12 +41,12 @@ function GlobalSearch() {
         out.push({ kind: 'Event', label: `${e.sport} ${e.level} vs ${e.opponent}`, sub: e.date, to: `/events/${e.id}` })
       }
     }
-    if (canView(me.role, 'sponsors')) for (const s of state.sponsors) if (match(s.name) || match(s.contactName)) out.push({ kind: 'Sponsor', label: s.name, sub: `${s.tier} tier`, to: `/sponsors/${s.id}` })
-    if (canView(me.role, 'teams')) for (const t of state.teams) if (match(t.name) || match(t.sport)) out.push({ kind: 'Team', label: t.name, sub: t.seasonLabel, to: `/teams/${t.id}` })
-    if (canView(me.role, 'opponents')) for (const o of state.opponents) if (!o.deletedAt && (match(o.name) || match(o.mascot))) out.push({ kind: 'Opponent', label: o.name, sub: o.mascot ?? 'Opponent', to: `/opponents?open=${o.id}` })
-    if (canView(me.role, 'requests')) for (const r of state.requests) if (match(r.title)) out.push({ kind: 'Request', label: r.title, sub: r.type, to: `/requests/${r.id}` })
+    if (canSee(state, me.role, 'sponsors')) for (const s of state.sponsors) if (match(s.name) || match(s.contactName)) out.push({ kind: 'Sponsor', label: s.name, sub: `${s.tier} tier`, to: `/sponsors/${s.id}` })
+    if (canSee(state, me.role, 'teams')) for (const t of state.teams) if (match(t.name) || match(t.sport)) out.push({ kind: 'Team', label: t.name, sub: t.seasonLabel, to: `/teams/${t.id}` })
+    if (canSee(state, me.role, 'opponents')) for (const o of state.opponents) if (!o.deletedAt && (match(o.name) || match(o.mascot))) out.push({ kind: 'Opponent', label: o.name, sub: o.mascot ?? 'Opponent', to: `/opponents?open=${o.id}` })
+    if (canSee(state, me.role, 'requests')) for (const r of state.requests) if (match(r.title)) out.push({ kind: 'Request', label: r.title, sub: r.type, to: `/requests/${r.id}` })
     for (const a of state.assets) if (match(a.name)) out.push({ kind: 'Asset', label: a.name, sub: a.type, to: '/assets' })
-    if (canView(me.role, 'settings')) for (const u of state.users) if (match(u.name)) out.push({ kind: 'Person', label: u.name, sub: u.title, to: '/settings' })
+    if (canSee(state, me.role, 'settings')) for (const u of state.users) if (match(u.name)) out.push({ kind: 'Person', label: u.name, sub: u.title, to: '/settings' })
     return out.slice(0, 12)
   }, [q, state])
 
@@ -227,6 +227,7 @@ const NAV: NavItem[] = [
   { to: '/assets', label: 'Assets', icon: I.asset, section: 'assets' },
   { to: '/reports', label: 'Reports', icon: I.report, section: 'reports' },
   { to: '/settings', label: 'Settings', icon: I.settings, section: 'settings' },
+  { to: '/platform', label: 'Platform', icon: I.sponsor, section: 'platform' },
 ]
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -239,7 +240,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => { contentRef.current?.scrollTo(0, 0) }, [location.pathname])
   const org = state.orgs.find(o => o.id === state.currentOrgId)!
   const me = state.users.find(u => u.id === state.currentUserId)!
-  const nav = NAV.filter(n => canView(me.role, n.section))
+  const nav = NAV.filter(n => canSee(state, me.role, n.section))
   const openReqCount = openRequests(state).filter(r => r.status === 'submitted').length
   // Bottom bar shows the four most useful destinations on a phone, then "More".
   // Priority items the current role can't see are skipped and topped up from the
@@ -287,8 +288,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           {nav.map(n => (
             <NavLink key={n.to} to={n.to} end={n.end}>
               <n.icon />
-              {n.label}
-              {n.label === 'Requests' && openReqCount > 0 && <span className="count">{openReqCount}</span>}
+              {sectionLabel(state, n.section)}
+              {n.section === 'requests' && openReqCount > 0 && <span className="count">{openReqCount}</span>}
             </NavLink>
           ))}
         </nav>
@@ -318,9 +319,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
             className={({ isActive }) => `bottom-tab${isActive ? ' active' : ''}`}>
             <span className="bt-icon">
               <n.icon />
-              {n.label === 'Requests' && openReqCount > 0 && <span className="bt-dot">{openReqCount}</span>}
+              {n.section === 'requests' && openReqCount > 0 && <span className="bt-dot">{openReqCount}</span>}
             </span>
-            <span className="bt-label">{MOBILE_LABELS[n.to] ?? n.label}</span>
+            {/* A school's custom name wins over the short mobile label. */}
+            <span className="bt-label">
+              {sectionLabel(state, n.section) !== SECTION_LABELS[n.section]
+                ? sectionLabel(state, n.section)
+                : MOBILE_LABELS[n.to] ?? n.label}
+            </span>
           </NavLink>
         ))}
         <button type="button" className="bottom-tab" onClick={() => setNavOpen(true)} aria-label="More navigation">

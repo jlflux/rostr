@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, broadcastState, can, canView, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
+import { ROLE_LABELS, broadcastState, can, canSee, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateLong, fmtTime, relDue } from '../lib/dates'
 import { resolveSignedUrl } from '../lib/storage'
 import { StoredImage } from '../components/StoredImage'
@@ -36,7 +36,7 @@ export default function EventDetail() {
     return <Card><Empty icon="?" title="Event not found" hint="It may have been removed. Return to the events list." /></Card>
   }
 
-  const showSponsors = canView(me.role, 'sponsors')
+  const showSponsors = canSee(state, me.role, 'sponsors')
   let visibleTabs = e.eventKind === 'noncomp' ? TABS.filter(t => t !== 'results') : [...TABS]
   if (!showSponsors) visibleTabs = visibleTabs.filter(t => t !== 'sponsors')
   const tab = (visibleTabs.includes(params.get('tab') as Tab) ? params.get('tab') : 'overview') as Tab
@@ -199,7 +199,7 @@ export default function EventDetail() {
 function Overview({ e, teamName, editable }: { e: SportEvent; teamName?: string; editable: boolean }) {
   const { state } = useStore()
   const me = state.users.find(u => u.id === state.currentUserId)!
-  const showSponsors = canView(me.role, 'sponsors')
+  const showSponsors = canSee(state, me.role, 'sponsors')
   const score = visibleScore(state, e)
   const opp = state.opponents.find(o => o.id === e.opponentId && !o.deletedAt)
   return (

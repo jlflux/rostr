@@ -8,6 +8,8 @@ export type CloudStatus = 'off' | 'idle' | 'syncing' | 'saved' | 'error'
 const STORAGE_KEY = 'headqtrs:state:v13'
 const THEME_KEY = 'headqtrs:theme'
 const SKIN_KEY = 'headqtrs:skin'
+/** Set once someone picks a style themselves, so a school default stops overriding it. */
+const SKIN_CHOICE_KEY = 'headqtrs:skin:chosen'
 
 /** Visual styles. 'classic' is the original look and stays the default.
  *  Styles change typography/spacing/table treatment only — colors are shared. */
@@ -113,9 +115,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (saved === 'light' || saved === 'dark') return saved
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
+  const isSkin = (v: unknown): v is Skin => (SKINS as readonly unknown[]).includes(v)
   const [skin, setSkinState] = useState<Skin>(() => {
     const saved = localStorage.getItem(SKIN_KEY)
-    return (SKINS as readonly string[]).includes(saved ?? '') ? (saved as Skin) : 'classic'
+    // A style someone picked themselves always wins over the school's default.
+    if (localStorage.getItem(SKIN_CHOICE_KEY) === '1' && isSkin(saved)) return saved
+    const orgDefault = state.orgs.find(o => o.id === state.currentOrgId)?.config?.defaultSkin
+    if (isSkin(orgDefault)) return orgDefault
+    return isSkin(saved) ? saved : 'classic'
   })
   const [toasts, setToasts] = useState<Store['toasts']>([])
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>(cloudEnabled() ? 'idle' : 'off')
@@ -184,6 +191,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.dataset.skin = skin
     localStorage.setItem(SKIN_KEY, skin)
   }, [skin])
+
+  /** Someone picking a style themselves opts out of the school default from then on. */
+  const setSkin = useCallback((s: Skin) => {
+    localStorage.setItem(SKIN_CHOICE_KEY, '1')
+    setSkinState(s)
+  }, [])
+
+  // Switching schools adopts that school's default, unless a style was chosen here.
+  useEffect(() => {
+    if (localStorage.getItem(SKIN_CHOICE_KEY) === '1') return
+    const orgDefault = state.orgs.find(o => o.id === state.currentOrgId)?.config?.defaultSkin
+    if (isSkin(orgDefault) && orgDefault !== skin) setSkinState(orgDefault)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.currentOrgId, state.orgs])
 
   const toast = useCallback((msg: string, kind: 'success' | 'error' = 'success') => {
     const id = Date.now() + Math.random()
@@ -278,8 +299,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<Store>(() => ({
     state, update, add, remove, setState, logActivity, resetDemo, exportState, importState,
     cloudEnabled: cloudEnabled(), cloudStatus, cloudError, cloudPushNow, cloudPullNow,
-    theme, setTheme: setThemeState, skin, setSkin: setSkinState, toast, toasts,
-  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, skin, toast, toasts])
+    theme, setTheme: setThemeState, skin, setSkin, toast, toasts,
+  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, skin, setSkin, toast, toasts])
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
 }

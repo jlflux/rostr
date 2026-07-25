@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/store'
 import {
-  canView, eventsThisWeek, missingSponsorAssets, openRequests, overdueTasks,
+  canSee, eventsThisWeek, missingSponsorAssets, openRequests, overdueTasks,
   sponsorshipTotals, unfilledSlots, unpaidAgreements, upcomingContent,
 } from '../lib/derive'
 import { Avatar, Badge, Card, Empty, PriorityBadge, StatCard, StatusBadge } from '../components/ui'
@@ -12,8 +12,8 @@ import { I } from '../components/icons'
 export default function Dashboard() {
   const { state, update, remove, toast } = useStore()
   const me = state.users.find(u => u.id === state.currentUserId)!
-  const showSponsors = canView(me.role, 'sponsors')
-  const showRequests = canView(me.role, 'requests')
+  const showSponsors = canSee(state, me.role, 'sponsors')
+  const showRequests = canSee(state, me.role, 'requests')
   const isStaff = me.role === 'event_staff'
   const week = eventsThisWeek(state)
   const home = week.filter(e => e.homeAway === 'home')

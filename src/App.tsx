@@ -3,7 +3,7 @@ import { StoreProvider, useStore } from './store/store'
 import { AuthProvider } from './lib/auth'
 import { LoginGate } from './components/LoginGate'
 import { Shell } from './components/Shell'
-import { canView, type Section } from './lib/derive'
+import { canSee, type Section } from './lib/derive'
 import Dashboard from './pages/Dashboard'
 import CalendarPage from './pages/CalendarPage'
 import EventsPage from './pages/EventsPage'
@@ -16,12 +16,13 @@ import RequestsPage, { RequestDetail } from './pages/RequestsPage'
 import AssetsPage from './pages/AssetsPage'
 import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
+import PlatformPage from './pages/PlatformPage'
 
 /** Redirect to the dashboard if the current user's role can't see this section. */
 function Guard({ section, children }: { section: Section; children: React.ReactNode }) {
   const { state } = useStore()
   const me = state.users.find(u => u.id === state.currentUserId)!
-  return canView(me.role, section) ? <>{children}</> : <Navigate to="/" replace />
+  return canSee(state, me.role, section) ? <>{children}</> : <Navigate to="/" replace />
 }
 
 export default function App() {
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/assets" element={<Guard section="assets"><AssetsPage /></Guard>} />
             <Route path="/reports" element={<Guard section="reports"><ReportsPage /></Guard>} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/platform" element={<Guard section="platform"><PlatformPage /></Guard>} />
             <Route path="*" element={<Dashboard />} />
           </Routes>
         </Shell>

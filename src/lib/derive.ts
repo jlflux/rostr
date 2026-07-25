@@ -283,6 +283,47 @@ export function can(role: string, action: 'edit' | 'finance' | 'admin'): boolean
 export type Section =
   | 'dashboard' | 'calendar' | 'events' | 'opponents' | 'sponsors'
   | 'teams' | 'requests' | 'assets' | 'reports' | 'settings'
+  | 'platform'
+
+/** Sections a school can be given; 'platform' is the operator console, not a
+ *  school feature, and 'dashboard'/'settings' are structural so can't be hidden. */
+export const SCHOOL_SECTIONS: Section[] = [
+  'dashboard', 'calendar', 'events', 'opponents', 'sponsors',
+  'teams', 'requests', 'assets', 'reports', 'settings',
+]
+export const CONFIGURABLE_SECTIONS: Section[] = SCHOOL_SECTIONS.filter(
+  s => s !== 'dashboard' && s !== 'settings',
+)
+
+/** Default display names, used when a school hasn't renamed a section. */
+export const SECTION_LABELS: Record<Section, string> = {
+  dashboard: 'Dashboard', calendar: 'Calendar', events: 'Events', opponents: 'Opponents',
+  sponsors: 'Sponsors', teams: 'Teams', requests: 'Requests', assets: 'Assets',
+  reports: 'Reports', settings: 'Settings', platform: 'Platform',
+}
+
+/** What this school calls a section (falls back to the default name). */
+export function sectionLabel(state: AppState, section: Section): string {
+  const org = state.orgs.find(o => o.id === state.currentOrgId)
+  const custom = org?.config?.sectionLabels?.[section]?.trim()
+  return custom || SECTION_LABELS[section]
+}
+
+/** Whether this school has the section switched on at all. */
+export function sectionEnabled(state: AppState, section: Section): boolean {
+  if (section === 'dashboard' || section === 'settings' || section === 'platform') return true
+  const org = state.orgs.find(o => o.id === state.currentOrgId)
+  return !(org?.config?.hiddenSections ?? []).includes(section)
+}
+
+/**
+ * The single check the whole app should use: the role must allow it AND the
+ * school must have it switched on. Keeping both in one place means the nav,
+ * the route guards, and global search can't drift apart.
+ */
+export function canSee(state: AppState, role: string, section: Section): boolean {
+  return canView(role, section) && sectionEnabled(state, section)
+}
 
 /**
  * What each role is allowed to see. Event staff get only the gameday basics
@@ -290,9 +331,10 @@ export type Section =
  * not sponsor money or reports; admins and above see everything.
  */
 export function canView(role: string, section: Section): boolean {
-  const ALL: Section[] = ['dashboard', 'calendar', 'events', 'opponents', 'sponsors', 'teams', 'requests', 'assets', 'reports', 'settings']
+  const ALL: Section[] = SCHOOL_SECTIONS
   const BY_ROLE: Record<string, Section[]> = {
-    platform_owner: ALL,
+    // Only the platform owner sees the operator console.
+    platform_owner: [...ALL, 'platform'],
     school_admin: ALL,
     comms_admin: ALL,
     finance: ALL,
