@@ -10,12 +10,12 @@ import type { Organization, Role, SponsorTier, User } from '../types'
 
 const SPONSOR_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
 
-/** Visual styles offered in Settings → Appearance. Cosmetic only. */
-const SKIN_OPTIONS: { id: Skin; label: string; hint: string; swatch: string[] }[] = [
-  { id: 'classic', label: 'Classic', hint: 'The current look — black sidebar, red accent', swatch: ['#151515', '#ea1a45', '#f4f5f7'] },
-  { id: 'aurora', label: 'Aurora', hint: 'Light sidebar, indigo accent, airy spacing', swatch: ['#ffffff', '#6366f1', '#f7f8fb'] },
-  { id: 'graphite', label: 'Graphite', hint: 'Slate chrome, steel blue, compact and crisp', swatch: ['#181b22', '#3b6df3', '#f5f6f8'] },
-  { id: 'varsity', label: 'Varsity', hint: 'Navy sidebar with school red — athletics-forward', swatch: ['#12223c', '#d60000', '#f4f6f9'] },
+/** Visual styles offered in Settings → Appearance. Typography and spacing only —
+ *  every style uses the same brand colors. */
+const SKIN_OPTIONS: { id: Skin; label: string; hint: string; rows: number; gap: number; radius: number }[] = [
+  { id: 'classic', label: 'Classic', hint: 'The current look — unchanged', rows: 3, gap: 3, radius: 3 },
+  { id: 'modern', label: 'Modern', hint: 'System UI font, roomier rows, cleaner tables', rows: 3, gap: 7, radius: 6 },
+  { id: 'modern-compact', label: 'Modern compact', hint: 'Same styling, tighter — more rows on screen', rows: 4, gap: 2, radius: 6 },
 ]
 
 const AVATAR_COLORS = ['#d60000', '#0e7490', '#15803d', '#b45309', '#7c3aed', '#be185d', '#1d4ed8', '#374151']
@@ -186,14 +186,15 @@ export default function SettingsPage() {
                       background: skin === s.id ? 'var(--surface-2)' : 'var(--surface)',
                       color: 'inherit',
                     }}>
-                    <span style={{ display: 'flex', flexShrink: 0 }}>
-                      {s.swatch.map((c, i) => (
+                    <span aria-hidden style={{
+                      width: 46, flexShrink: 0, padding: 6, borderRadius: s.radius,
+                      border: '1px solid var(--border)', background: 'var(--surface-2)',
+                      display: 'flex', flexDirection: 'column', gap: s.gap,
+                    }}>
+                      {Array.from({ length: s.rows }).map((_, i) => (
                         <span key={i} style={{
-                          width: 15, height: 26, background: c,
-                          borderTopLeftRadius: i === 0 ? 5 : 0, borderBottomLeftRadius: i === 0 ? 5 : 0,
-                          borderTopRightRadius: i === s.swatch.length - 1 ? 5 : 0,
-                          borderBottomRightRadius: i === s.swatch.length - 1 ? 5 : 0,
-                          border: '1px solid rgba(0,0,0,0.08)', borderLeftWidth: i === 0 ? 1 : 0,
+                          height: 3, borderRadius: 2, background: 'var(--border-strong)',
+                          width: i === 0 ? '60%' : '100%',
                         }} />
                       ))}
                     </span>
@@ -206,7 +207,8 @@ export default function SettingsPage() {
                 ))}
               </div>
               <p className="tiny" style={{ marginTop: 8, marginBottom: 0 }}>
-                Styling only — every feature works the same in each style. Applies to this device.
+                Typography and spacing only — your brand colors and every feature stay the same.
+                Applies to this device.
               </p>
             </Field>
           </Card>

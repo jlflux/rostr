@@ -9,8 +9,9 @@ const STORAGE_KEY = 'headqtrs:state:v13'
 const THEME_KEY = 'headqtrs:theme'
 const SKIN_KEY = 'headqtrs:skin'
 
-/** Visual styles. 'classic' is the original look and stays the default. */
-export const SKINS = ['classic', 'aurora', 'graphite', 'varsity'] as const
+/** Visual styles. 'classic' is the original look and stays the default.
+ *  Styles change typography/spacing/table treatment only — colors are shared. */
+export const SKINS = ['classic', 'modern', 'modern-compact'] as const
 export type Skin = (typeof SKINS)[number]
 
 // The schema (shape) version. Bump this ONLY for a breaking change to the data

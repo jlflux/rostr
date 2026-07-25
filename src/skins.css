@@ -1,315 +1,155 @@
 /* ---------- Skins ----------
-   Alternate visual styles, layered on top of styles.css. A skin only re-points
-   design tokens and a few chrome rules (sidebar, radii, depth) — it never changes
-   markup or behavior, so every feature works identically in every skin.
+   Alternate visual styles layered on top of styles.css.
+
+   These change TYPOGRAPHY, SPACING, and TABLE/CARD TREATMENT only. The color
+   palette — brand red, black sidebar, navy, and all status colors — is inherited
+   from styles.css completely untouched, so Flux Athletics branding is identical
+   in every style.
+
+   Nothing here changes markup, routing, permissions, or data behavior, so every
+   feature works the same regardless of the selected style.
 
    Applied via `data-skin` on <html>, alongside the existing `data-theme`.
    No `data-skin` (or `classic`) = the original look, untouched.
 
-   NOTE ON SPECIFICITY: this file loads after styles.css, so `[data-skin=…]`
-   (0,1,0) would otherwise beat `[data-theme='dark']` (also 0,1,0). Each skin
-   therefore restates its dark tokens under `[data-skin=…][data-theme='dark']`
-   (0,2,0), which wins in both directions. */
+   `[data-skin^='modern']` matches both 'modern' and 'modern-compact'; the compact
+   variant then tightens density at the end of the file. */
 
 /* ============================================================
-   AURORA — light, airy, indigo. Modern SaaS console.
+   MODERN — shared type + structure (colors inherited unchanged)
    ============================================================ */
-[data-skin='aurora'] {
-  --app-accent: #6366f1;
-  --accent: #6366f1;
-
-  --bg: #f7f8fb;
-  --surface: #ffffff;
-  --surface-2: #f8f9fc;
-  --border: #ebedf3;
-  --border-strong: #d9dde6;
-  --text: #1a1d27;
-  --text-2: #565d6d;
-  --text-3: #868d9c;
-
-  --sidebar-bg: #ffffff;
-  --sidebar-text: #5b6273;
-  --sidebar-active: #f2f3f9;
-
-  --shadow: 0 1px 2px rgba(24, 28, 45, 0.04), 0 1px 3px rgba(24, 28, 45, 0.03);
-  --shadow-lg: 0 12px 40px rgba(24, 28, 45, 0.14);
-
-  --ok: #0f9d58;
-  --ok-bg: #e7f6ee;
-  --warn: #b7791f;
-  --warn-bg: #fdf3e3;
-  --danger: #dc2626;
-  --danger-bg: #fdeded;
-  --info: #4f46e5;
-  --info-bg: #eef0fe;
-  --neutral-bg: #f1f2f6;
-
-  --radius: 12px;
-  --radius-sm: 9px;
+[data-skin^='modern'] {
+  /* Shape and depth only — no hues are redefined. */
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.03);
+  --shadow-lg: 0 16px 48px rgba(16, 24, 40, 0.16);
 }
-[data-skin='aurora'][data-theme='dark'] {
-  --bg: #0e1015;
-  --surface: #171a21;
-  --surface-2: #1d212a;
-  --border: #262b36;
-  --border-strong: #363c4a;
-  --text: #e9ebf2;
-  --text-2: #b3bac9;
-  --text-3: #8b93a5;
-
-  --sidebar-bg: #12141a;
-  --sidebar-text: #9aa2b3;
-  --sidebar-active: rgba(99, 102, 241, 0.16);
-
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.34), 0 2px 10px rgba(0, 0, 0, 0.22);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.55);
-
-  --ok: #4ade80;
-  --ok-bg: rgba(34, 197, 94, 0.14);
-  --warn: #fbbf24;
-  --warn-bg: rgba(245, 158, 11, 0.14);
-  --danger: #f87171;
-  --danger-bg: rgba(239, 68, 68, 0.15);
-  --info: #a5b4fc;
-  --info-bg: rgba(99, 102, 241, 0.18);
-  --neutral-bg: #242936;
+[data-skin^='modern'][data-theme='dark'] {
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.36), 0 2px 10px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
 }
 
-/* ============================================================
-   GRAPHITE — cool slate + steel blue. Low-chrome and dense.
-   ============================================================ */
-[data-skin='graphite'] {
-  --app-accent: #3b6df3;
-  --accent: #3b6df3;
-
-  --bg: #f5f6f8;
-  --surface: #ffffff;
-  --surface-2: #f7f8fa;
-  --border: #e6e8ec;
-  --border-strong: #cdd2da;
-  --text: #14171d;
-  --text-2: #4d5563;
-  --text-3: #7c8493;
-
-  --sidebar-bg: #181b22;
-  --sidebar-text: #a2aab9;
-  --sidebar-active: rgba(255, 255, 255, 0.07);
-
-  --shadow: 0 1px 2px rgba(16, 20, 28, 0.05);
-  --shadow-lg: 0 10px 34px rgba(16, 20, 28, 0.18);
-
-  --ok: #14804a;
-  --ok-bg: #e6f4ec;
-  --warn: #a86400;
-  --warn-bg: #fcf1e0;
-  --danger: #c62828;
-  --danger-bg: #fceceb;
-  --info: #3b6df3;
-  --info-bg: #eaf0fe;
-  --neutral-bg: #eef0f4;
-
-  --radius: 9px;
-  --radius-sm: 7px;
-}
-[data-skin='graphite'][data-theme='dark'] {
-  --bg: #0d0f13;
-  --surface: #15181e;
-  --surface-2: #1a1e25;
-  --border: #232830;
-  --border-strong: #333944;
-  --text: #e6e9ef;
-  --text-2: #aeb6c4;
-  --text-3: #858d9c;
-
-  --sidebar-bg: #101318;
-  --sidebar-text: #98a0af;
-  --sidebar-active: rgba(255, 255, 255, 0.06);
-
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 34px rgba(0, 0, 0, 0.6);
-
-  --ok: #4ade80;
-  --ok-bg: rgba(34, 197, 94, 0.13);
-  --warn: #fbbf24;
-  --warn-bg: rgba(245, 158, 11, 0.13);
-  --danger: #f87171;
-  --danger-bg: rgba(239, 68, 68, 0.14);
-  --info: #7ba3ff;
-  --info-bg: rgba(59, 109, 243, 0.16);
-  --neutral-bg: #222732;
+/* ---- Typography ----
+   Swaps Helvetica Neue/Arial for the platform's own modern UI face: SF on Mac and
+   iOS, Segoe UI on Windows, Roboto on Android. No downloaded font, so there's no
+   network dependency and nothing to fail to load. */
+[data-skin^='modern'] body {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Inter', 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
 }
 
-/* ============================================================
-   VARSITY — navy chrome + school red. Athletics-forward.
-   ============================================================ */
-[data-skin='varsity'] {
-  --app-accent: #d60000;
-  --accent: #b8933f;
-
-  --bg: #f4f6f9;
-  --surface: #ffffff;
-  --surface-2: #f7f9fc;
-  --border: #e4e8ef;
-  --border-strong: #ccd3de;
-  --text: #101827;
-  --text-2: #46536a;
-  --text-3: #74809a;
-
-  --sidebar-bg: #12223c;
-  --sidebar-text: #a9b6cc;
-  --sidebar-active: rgba(255, 255, 255, 0.1);
-
-  --shadow: 0 1px 2px rgba(18, 34, 60, 0.05), 0 2px 8px rgba(18, 34, 60, 0.04);
-  --shadow-lg: 0 12px 38px rgba(18, 34, 60, 0.2);
-
-  --ok: #15803d;
-  --ok-bg: #e8f5ec;
-  --warn: #b45309;
-  --warn-bg: #fdf1e2;
-  --danger: #b91c1c;
-  --danger-bg: #fdecec;
-  --info: #1d4ed8;
-  --info-bg: #e9effd;
-  --neutral-bg: #eef1f6;
-
-  --radius: 12px;
-  --radius-sm: 8px;
+/* Headings: larger and tighter, but lighter in weight — modern UI reads as
+   confident spacing rather than heavy bold. */
+[data-skin^='modern'] .page-title {
+  font-size: 1.6rem; font-weight: 640; letter-spacing: -0.55px; line-height: 1.25;
 }
-[data-skin='varsity'][data-theme='dark'] {
-  --bg: #0c1016;
-  --surface: #151b25;
-  --surface-2: #1b2230;
-  --border: #26303f;
-  --border-strong: #364254;
-  --text: #e9edf4;
-  --text-2: #b2bccd;
-  --text-3: #8794a9;
+[data-skin^='modern'] .page-sub { font-size: 0.92rem; margin-top: 5px; }
+[data-skin^='modern'] .section-title { font-size: 0.98rem; font-weight: 640; letter-spacing: -0.2px; }
+[data-skin^='modern'] .card-head h3 { font-size: 0.95rem; font-weight: 640; letter-spacing: -0.2px; }
+[data-skin^='modern'] .small { font-size: 0.855rem; }
+[data-skin^='modern'] .tiny { font-size: 0.8rem; line-height: 1.45; }
 
-  --sidebar-bg: #0e1826;
-  --sidebar-text: #9fadc4;
-  --sidebar-active: rgba(255, 255, 255, 0.09);
+/* Numbers align in columns and never jitter as they change. */
+[data-skin^='modern'] .tbl .num,
+[data-skin^='modern'] .tbl td,
+[data-skin^='modern'] .stat-card .value { font-variant-numeric: tabular-nums; }
 
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 12px 38px rgba(0, 0, 0, 0.55);
+/* ---- Cards: hairline border, minimal lift, real breathing room ---- */
+[data-skin^='modern'] .card { box-shadow: var(--shadow); }
+[data-skin^='modern'] .card-head { border-bottom: 1px solid var(--border); }
 
-  --ok: #4ade80;
-  --ok-bg: rgba(34, 197, 94, 0.14);
-  --warn: #fbbf24;
-  --warn-bg: rgba(245, 158, 11, 0.14);
-  --danger: #f87171;
-  --danger-bg: rgba(239, 68, 68, 0.15);
-  --info: #93b4f8;
-  --info-bg: rgba(59, 130, 246, 0.15);
-  --neutral-bg: #232c3a;
-}
-
-/* ============================================================
-   Shared modern chrome (all non-classic skins)
-   ============================================================ */
-[data-skin='aurora'] .topbar,
-[data-skin='graphite'] .topbar,
-[data-skin='varsity'] .topbar {
-  padding: 12px 24px;
-  backdrop-filter: saturate(180%) blur(8px);
-}
-
-/* Softer, lighter page headings */
-[data-skin='aurora'] .page-title,
-[data-skin='graphite'] .page-title,
-[data-skin='varsity'] .page-title {
-  font-weight: 650;
-  letter-spacing: -0.45px;
-}
-
-/* Cards: hairline border, minimal lift, more breathing room */
-[data-skin='aurora'] .card-pad,
-[data-skin='graphite'] .card-pad,
-[data-skin='varsity'] .card-pad { padding: 18px 20px; }
-[data-skin='aurora'] .card-head,
-[data-skin='graphite'] .card-head,
-[data-skin='varsity'] .card-head { padding: 15px 20px; }
-
-/* Stat cards read as quiet metrics, not boxes shouting for attention */
-[data-skin='aurora'] .stat-card,
-[data-skin='graphite'] .stat-card,
-[data-skin='varsity'] .stat-card { padding: 16px 18px; gap: 3px; }
-[data-skin='aurora'] .stat-card .label,
-[data-skin='graphite'] .stat-card .label,
-[data-skin='varsity'] .stat-card .label {
-  text-transform: none; letter-spacing: 0; font-size: 0.82rem;
+/* ---- Stat cards: quiet label, confident figure ---- */
+[data-skin^='modern'] .stat-card .label {
+  text-transform: none; letter-spacing: 0; font-size: 0.85rem;
   font-weight: 550; color: var(--text-2);
 }
-[data-skin='aurora'] .stat-card .value,
-[data-skin='graphite'] .stat-card .value,
-[data-skin='varsity'] .stat-card .value {
-  font-size: 1.7rem; font-weight: 700; letter-spacing: -0.8px; margin-top: 2px;
+[data-skin^='modern'] .stat-card .value {
+  font-size: 2rem; font-weight: 680; letter-spacing: -1px; line-height: 1.15; margin-top: 5px;
 }
+[data-skin^='modern'] .stat-card .hint { font-size: 0.815rem; margin-top: 3px; }
 
-/* Buttons: quieter default, confident primary */
-[data-skin='aurora'] .btn,
-[data-skin='graphite'] .btn,
-[data-skin='varsity'] .btn {
-  border-color: var(--border); border-radius: var(--radius-sm);
-  font-weight: 570; box-shadow: 0 1px 1px rgba(16, 20, 28, 0.03);
+/* ---- Tables: the biggest change ----
+   Airy rows, a quiet letterspaced header with no fill, hairline dividers, and no
+   trailing border so the table sits flush inside its card. */
+[data-skin^='modern'] table.tbl { font-size: 0.9rem; }
+[data-skin^='modern'] .tbl th {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase;
+  color: var(--text-3); background: transparent; border-bottom: 1px solid var(--border);
 }
-[data-skin='aurora'] .btn:hover,
-[data-skin='graphite'] .btn:hover,
-[data-skin='varsity'] .btn:hover { border-color: var(--border-strong); }
-[data-skin='aurora'] .btn.ghost,
-[data-skin='graphite'] .btn.ghost,
-[data-skin='varsity'] .btn.ghost { box-shadow: none; border-color: transparent; }
+[data-skin^='modern'] .tbl tbody tr:last-child td { border-bottom: none; }
+[data-skin^='modern'] .tbl td .primary { font-weight: 600; letter-spacing: -0.1px; }
 
-/* Inputs match the button language */
-[data-skin='aurora'] .input, [data-skin='aurora'] .field input,
-[data-skin='aurora'] .field select, [data-skin='aurora'] .field textarea,
-[data-skin='graphite'] .input, [data-skin='graphite'] .field input,
-[data-skin='graphite'] .field select, [data-skin='graphite'] .field textarea,
-[data-skin='varsity'] .input, [data-skin='varsity'] .field input,
-[data-skin='varsity'] .field select, [data-skin='varsity'] .field textarea {
-  border-radius: var(--radius-sm);
+/* ---- Buttons and inputs share one shape language ---- */
+[data-skin^='modern'] .btn {
+  border-radius: var(--radius-sm); font-weight: 570; border-color: var(--border-strong);
 }
+[data-skin^='modern'] .btn.ghost { border-color: transparent; }
+[data-skin^='modern'] .input,
+[data-skin^='modern'] .field input,
+[data-skin^='modern'] .field select,
+[data-skin^='modern'] .field textarea { border-radius: var(--radius-sm); }
+[data-skin^='modern'] .field label { font-size: 0.82rem; font-weight: 600; }
 
-/* Table headers: lighter, less shouty than full uppercase tracking */
-[data-skin='aurora'] .tbl th,
-[data-skin='graphite'] .tbl th,
-[data-skin='varsity'] .tbl th {
-  font-size: 0.73rem; font-weight: 600; letter-spacing: 0.3px;
-  padding: 10px 14px; background: var(--surface-2);
-}
-[data-skin='aurora'] .tbl td,
-[data-skin='graphite'] .tbl td,
-[data-skin='varsity'] .tbl td { padding: 11px 14px; }
+/* ---- Badges: softer pills ---- */
+[data-skin^='modern'] .badge { font-weight: 600; letter-spacing: 0.1px; }
 
-/* Badges: slightly softer pills */
-[data-skin='aurora'] .badge,
-[data-skin='graphite'] .badge,
-[data-skin='varsity'] .badge { font-weight: 600; padding: 3px 10px; }
+/* ---- Nav: pill active state instead of the inset accent bar ---- */
+[data-skin^='modern'] .nav a { border-radius: var(--radius-sm); font-weight: 520; }
+[data-skin^='modern'] .nav a.active { box-shadow: none; font-weight: 620; }
 
-/* Nav: pill-style active state instead of the inset accent bar */
-[data-skin='aurora'] .nav a,
-[data-skin='graphite'] .nav a,
-[data-skin='varsity'] .nav a { border-radius: var(--radius-sm); padding: 9px 11px; }
-[data-skin='aurora'] .nav a.active,
-[data-skin='graphite'] .nav a.active,
-[data-skin='varsity'] .nav a.active { box-shadow: none; font-weight: 620; }
+/* ---- Overlays follow the same radius ---- */
+[data-skin^='modern'] .menu,
+[data-skin^='modern'] .gsearch-results { border-radius: var(--radius); }
+[data-skin^='modern'] .gsearch input { border-radius: var(--radius-sm); }
+[data-skin^='modern'] .iconbtn { border-radius: var(--radius-sm); }
+[data-skin^='modern'] .org-select { border-radius: var(--radius-sm); }
 
-/* ---- Light-sidebar handling (Aurora only) ----
-   styles.css hardcodes #fff text for sidebar chrome, which needs inverting when
-   the sidebar itself is light. */
-[data-skin='aurora'] .sidebar { border-right: 1px solid var(--border); }
-[data-skin='aurora'] .sidebar-logo { color: var(--text); }
-[data-skin='aurora'] .sidebar-logo small { color: var(--text-3); }
-[data-skin='aurora'] .nav a:hover { color: var(--text); }
-[data-skin='aurora'] .nav a.active { color: var(--app-accent); background: var(--sidebar-active); }
-[data-skin='aurora'] .nav a.active svg { opacity: 1; }
-[data-skin='aurora'] .sidebar-footer { color: var(--text-3); }
+/* ============================================================
+   MODERN — roomy density (default of the two)
+   ============================================================ */
+[data-skin='modern'] .content { padding: 28px 32px 72px; }
+[data-skin='modern'] .content-inner { max-width: 1320px; }
+[data-skin='modern'] .topbar { padding: 12px 26px; }
+[data-skin='modern'] .page-head { margin-bottom: 24px; }
+[data-skin='modern'] .grid { gap: 18px; }
 
-[data-skin='aurora'][data-theme='dark'] .sidebar-logo { color: #fff; }
-[data-skin='aurora'][data-theme='dark'] .nav a:hover { color: #fff; }
-[data-skin='aurora'][data-theme='dark'] .nav a.active { color: #fff; }
-[data-skin='aurora'][data-theme='dark'] .sidebar-footer { color: rgba(255, 255, 255, 0.35); }
+[data-skin='modern'] .card-pad { padding: 20px 22px; }
+[data-skin='modern'] .card-head { padding: 16px 22px; }
+[data-skin='modern'] .stat-card { padding: 18px 20px; }
 
-/* Asset thumbnails keep their fitted, clipped behavior in every skin */
-[data-skin='aurora'] .asset-thumb,
-[data-skin='graphite'] .asset-thumb,
-[data-skin='varsity'] .asset-thumb { height: 116px; }
+[data-skin='modern'] .tbl th { padding: 12px 18px; }
+[data-skin='modern'] .tbl td { padding: 14px 18px; }
+
+[data-skin='modern'] .nav a { padding: 9px 11px; }
+[data-skin='modern'] .btn { padding: 8px 15px; }
+[data-skin='modern'] .btn.sm { padding: 5px 11px; }
+
+/* ============================================================
+   MODERN COMPACT — same language, more rows on screen
+   ============================================================ */
+[data-skin='modern-compact'] .content { padding: 20px 24px 64px; }
+[data-skin='modern-compact'] .content-inner { max-width: 1440px; }
+[data-skin='modern-compact'] .topbar { padding: 9px 22px; }
+[data-skin='modern-compact'] .page-head { margin-bottom: 16px; }
+[data-skin='modern-compact'] .grid { gap: 12px; }
+
+[data-skin='modern-compact'] .card-pad { padding: 14px 16px; }
+[data-skin='modern-compact'] .card-head { padding: 11px 16px; }
+[data-skin='modern-compact'] .stat-card { padding: 13px 15px; }
+[data-skin='modern-compact'] .stat-card .value { font-size: 1.65rem; letter-spacing: -0.7px; }
+[data-skin='modern-compact'] .page-title { font-size: 1.4rem; }
+
+[data-skin='modern-compact'] .tbl th { padding: 8px 13px; }
+[data-skin='modern-compact'] .tbl td { padding: 8px 13px; }
+[data-skin='modern-compact'] table.tbl { font-size: 0.865rem; }
+
+[data-skin='modern-compact'] .nav a { padding: 7px 10px; }
+[data-skin='modern-compact'] .btn { padding: 6px 12px; }
+[data-skin='modern-compact'] .btn.sm { padding: 4px 9px; }
+
+/* Asset thumbnails keep their fitted, clipped behavior in every style */
+[data-skin='modern'] .asset-thumb { height: 120px; }
+[data-skin='modern-compact'] .asset-thumb { height: 100px; }
