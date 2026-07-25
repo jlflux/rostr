@@ -37,8 +37,6 @@ export interface Organization {
   initials: string
   /** Uploaded school logo (data URL in the prototype) */
   logoUrl?: string
-  /** Uploaded browser-tab icon. Falls back to the logo when unset. */
-  faviconUrl?: string
   /** Platform-owner configuration for this school. */
   config?: OrgConfig
 }
@@ -442,8 +440,16 @@ export interface Activity {
   link?: string
 }
 
+/** Settings owned by the platform, shared by every school on it. */
+export interface PlatformConfig {
+  /** Browser-tab icon shown for every school. Product branding, not per-school. */
+  faviconUrl?: string
+}
+
 export interface AppState {
   version: number
+  /** Platform-wide settings, managed on the Platform page. */
+  platform?: PlatformConfig
   orgs: Organization[]
   currentOrgId: string
   currentUserId: string

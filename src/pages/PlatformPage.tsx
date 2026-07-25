@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useStore, SKINS, type Skin } from '../store/store'
 import { CONFIGURABLE_SECTIONS, SECTION_LABELS, can, type Section } from '../lib/derive'
 import { Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
+import { StoredImage } from '../components/StoredImage'
+import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
 import { I } from '../components/icons'
 import type { Organization, OrgConfig } from '../types'
 
@@ -35,6 +37,7 @@ export default function PlatformPage() {
   }
 
   const current = state.orgs.find(o => o.id === state.currentOrgId)!
+  const platformFavicon = state.platform?.faviconUrl
   const cfg: OrgConfig = current.config ?? {}
 
   const patchConfig = (p: Partial<OrgConfig>) =>
@@ -62,6 +65,43 @@ export default function PlatformPage() {
         </div>
         <button className="btn primary" onClick={() => setAdding(true)}><I.plus /> Add school</button>
       </div>
+
+      <Card title="Platform branding">
+        <Field label="Browser tab icon (favicon)">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ width: 32, height: 32, borderRadius: 7, overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              {platformFavicon
+                ? <StoredImage src={platformFavicon} alt="Tab icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<span className="tiny">—</span>} />
+                : <span className="tiny">—</span>}
+            </span>
+            <input type="file" accept="image/*" disabled={!storageEnabled()} onChange={async e => {
+              const f = e.target.files?.[0]
+              if (!f) return
+              const res = await uploadToStorage(f, 'platform')
+              if ('error' in res) { toast(`Icon upload failed: ${res.error}`, 'error'); return }
+              const prev = platformFavicon
+              setState({ platform: { ...(state.platform ?? {}), faviconUrl: res.ref } })
+              toast('Tab icon updated for every school')
+              removeFromStorage(prev)
+            }} />
+            {platformFavicon && (
+              <button className="btn sm ghost" onClick={() => {
+                const prev = platformFavicon
+                setState({ platform: { ...(state.platform ?? {}), faviconUrl: undefined } })
+                removeFromStorage(prev)
+                toast('Tab icon reset to the default')
+              }}>Remove</button>
+            )}
+          </div>
+          <p className="tiny" style={{ marginTop: 6, marginBottom: 0 }}>
+            {storageEnabled()
+              ? 'Used for every school on the platform — this is your Command Center mark, not a school logo. Square images work best. Schools set their own logo under Settings → Organization branding. Tabs already open may need a refresh.'
+              : 'Needs cloud file storage to be connected first — see STORAGE_SETUP.md.'}
+          </p>
+        </Field>
+      </Card>
+
+      <div style={{ height: 16 }} />
 
       <Card title={`Schools (${state.orgs.length})`} pad={false}>
         <div className="tbl-wrap">

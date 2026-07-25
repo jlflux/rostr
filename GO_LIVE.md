@@ -99,11 +99,11 @@ staff.
 
 Two places to configure things without code:
 
-- **Settings** — per school: branding, users & roles, sponsorship tiers, benefit
-  templates, appearance, backups.
-- **Platform** (platform owner only) — across schools: add/remove schools, switch
-  between them, and per school switch sections on/off, rename them, and set a
-  default visual style.
+- **Settings** — per school: school logo, colors, users & roles, sponsorship tiers,
+  benefit templates, appearance, backups.
+- **Platform** (platform owner only) — across schools: the browser-tab icon used by
+  every school, add/remove schools, switch between them, and per school switch
+  sections on/off, rename them, and set a default visual style.
 
 Still code-only: page copy beyond section names (subtitles, empty-state text,
 button labels), dashboard card selection, and nav ordering.

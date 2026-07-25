@@ -259,11 +259,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
     document.title = `${org.shortName} Command Center — Powered by Flux Athletics`
   }, [org])
 
-  // Swap the browser-tab icon for the org's uploaded favicon (or its logo).
-  // Uploads live in a private bucket, so the URL has to be signed and re-signed;
-  // the default icon from index.html stays put until one resolves.
+  // Swap in the platform's tab icon. This is product branding, so it's the same
+  // for every school — deliberately not the school logo. Uploads live in a private
+  // bucket, so the URL has to be signed; the default icon from index.html stays
+  // put until one resolves, and remains the fallback when none is set.
   useEffect(() => {
-    const ref = org.faviconUrl ?? org.logoUrl
+    const ref = state.platform?.faviconUrl
     if (!ref) return
     let active = true
     resolveSignedUrl(ref).then(url => {
@@ -272,7 +273,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       if (link) link.href = url
     })
     return () => { active = false }
-  }, [org.faviconUrl, org.logoUrl])
+  }, [state.platform?.faviconUrl])
 
   return (
     <div className="shell">
