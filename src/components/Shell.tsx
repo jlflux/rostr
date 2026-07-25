@@ -210,7 +210,10 @@ function UserMenu() {
 type NavItem = { to: string; label: string; icon: () => JSX.Element; end?: boolean; section: import('../lib/derive').Section }
 
 /** Preferred order for the mobile bottom bar — action-oriented, not the full list. */
-const MOBILE_TAB_ORDER = ['/', '/calendar', '/events', '/requests']
+const MOBILE_TAB_ORDER = ['/', '/events', '/sponsors', '/requests']
+
+/** Shorter labels for the tab bar, where width is tight. Sidebar keeps its own. */
+const MOBILE_LABELS: Record<string, string> = { '/': 'Home' }
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: I.dashboard, end: true, section: 'dashboard' },
@@ -301,7 +304,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <n.icon />
               {n.label === 'Requests' && openReqCount > 0 && <span className="bt-dot">{openReqCount}</span>}
             </span>
-            <span className="bt-label">{n.label}</span>
+            <span className="bt-label">{MOBILE_LABELS[n.to] ?? n.label}</span>
           </NavLink>
         ))}
         <button type="button" className="bottom-tab" onClick={() => setNavOpen(true)} aria-label="More navigation">
