@@ -10,6 +10,7 @@
 //   VITE_SUPABASE_KEY   the project's anon public key (safe to expose in a browser)
 //   VITE_WORKSPACE_ID   optional label for the shared dataset (default "default")
 import type { AppState } from '../types'
+import { getSupabase } from './supabase'
 
 interface CloudConfig { url: string; key: string; workspace: string }
 
@@ -23,8 +24,22 @@ export function cloudConfig(): CloudConfig | null {
 
 export const cloudEnabled = (): boolean => cloudConfig() !== null
 
-function headers(cfg: CloudConfig, extra?: Record<string, string>): Record<string, string> {
-  return { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, 'Content-Type': 'application/json', ...extra }
+// When someone is signed in, use their access token so the database sees an
+// authenticated user (needed once row-level security is tightened to logins).
+// Falls back to the anon key, which is all that's needed while access is open.
+async function authToken(): Promise<string | null> {
+  const sb = getSupabase()
+  if (!sb) return null
+  try {
+    const { data } = await sb.auth.getSession()
+    return data.session?.access_token ?? null
+  } catch {
+    return null
+  }
+}
+
+function headers(cfg: CloudConfig, token: string | null, extra?: Record<string, string>): Record<string, string> {
+  return { apikey: cfg.key, Authorization: `Bearer ${token ?? cfg.key}`, 'Content-Type': 'application/json', ...extra }
 }
 
 // Fetch with a human-readable error that includes the HTTP status and Supabase's
@@ -58,7 +73,7 @@ export async function cloudPull(): Promise<{ data: AppState; updatedAt: string }
   if (!cfg) return null
   const res = await request(
     `${cfg.url}/rest/v1/workspaces?id=eq.${encodeURIComponent(cfg.workspace)}&select=data,updated_at`,
-    { headers: headers(cfg) },
+    { headers: headers(cfg, await authToken()) },
   )
   const rows = (await res.json()) as { data: AppState; updated_at: string }[]
   return rows.length ? { data: rows[0].data, updatedAt: rows[0].updated_at } : null
@@ -71,7 +86,7 @@ export async function cloudPush(state: AppState): Promise<void> {
   const body = [{ id: cfg.workspace, data: state, updated_at: new Date().toISOString() }]
   await request(`${cfg.url}/rest/v1/workspaces?on_conflict=id`, {
     method: 'POST',
-    headers: headers(cfg, { Prefer: 'resolution=merge-duplicates,return=minimal' }),
+    headers: headers(cfg, await authToken(), { Prefer: 'resolution=merge-duplicates,return=minimal' }),
     body: JSON.stringify(body),
   })
 }

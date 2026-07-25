@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
+import { useAuth } from '../lib/auth'
 import { I } from './icons'
 import { Avatar } from './ui'
 import { ROLE_LABELS, canView, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
@@ -164,6 +165,7 @@ function Notifications() {
 
 function UserMenu() {
   const { state, setState, toast } = useStore()
+  const { enabled: authOn, email, signOut } = useAuth()
   const [open, setOpen] = useState(false)
   const ref = useClickOutside(() => setOpen(false))
   const user = state.users.find(u => u.id === state.currentUserId)!
@@ -177,18 +179,27 @@ function UserMenu() {
           <div className="menu-head">
             <div style={{ fontWeight: 700 }}>{user.name}</div>
             <div className="tiny">{user.title} · {ROLE_LABELS[user.role]}</div>
+            {authOn && email && <div className="tiny muted">{email}</div>}
           </div>
-          <div className="menu-label">View as (demo)</div>
-          {state.users.filter(u => u.status !== 'revoked').slice(0, 16).map(u => (
-            <button key={u.id} className={`menu-item ${u.id === state.currentUserId ? 'active' : ''}`}
-              onClick={() => { setState({ currentUserId: u.id }); setOpen(false); toast(`Now viewing as ${u.name} (${ROLE_LABELS[u.role]})`) }}>
-              <Avatar user={u} size="sm" />
-              <span>
-                <div style={{ fontWeight: 600 }}>{u.name}</div>
-                <div className="tiny">{ROLE_LABELS[u.role]}</div>
-              </span>
+          {authOn ? (
+            <button className="menu-item" onClick={async () => { setOpen(false); await signOut() }}>
+              <span><div style={{ fontWeight: 600 }}>Sign out</div></span>
             </button>
-          ))}
+          ) : (
+            <>
+              <div className="menu-label">View as (demo)</div>
+              {state.users.filter(u => u.status !== 'revoked').slice(0, 16).map(u => (
+                <button key={u.id} className={`menu-item ${u.id === state.currentUserId ? 'active' : ''}`}
+                  onClick={() => { setState({ currentUserId: u.id }); setOpen(false); toast(`Now viewing as ${u.name} (${ROLE_LABELS[u.role]})`) }}>
+                  <Avatar user={u} size="sm" />
+                  <span>
+                    <div style={{ fontWeight: 600 }}>{u.name}</div>
+                    <div className="tiny">{ROLE_LABELS[u.role]}</div>
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

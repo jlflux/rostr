@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { StoreProvider, useStore } from './store/store'
+import { AuthProvider } from './lib/auth'
+import { LoginGate } from './components/LoginGate'
 import { Shell } from './components/Shell'
 import { canView, type Section } from './lib/derive'
 import Dashboard from './pages/Dashboard'
@@ -25,7 +27,9 @@ function Guard({ section, children }: { section: Section; children: React.ReactN
 export default function App() {
   return (
     <StoreProvider>
+      <AuthProvider>
       <BrowserRouter>
+        <LoginGate>
         <Shell>
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -45,7 +49,9 @@ export default function App() {
             <Route path="*" element={<Dashboard />} />
           </Routes>
         </Shell>
+        </LoginGate>
       </BrowserRouter>
+      </AuthProvider>
     </StoreProvider>
   )
 }
