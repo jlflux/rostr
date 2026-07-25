@@ -8,8 +8,10 @@ interface AuthState {
   ready: boolean
   /** Email of the signed-in person, or null. */
   email: string | null
-  /** Send a magic sign-in link to an email. Returns an error message on failure. */
+  /** Email a one-time sign-in code (and link). Returns an error message on failure. */
   signIn: (email: string) => Promise<string | null>
+  /** Finish sign-in with the emailed code. Returns an error message on failure. */
+  verifyCode: (email: string, code: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
 
@@ -48,6 +50,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: { emailRedirectTo: window.location.origin },
       })
       return error ? error.message : null
+    },
+    verifyCode: async (addr: string, code: string) => {
+      const sb = getSupabase()
+      if (!sb) return 'Login is not configured.'
+      // Strip spaces/dashes so a pasted code works regardless of formatting.
+      const token = code.replace(/[\s-]/g, '')
+      const email = addr.trim()
+      // Supabase uses the "Magic Link" template for a known email and "Confirm
+      // signup" for a first-time one, and each needs a different verify type.
+      // Try the sign-in type first, then fall back rather than blaming the user.
+      const first = await sb.auth.verifyOtp({ email, token, type: 'email' })
+      if (!first.error) return null
+      const second = await sb.auth.verifyOtp({ email, token, type: 'signup' })
+      if (!second.error) return null
+      return first.error.message
     },
     signOut: async () => {
       await getSupabase()?.auth.signOut()

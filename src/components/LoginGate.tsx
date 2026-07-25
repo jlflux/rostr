@@ -41,54 +41,106 @@ function Centered({ children }: { children: React.ReactNode }) {
 
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 14, padding: 28, boxShadow: '0 10px 40px rgba(0,0,0,0.12)' }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 28, boxShadow: 'var(--shadow-lg)' }}>
       {children}
     </div>
   )
 }
 
-function LoginScreen({ orgName }: { orgName?: string }) {
-  const { signIn } = useAuth()
-  const [addr, setAddr] = useState('')
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
-  const [error, setError] = useState<string | null>(null)
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 12px', margin: '6px 0 12px', borderRadius: 8,
+  border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'inherit',
+}
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
+function LoginScreen({ orgName }: { orgName?: string }) {
+  const { signIn, verifyCode } = useAuth()
+  const [addr, setAddr] = useState('')
+  const [code, setCode] = useState('')
+  /** 'idle' → asking for email; 'sent' → asking for the emailed code. */
+  const [step, setStep] = useState<'idle' | 'sent'>('idle')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [resent, setResent] = useState(false)
+
+  async function sendCode(e?: React.FormEvent) {
+    e?.preventDefault()
     if (!addr.trim()) return
-    setStatus('sending')
-    setError(null)
+    setBusy(true); setError(null)
     const err = await signIn(addr)
-    if (err) { setError(err); setStatus('error') } else { setStatus('sent') }
+    setBusy(false)
+    if (err) setError(err)
+    else { setStep('sent'); setCode('') }
+  }
+
+  async function submitCode(e: React.FormEvent) {
+    e.preventDefault()
+    if (!code.trim()) return
+    setBusy(true); setError(null)
+    const err = await verifyCode(addr, code)
+    setBusy(false)
+    // On success the auth listener swaps this screen out for the app.
+    if (err) setError(err === 'Token has expired or is invalid'
+      ? 'That code is incorrect or has expired. Check the latest email, or send a new code.'
+      : err)
   }
 
   return (
     <Centered>
       <Panel>
         <h1 style={{ fontSize: 20, margin: '0 0 4px' }}>{orgName ?? 'Sign in'}</h1>
-        <p className="small muted" style={{ marginTop: 0 }}>Sign in to continue.</p>
-        {status === 'sent' ? (
-          <div style={{ padding: '12px 14px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--bg)' }}>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Check your email</div>
-            <div className="small muted">We sent a sign-in link to <strong>{addr}</strong>. Open it on this device to finish signing in. You can close this tab.</div>
-            <button className="btn sm" style={{ marginTop: 12 }} onClick={() => { setStatus('idle'); setAddr('') }}>Use a different email</button>
-          </div>
+        <p className="small muted" style={{ marginTop: 0 }}>
+          {step === 'sent' ? `Enter the code we emailed to ${addr}.` : 'Sign in to continue.'}
+        </p>
+
+        {step === 'sent' ? (
+          <form onSubmit={submitCode}>
+            <label className="small" style={{ fontWeight: 600 }}>6-digit code</label>
+            <input
+              // one-time-code lets phones offer the code straight from the email.
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              autoFocus
+              required
+              value={code}
+              onChange={e => { setCode(e.target.value); setError(null) }}
+              placeholder="123456"
+              style={{ ...inputStyle, fontSize: '1.35rem', letterSpacing: '0.32em', textAlign: 'center', fontWeight: 600 }}
+            />
+            <button className="btn primary" type="submit" disabled={busy} style={{ width: '100%' }}>
+              {busy ? 'Verifying…' : 'Sign in'}
+            </button>
+            {error && <p className="tiny" style={{ color: 'var(--danger)', margin: '10px 0 0' }}>{error}</p>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button type="button" className="btn sm" disabled={busy}
+                onClick={async () => { await sendCode(); setResent(true) }}>
+                {resent ? 'Code re-sent' : 'Send a new code'}
+              </button>
+              <button type="button" className="btn sm ghost"
+                onClick={() => { setStep('idle'); setCode(''); setError(null); setResent(false) }}>
+                Change email
+              </button>
+            </div>
+            <p className="tiny muted" style={{ marginTop: 12, marginBottom: 0 }}>
+              The same email also contains a sign-in link, which works if you're in a web browser.
+            </p>
+          </form>
         ) : (
-          <form onSubmit={submit}>
+          <form onSubmit={sendCode}>
             <label className="small" style={{ fontWeight: 600 }}>Email address</label>
             <input
               type="email"
+              autoComplete="email"
               autoFocus
               required
               value={addr}
-              onChange={e => setAddr(e.target.value)}
+              onChange={e => { setAddr(e.target.value); setError(null) }}
               placeholder="you@school.org"
-              style={{ width: '100%', padding: '10px 12px', margin: '6px 0 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--bg)', color: 'inherit' }}
+              style={inputStyle}
             />
-            <button className="btn primary" type="submit" disabled={status === 'sending'} style={{ width: '100%' }}>
-              {status === 'sending' ? 'Sending…' : 'Email me a sign-in link'}
+            <button className="btn primary" type="submit" disabled={busy} style={{ width: '100%' }}>
+              {busy ? 'Sending…' : 'Email me a sign-in code'}
             </button>
-            {status === 'error' && <p className="tiny" style={{ color: 'var(--danger)', marginBottom: 0 }}>{error}</p>}
+            {error && <p className="tiny" style={{ color: 'var(--danger)', margin: '10px 0 0' }}>{error}</p>}
             <p className="tiny muted" style={{ marginTop: 12, marginBottom: 0 }}>
               Access is by invitation. If your email hasn't been added by an administrator, you won't be able to sign in.
             </p>

@@ -3,8 +3,18 @@
 Once cloud sync is working (see `SUPABASE_SETUP.md`), you can require people to
 **sign in** before they see anything. Logins are **invitation-only**: a person can
 only use the app if an administrator has added their email under
-**Settings → Users & roles**. Everyone signs in with a one-time link emailed to
-them — no passwords to manage.
+**Settings → Users & roles**. Everyone signs in with a **6-digit code emailed to
+them** — no passwords to manage, reset, or forget.
+
+### Why a code instead of just a link
+
+A tap-to-sign-in link opens in the phone's **web browser**. If someone installed
+this app to their home screen, the sign-in then lands in the browser and the
+installed app stays logged out — a dead end. A code avoids that entirely: the
+person reads it from their email and types it into whichever app they're standing
+in. On most phones the keyboard will even offer the code for one-tap entry.
+
+The emails contain both, so the link still works for anyone using a browser.
 
 Logins stay **off** until you set one flag, and you can always turn them back off,
 so you can't get permanently locked out. Do the steps in order.
@@ -36,11 +46,41 @@ now or later — you can add people any time.
 In your Supabase dashboard:
 
 1. **Authentication → Providers → Email**: make sure **Email** is enabled (it is by
-   default). This is what sends the magic sign-in links.
+   default). This is what sends the sign-in emails.
 2. **Authentication → URL Configuration**: set **Site URL** to your live site
    address (your Vercel URL, e.g. `https://your-app.vercel.app`), and add that same
    URL under **Redirect URLs**. This lets the sign-in link bring people back to
    your site. *(If you skip this, the link may bounce to the wrong place.)*
+
+## Step 2b — Put the 6-digit code in the email ⚠️ REQUIRED
+
+**Do not skip this.** People sign in by typing a 6-digit code, which matters
+especially in the installed app (see "Why a code" below). Supabase only puts that
+code in the email if the template asks for it — by default the email contains just
+a link, and the code box will never work.
+
+Go to **Authentication → Email Templates** and edit **both** of these:
+
+- **Magic Link** — used when the email already has a Supabase account
+- **Confirm signup** — used the first time a given email signs in
+
+Supabase picks between them automatically, so both need the code or first-time
+sign-ins will fail. Paste this as the body of each:
+
+```html
+<h2>Your sign-in code</h2>
+<p>Enter this code in the app:</p>
+<p style="font-size:28px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p>
+<p>This code expires in one hour. If you didn't request it, you can ignore this email.</p>
+<hr>
+<p>Or, if you're in a web browser, <a href="{{ .ConfirmationURL }}">tap here to sign in</a>.</p>
+```
+
+`{{ .Token }}` is the code and `{{ .ConfirmationURL }}` is the link. Keeping both
+means the code works everywhere and the link still works in a browser.
+
+*(Optional: **Authentication → Providers → Email** lets you change how long a code
+stays valid. One hour is the default and is a reasonable setting.)*
 
 ## Step 3 — Let the app reach data whether or not someone is logged in
 
@@ -66,10 +106,15 @@ Then **redeploy**. Now the site asks everyone to sign in.
 ## Step 5 — Test it
 
 1. Open the site — you should see the sign-in screen.
-2. Enter your email, click the link that arrives, and confirm you land in the app
-   with your normal access.
-3. (Recommended) On your phone or an incognito window, sign in as another staff
-   member you added, and confirm they only see what their role allows.
+2. Enter your email. Check that the email that arrives **contains a 6-digit code**.
+   If it only has a link, Step 2b wasn't applied to the right template — go back
+   and edit both templates.
+3. Type the code into the app and confirm you land in with your normal access.
+4. **Test the installed app specifically**, since that's the case a link can't
+   handle: add the site to your phone's home screen, open it from there, and sign
+   in with a code. You should end up signed in *inside* the installed app.
+5. (Recommended) Sign in as another staff member you added and confirm they only
+   see what their role allows.
 
 If something's wrong, set `VITE_REQUIRE_LOGIN` back to `false` and redeploy — you're
 immediately back to open access, and no data is lost.
@@ -104,5 +149,11 @@ After this, a signed-out visitor can't reach the data at all.
   lockdown (data readable only by emails on your list) is a further step we can add
   when you want it. For an internal tool this level is a big, sensible improvement
   to start with.
-- **Passwords instead of links?** We can switch to email + password login if you'd
-  prefer — just ask.
+- **Codes not arriving?** Supabase's built-in email sender is rate-limited and meant
+  for testing (a handful of messages per hour). Once real staff are using this,
+  connect a proper sender under **Authentication → SMTP Settings**, or codes will
+  silently stop going out during a busy stretch.
+- **Passwords instead?** We can add email + password login if you'd still prefer it.
+  Worth knowing: the emailed code already solves the installed-app problem, and it
+  removes password resets, weak passwords, and shared logins as things you'd have to
+  manage. If you want passwords for a different reason, say the word.
