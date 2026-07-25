@@ -6,11 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Command Center — Powered by Flux Athletics</title>
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#ea1a45" />
+    <!-- Match the app chrome so the system bars blend in, per light/dark. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#191d26" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- 'default' lets iOS pick readable status-bar text for the current theme.
+         'black-translucent' forces white text, which disappears against the light
+         topbar. Layout still reserves the notch via env(safe-area-inset-*) in CSS. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Command Center" />
   </head>
   <body>

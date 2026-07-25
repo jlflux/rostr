@@ -207,7 +207,12 @@ function UserMenu() {
   )
 }
 
-const NAV: { to: string; label: string; icon: () => JSX.Element; end?: boolean; section: import('../lib/derive').Section }[] = [
+type NavItem = { to: string; label: string; icon: () => JSX.Element; end?: boolean; section: import('../lib/derive').Section }
+
+/** Preferred order for the mobile bottom bar — action-oriented, not the full list. */
+const MOBILE_TAB_ORDER = ['/', '/calendar', '/events', '/requests']
+
+const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: I.dashboard, end: true, section: 'dashboard' },
   { to: '/calendar', label: 'Calendar', icon: I.calendar, section: 'calendar' },
   { to: '/events', label: 'Events', icon: I.event, section: 'events' },
@@ -232,6 +237,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const me = state.users.find(u => u.id === state.currentUserId)!
   const nav = NAV.filter(n => canView(me.role, n.section))
   const openReqCount = openRequests(state).filter(r => r.status === 'submitted').length
+  // Bottom bar shows the four most useful destinations on a phone, then "More".
+  // Priority items the current role can't see are skipped and topped up from the
+  // rest of their nav, so every role gets a full bar.
+  const tabs = [
+    ...MOBILE_TAB_ORDER.map(to => nav.find(n => n.to === to)).filter((n): n is NavItem => !!n),
+    ...nav.filter(n => !MOBILE_TAB_ORDER.includes(n.to)),
+  ].slice(0, 4)
 
   useEffect(() => {
     document.documentElement.style.setProperty('--brand', org.theme.primary)
@@ -281,6 +293,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </header>
         <main className="content" ref={contentRef}><div className="content-inner">{children}</div></main>
       </div>
+      <nav className="bottom-nav" aria-label="Main">
+        {tabs.map(n => (
+          <NavLink key={n.to} to={n.to} end={n.end}
+            className={({ isActive }) => `bottom-tab${isActive ? ' active' : ''}`}>
+            <span className="bt-icon">
+              <n.icon />
+              {n.label === 'Requests' && openReqCount > 0 && <span className="bt-dot">{openReqCount}</span>}
+            </span>
+            <span className="bt-label">{n.label}</span>
+          </NavLink>
+        ))}
+        <button type="button" className="bottom-tab" onClick={() => setNavOpen(true)} aria-label="More navigation">
+          <span className="bt-icon"><I.menu /></span>
+          <span className="bt-label">More</span>
+        </button>
+      </nav>
       <div className="toasts">
         {toasts.map(t => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'success' ? <I.check /> : <I.warn />} {t.msg}</div>)}
       </div>
