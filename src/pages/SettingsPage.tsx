@@ -100,6 +100,31 @@ export default function SettingsPage() {
                 {org.logoUrl && isAdmin && <button className="btn sm ghost" onClick={() => { const prev = org.logoUrl; updateOrg({ logoUrl: undefined }); removeFromStorage(prev); toast('Logo removed') }}>Remove</button>}
               </div>
             </Field>
+            <Field label="Browser tab icon (favicon)">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 32, height: 32, borderRadius: 7, overflow: 'hidden', flexShrink: 0, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                  {(org.faviconUrl ?? org.logoUrl)
+                    ? <StoredImage src={org.faviconUrl ?? org.logoUrl} alt="Tab icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<span className="tiny">—</span>} />
+                    : <span className="tiny">—</span>}
+                </span>
+                <input type="file" accept="image/*" disabled={!isAdmin || !storageEnabled()} onChange={async e => {
+                  const f = e.target.files?.[0]
+                  if (!f) return
+                  const res = await uploadToStorage(f, 'favicons')
+                  if ('error' in res) { toast(`Icon upload failed: ${res.error}`, 'error'); return }
+                  const prev = org.faviconUrl
+                  updateOrg({ faviconUrl: res.ref })
+                  toast('Tab icon updated')
+                  removeFromStorage(prev)
+                }} />
+                {org.faviconUrl && isAdmin && <button className="btn sm ghost" onClick={() => { const prev = org.faviconUrl; updateOrg({ faviconUrl: undefined }); removeFromStorage(prev); toast('Tab icon reset') }}>Remove</button>}
+              </div>
+              <p className="tiny" style={{ marginTop: 6, marginBottom: 0 }}>
+                {storageEnabled()
+                  ? 'Square images work best. Without one, the school logo is used. Tabs already open may need a refresh.'
+                  : 'Needs cloud file storage to be connected first — see STORAGE_SETUP.md.'}
+              </p>
+            </Field>
             {!isAdmin && <p className="tiny">Only school administrators can edit branding. Switch to an Administrator (e.g. Rick Baguley) via the profile menu to try it.</p>}
           </Card>
 

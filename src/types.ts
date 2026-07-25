@@ -26,6 +26,8 @@ export interface Organization {
   initials: string
   /** Uploaded school logo (data URL in the prototype) */
   logoUrl?: string
+  /** Uploaded browser-tab icon. Falls back to the logo when unset. */
+  faviconUrl?: string
 }
 
 export interface User {

@@ -3,6 +3,7 @@ import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { useAuth } from '../lib/auth'
 import { StoredImage } from './StoredImage'
+import { resolveSignedUrl } from '../lib/storage'
 import { I } from './icons'
 import { Avatar } from './ui'
 import { ROLE_LABELS, canView, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
@@ -256,6 +257,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     document.title = `${org.shortName} Command Center — Powered by Flux Athletics`
   }, [org])
+
+  // Swap the browser-tab icon for the org's uploaded favicon (or its logo).
+  // Uploads live in a private bucket, so the URL has to be signed and re-signed;
+  // the default icon from index.html stays put until one resolves.
+  useEffect(() => {
+    const ref = org.faviconUrl ?? org.logoUrl
+    if (!ref) return
+    let active = true
+    resolveSignedUrl(ref).then(url => {
+      if (!active || !url) return
+      const link = document.getElementById('app-favicon') as HTMLLinkElement | null
+      if (link) link.href = url
+    })
+    return () => { active = false }
+  }, [org.faviconUrl, org.logoUrl])
 
   return (
     <div className="shell">
