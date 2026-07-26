@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, Collection } from '../types'
 import { buildSeedState } from '../data/seed'
-import { cloudApplyChange, cloudEnabled, cloudPull, cloudPush, type RecordChange } from '../lib/cloud'
+import { cloudApplyChange, cloudEnabled, cloudPull, cloudPush, withoutSessionState, type RecordChange } from '../lib/cloud'
 import { todayISO } from '../lib/dates'
 
 export type CloudStatus = 'off' | 'idle' | 'syncing' | 'saved' | 'error'
@@ -164,8 +164,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return
         if (res) {
           setFullState(prev => {
-            const applied = { ...migrate(res.data), currentUserId: prev.currentUserId }
-            lastSyncedJson.current = JSON.stringify(applied)
+            // Keep this device's own view: which school and which user are per-person,
+            // so a pull must never adopt whatever another device last wrote.
+            const applied = { ...migrate(res.data), currentUserId: prev.currentUserId, currentOrgId: prev.currentOrgId }
+            lastSyncedJson.current = JSON.stringify(withoutSessionState(applied))
             return applied
           })
         }
@@ -185,7 +187,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // falls back to saving the whole document, so no edit is ever silently dropped.
   useEffect(() => {
     if (!cloudEnabled() || !cloudReady.current) return
-    const json = JSON.stringify(state)
+    // Only the shared portion counts as a change — switching schools or
+    // changing who you're viewing as is local and must not trigger an upload.
+    const json = JSON.stringify(withoutSessionState(state))
     if (json === lastSyncedJson.current) return
     setCloudStatus('syncing')
     clearTimeout(pushTimer.current)
@@ -202,7 +206,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
         }
         if (full) await cloudPush(stateRef.current)
-        lastSyncedJson.current = JSON.stringify(stateRef.current)
+        lastSyncedJson.current = JSON.stringify(withoutSessionState(stateRef.current))
         setCloudError(null)
         setCloudStatus('saved')
       } catch (e: unknown) {
@@ -308,7 +312,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCloudStatus('syncing')
     try {
       await cloudPush(stateRef.current)
-      lastSyncedJson.current = JSON.stringify(stateRef.current)
+      lastSyncedJson.current = JSON.stringify(withoutSessionState(stateRef.current))
       cloudReady.current = true
       setCloudError(null)
       setCloudStatus('saved')
@@ -325,8 +329,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const res = await cloudPull()
       if (res) {
         setFullState(prev => {
-          const applied = { ...migrate(res.data), currentUserId: prev.currentUserId }
-          lastSyncedJson.current = JSON.stringify(applied)
+          // Keep this device's own view: which school and which user are per-person,
+            // so a pull must never adopt whatever another device last wrote.
+            const applied = { ...migrate(res.data), currentUserId: prev.currentUserId, currentOrgId: prev.currentOrgId }
+          lastSyncedJson.current = JSON.stringify(withoutSessionState(applied))
           return applied
         })
       }

@@ -122,11 +122,23 @@ export async function cloudApplyChange(change: RecordChange): Promise<boolean> {
   }
 }
 
+/**
+ * Which school you're viewing and who you're signed in as are *per person*, but
+ * they live on the same object as the shared data. Strip them before anything is
+ * sent, or whoever saves last writes their view onto everyone else.
+ */
+export function withoutSessionState(state: AppState): AppState {
+  const shared = { ...state }
+  delete (shared as Partial<AppState>).currentOrgId
+  delete (shared as Partial<AppState>).currentUserId
+  return shared
+}
+
 /** Upsert the shared dataset (last write wins). Used for bulk/structural saves. */
 export async function cloudPush(state: AppState): Promise<void> {
   const cfg = cloudConfig()
   if (!cfg) return
-  const body = [{ id: cfg.workspace, data: state, updated_at: new Date().toISOString() }]
+  const body = [{ id: cfg.workspace, data: withoutSessionState(state), updated_at: new Date().toISOString() }]
   await request(`${cfg.url}/rest/v1/workspaces?on_conflict=id`, {
     method: 'POST',
     headers: headers(cfg, await authToken(), { Prefer: 'resolution=merge-duplicates,return=minimal' }),
