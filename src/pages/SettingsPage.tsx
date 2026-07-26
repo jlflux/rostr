@@ -341,8 +341,11 @@ export default function SettingsPage() {
     </>
   )
 
+  /** Edit this school's own record. Going through `update` keeps it a
+   *  record-level save — using setState here re-uploaded the whole workspace on
+   *  every keystroke in these fields. */
   function updateOrg(patch: Partial<Organization>) {
-    setState({ orgs: state.orgs.map(o => (o.id === org.id ? { ...o, ...patch } : o)) })
+    update('orgs', org.id, patch)
   }
 }
 

@@ -79,6 +79,52 @@ export async function cloudPull(): Promise<{ data: AppState; updatedAt: string }
   return rows.length ? { data: rows[0].data, updatedAt: rows[0].updated_at } : null
 }
 
+/** A stored row: one school's document, or the platform row. */
+export interface WorkspaceRow {
+  id: string
+  data: unknown
+  updated_at: string
+}
+
+/**
+ * Fetch every row this user is allowed to read — deliberately with no id filter.
+ *
+ * The row policy grants access when the signed-in email appears in *that row's*
+ * user list, so the database returns exactly the schools this person belongs to.
+ * That's the whole membership lookup: no directory table, no extra query.
+ */
+export async function cloudPullAll(): Promise<WorkspaceRow[]> {
+  const cfg = cloudConfig()
+  if (!cfg) return []
+  const res = await request(
+    `${cfg.url}/rest/v1/workspaces?select=id,data,updated_at`,
+    { headers: headers(cfg, await authToken()) },
+  )
+  return (await res.json()) as WorkspaceRow[]
+}
+
+/** Write one row (one school's document, or the platform row). */
+export async function cloudPushRow(rowId: string, data: unknown): Promise<void> {
+  const cfg = cloudConfig()
+  if (!cfg) return
+  const body = [{ id: rowId, data, updated_at: new Date().toISOString() }]
+  await request(`${cfg.url}/rest/v1/workspaces?on_conflict=id`, {
+    method: 'POST',
+    headers: headers(cfg, await authToken(), { Prefer: 'resolution=merge-duplicates,return=minimal' }),
+    body: JSON.stringify(body),
+  })
+}
+
+/** Remove a school's row entirely — used when a school is deleted. */
+export async function cloudDeleteRow(rowId: string): Promise<void> {
+  const cfg = cloudConfig()
+  if (!cfg) return
+  await request(`${cfg.url}/rest/v1/workspaces?id=eq.${encodeURIComponent(rowId)}`, {
+    method: 'DELETE',
+    headers: headers(cfg, await authToken(), { Prefer: 'return=minimal' }),
+  })
+}
+
 /** One record-level change, applied server-side instead of re-uploading everything. */
 export interface RecordChange {
   collection: string
@@ -86,6 +132,8 @@ export interface RecordChange {
   /** update: the changed fields. add: the whole record. remove: ignored. */
   patch: Record<string, unknown>
   op: 'update' | 'add' | 'remove'
+  /** Which school's row this belongs to. Without it a change can hit the wrong row. */
+  orgId?: string
 }
 
 /**
@@ -106,7 +154,9 @@ export async function cloudApplyChange(change: RecordChange): Promise<boolean> {
       method: 'POST',
       headers: headers(cfg, await authToken()),
       body: JSON.stringify({
-        p_workspace: cfg.workspace,
+        // Route to the row that owns this record. Falls back to the single
+        // shared workspace so this still works before the split is migrated.
+        p_workspace: change.orgId ?? cfg.workspace,
         p_collection: change.collection,
         p_id: change.id,
         p_patch: change.op === 'remove' ? {} : change.patch,

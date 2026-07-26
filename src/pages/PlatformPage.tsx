@@ -26,7 +26,7 @@ function orgStats(state: ReturnType<typeof useStore>['state'], orgId: string) {
  * schools on the platform and configure what each one sees.
  */
 export default function PlatformPage() {
-  const { state, setState, add, update, remove, toast, setSkin } = useStore()
+  const { state, setState, add, update, removeOrg, toast, setSkin } = useStore()
   const me = currentUser(state)
   const [adding, setAdding] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Organization | null>(null)
@@ -263,16 +263,10 @@ export default function PlatformPage() {
 
       {confirmDelete && (
         <ConfirmDialog title={`Delete ${confirmDelete.name}?`} danger confirmLabel="Delete school"
-          message={`This permanently removes the school and everything belonging to it — its users, teams, events, sponsors and assets. This cannot be undone. Export a backup from Settings first if you're unsure.`}
+          message={`This permanently removes the school and everything belonging to it — every user, team, event, sponsor, agreement, request, task, asset and opponent. This cannot be undone. Export a backup from Settings first if you're unsure.`}
           onConfirm={() => {
-            const id = confirmDelete.id
-            // Remove the org's records so nothing is left orphaned in the data.
-            for (const u of state.users.filter(x => x.orgId === id)) remove('users', u.id)
-            for (const t of state.teams.filter(x => x.orgId === id)) remove('teams', t.id)
-            for (const e of state.events.filter(x => x.orgId === id)) remove('events', e.id)
-            for (const s of state.sponsors.filter(x => x.orgId === id)) remove('sponsors', s.id)
-            for (const a of state.assets.filter(x => x.orgId === id)) remove('assets', a.id)
-            remove('orgs', id)
+            // Deletes the school's whole row, so nothing is left behind.
+            void removeOrg(confirmDelete.id)
             toast(`${confirmDelete.name} deleted`)
           }}
           onClose={() => setConfirmDelete(null)} />

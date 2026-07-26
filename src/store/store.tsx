@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, Collection } from '../types'
 import { buildSeedState } from '../data/seed'
-import { cloudApplyChange, cloudEnabled, cloudPull, cloudPush, withoutSessionState, type RecordChange } from '../lib/cloud'
+import { cloudApplyChange, cloudDeleteRow, cloudEnabled, cloudPullAll, cloudPushRow, withoutSessionState, type RecordChange, type WorkspaceRow } from '../lib/cloud'
+import { ORG_COLLECTIONS, PLATFORM_ROW_ID, mergeDocuments, orgIdForRecord, splitState, stableJson, type OrgDocument, type PlatformDocument } from '../lib/workspace'
 import { todayISO } from '../lib/dates'
 
 export type CloudStatus = 'off' | 'idle' | 'syncing' | 'saved' | 'error'
@@ -33,6 +34,8 @@ export interface Store {
   /** Insert a record at the front of a collection */
   add: (collection: Collection, record: AnyEntity) => void
   remove: (collection: Collection, id: string) => void
+  /** Delete a school and every record belonging to it. */
+  removeOrg: (orgId: string) => Promise<void>
   setState: (patch: Partial<AppState>) => void
   logActivity: (text: string, link?: string) => void
   resetDemo: () => void
@@ -134,6 +137,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state)
   useEffect(() => { stateRef.current = state }, [state])
   const lastSyncedJson = useRef<string | null>(null)
+  /** Last saved contents per row, so unchanged schools aren't re-uploaded. */
+  const rowBaselines = useRef(new Map<string, string>())
   const cloudReady = useRef(false)
   const pushTimer = useRef<ReturnType<typeof setTimeout>>()
   /** Record-level edits waiting to be sent, in the order they happened. */
@@ -142,9 +147,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const needsFullPush = useRef(false)
 
   const queueChange = (c: RecordChange) => { changeQueue.current.push(c) }
+  /** Which school's row a record edit belongs to; falls back to the school in view. */
+  const targetOrg = (collection: string, id: string, record?: Record<string, unknown>) =>
+    orgIdForRecord(stateRef.current, collection, id, record) ?? stateRef.current.currentOrgId
   /** logActivity also mutates a collection, so route it through the queue too. */
   const queueActivity = (rec: Record<string, unknown>) =>
-    queueChange({ collection: 'activity', id: String(rec.id), patch: rec, op: 'add' })
+    queueChange({ collection: 'activity', id: String(rec.id), patch: rec, op: 'add', orgId: String(rec.orgId ?? '') || undefined })
 
   useEffect(() => {
     try {
@@ -154,19 +162,66 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state])
 
-  // On startup, if a cloud project is connected, load the shared dataset once.
+  /**
+   * Turn the rows the server returned into one combined state.
+   *
+   * Handles both storage shapes so the split can be rolled out safely: if
+   * per-school rows exist they win, otherwise the older single combined row is
+   * used. That means reverting the deploy falls back to the untouched original.
+   */
+  const applyRows = useCallback((rows: WorkspaceRow[]): AppState | null => {
+    const platformRow = rows.find(r => r.id === PLATFORM_ROW_ID)
+    // A per-school row is one named after the school it contains.
+    const perSchool = rows.filter(r =>
+      r.id !== PLATFORM_ROW_ID &&
+      (r.data as OrgDocument | undefined)?.orgs?.[0]?.id === r.id)
+    const legacy = rows.filter(r => r.id !== PLATFORM_ROW_ID && !perSchool.includes(r))
+
+    let shared: Partial<AppState> | null = null
+    if (perSchool.length) {
+      shared = mergeDocuments(
+        perSchool.map(r => r.data as OrgDocument),
+        platformRow?.data as PlatformDocument | undefined,
+      ) as Partial<AppState>
+      rowBaselines.current.clear()
+      for (const r of perSchool) rowBaselines.current.set(r.id, stableJson(r.data))
+      if (platformRow) rowBaselines.current.set(PLATFORM_ROW_ID, stableJson(platformRow.data))
+    } else if (legacy.length) {
+      shared = legacy[0].data as Partial<AppState>   // not split yet
+    }
+    return shared ? (shared as AppState) : null
+  }, [])
+
+  /** Save each school's row, skipping any whose contents haven't changed. */
+  const pushChangedRows = useCallback(async (s: AppState) => {
+    const { orgDocs, platformDoc } = splitState(s)
+    for (const [orgId, doc] of orgDocs) {
+      const json = stableJson(doc)
+      if (rowBaselines.current.get(orgId) === json) continue
+      await cloudPushRow(orgId, doc)
+      rowBaselines.current.set(orgId, json)
+    }
+    const pj = stableJson(platformDoc)
+    if (rowBaselines.current.get(PLATFORM_ROW_ID) !== pj) {
+      await cloudPushRow(PLATFORM_ROW_ID, platformDoc)
+      rowBaselines.current.set(PLATFORM_ROW_ID, pj)
+    }
+  }, [])
+
+  // On startup, if a cloud project is connected, load every row we may read.
   useEffect(() => {
     if (!cloudEnabled()) return
     let cancelled = false
     setCloudStatus('syncing')
-    cloudPull()
-      .then(res => {
+    cloudPullAll()
+      .then(rows => {
         if (cancelled) return
-        if (res) {
+        const shared = applyRows(rows)
+        if (shared) {
           setFullState(prev => {
             // Keep this device's own view: which school and which user are per-person,
             // so a pull must never adopt whatever another device last wrote.
-            const applied = { ...migrate(res.data), currentUserId: prev.currentUserId, currentOrgId: prev.currentOrgId }
+            const applied = { ...migrate(shared), currentUserId: prev.currentUserId, currentOrgId: prev.currentOrgId }
             lastSyncedJson.current = JSON.stringify(withoutSessionState(applied))
             return applied
           })
@@ -176,7 +231,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((e: unknown) => { cloudReady.current = true; setCloudError(String((e as Error)?.message ?? e)); setCloudStatus('error') })
     return () => { cancelled = true }
-  }, [])
+  }, [applyRows])
 
   // Auto-save to the cloud (debounced) after the first load.
   //
@@ -205,7 +260,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (!(await cloudApplyChange(c))) { full = true; break }
           }
         }
-        if (full) await cloudPush(stateRef.current)
+        if (full) await pushChangedRows(stateRef.current)
         lastSyncedJson.current = JSON.stringify(withoutSessionState(stateRef.current))
         setCloudError(null)
         setCloudStatus('saved')
@@ -255,17 +310,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ...s,
       [collection]: (s[collection] as unknown as T[]).map(r => (r.id === id ? { ...r, ...patch } : r)),
     }))
-    queueChange({ collection, id, patch: patch as Record<string, unknown>, op: 'update' })
+    queueChange({ collection, id, patch: patch as Record<string, unknown>, op: 'update', orgId: targetOrg(collection, id, patch) })
   }, [])
 
   const add = useCallback(<T extends Entity>(collection: Collection, record: T) => {
     setFullState(s => ({ ...s, [collection]: [record, ...(s[collection] as unknown as T[])] }))
-    queueChange({ collection, id: record.id, patch: record as Record<string, unknown>, op: 'add' })
+    queueChange({ collection, id: record.id, patch: record as Record<string, unknown>, op: 'add', orgId: targetOrg(collection, record.id, record) })
   }, [])
 
   const remove = useCallback((collection: Collection, id: string) => {
     setFullState(s => ({ ...s, [collection]: (s[collection] as Entity[]).filter(r => r.id !== id) }))
-    queueChange({ collection, id, patch: {}, op: 'remove' })
+    queueChange({ collection, id, patch: {}, op: 'remove', orgId: targetOrg(collection, id) })
+  }, [])
+
+  /**
+   * Remove a school and everything belonging to it, locally and in storage.
+   *
+   * Deleting the school's row takes all of its data with it — which also fixes
+   * the old piecemeal delete that left agreements, requests, tasks, opponents,
+   * activity, tier settings and benefit templates orphaned.
+   */
+  const removeOrg = useCallback(async (orgId: string) => {
+    setFullState(s => {
+      const next = { ...s, orgs: s.orgs.filter(o => o.id !== orgId) } as Record<string, unknown>
+      for (const key of ORG_COLLECTIONS) {
+        const rows = (s as unknown as Record<string, unknown>)[key] as { orgId: string }[]
+        next[key] = (rows ?? []).filter(r => r.orgId !== orgId)
+      }
+      return next as unknown as AppState
+    })
+    rowBaselines.current.delete(orgId)
+    if (cloudEnabled()) {
+      try { await cloudDeleteRow(orgId) } catch { /* row may not exist yet */ }
+    }
   }, [])
 
   /** Top-level/structural edits can't be expressed as one record, so these
@@ -311,7 +388,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (!cloudEnabled()) return
     setCloudStatus('syncing')
     try {
-      await cloudPush(stateRef.current)
+      await pushChangedRows(stateRef.current)
       lastSyncedJson.current = JSON.stringify(withoutSessionState(stateRef.current))
       cloudReady.current = true
       setCloudError(null)
@@ -326,12 +403,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (!cloudEnabled()) return
     setCloudStatus('syncing')
     try {
-      const res = await cloudPull()
-      if (res) {
+      const shared = applyRows(await cloudPullAll())
+      if (shared) {
         setFullState(prev => {
           // Keep this device's own view: which school and which user are per-person,
-            // so a pull must never adopt whatever another device last wrote.
-            const applied = { ...migrate(res.data), currentUserId: prev.currentUserId, currentOrgId: prev.currentOrgId }
+          // so a pull must never adopt whatever another device last wrote.
+          const applied = { ...migrate(shared), currentUserId: prev.currentUserId, currentOrgId: prev.currentOrgId }
           lastSyncedJson.current = JSON.stringify(withoutSessionState(applied))
           return applied
         })
@@ -346,7 +423,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const value = useMemo<Store>(() => ({
-    state, update, add, remove, setState, logActivity, resetDemo, exportState, importState,
+    state, update, add, remove, removeOrg, setState, logActivity, resetDemo, exportState, importState,
     cloudEnabled: cloudEnabled(), cloudStatus, cloudError, cloudPushNow, cloudPullNow,
     theme, setTheme: setThemeState, skin, setSkin, toast, toasts,
   }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, skin, setSkin, toast, toasts])
