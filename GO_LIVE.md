@@ -48,6 +48,28 @@ someone could still read everything by going around the app.
 - [ ] Enter real teams, events, sponsors
 - [ ] Export a backup from Settings → Data & backup once it's loaded
 
+## Phase 5b — Separate each school's data ❗ REQUIRED BEFORE A SECOND REAL SCHOOL
+
+Staff are now locked to their own school: only the platform owner (plus anyone
+granted it on the Platform page) sees the school switcher, and anyone else is
+snapped back to their own school even if the saved state is tampered with.
+
+**But that lock is in the interface, not in the data.** Every school still lives
+in one JSON document, and the browser downloads the whole thing. A Homewood coach
+who opened browser devtools could read Riverbend's records out of it. That's fine
+while every school on the platform is yours, and not fine the moment a paying
+client's data is in there next to another client's.
+
+The fix is smaller than Phase 6: give **each school its own row** in the
+`workspaces` table (row id = the school's id) instead of one shared row. The
+security policy already written in `AUTH_SETUP.md` generalizes to this for free —
+it grants access when your email appears in *that row's* user list, so Homewood
+staff could only ever fetch the Homewood row. Work needed is on the app side:
+loading and saving per school, and keeping the school registry in its own row.
+
+- [ ] Split the workspace document into one row per school
+- [ ] Verify a school user's browser can only fetch their own school's row
+
 ## Phase 6 — Multi-user data model 🔧 THE REAL "BACKEND" WORK
 
 Not required to go live with a small number of people. Required before a full staff

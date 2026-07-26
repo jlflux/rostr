@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore, SKINS, type Skin } from '../store/store'
-import { CONFIGURABLE_SECTIONS, SECTION_LABELS, can, type Section } from '../lib/derive'
+import { CONFIGURABLE_SECTIONS, ROLE_LABELS, SECTION_LABELS, type Section } from '../lib/derive'
 import { Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { StoredImage } from '../components/StoredImage'
 import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
@@ -136,6 +136,53 @@ export default function PlatformPage() {
                             onClick={() => setConfirmDelete(o)}><I.x /></button>
                         )}
                       </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <div style={{ height: 16 }} />
+
+      <Card title="Who can switch schools" pad={false}>
+        <div className="card-pad" style={{ paddingBottom: 0 }}>
+          <p className="small muted" style={{ marginTop: 0 }}>
+            Everyone else is locked to their own school and never sees that other
+            schools exist. Grant this only to people who work across schools with
+            you — as platform owner you always have it.
+          </p>
+        </div>
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>Person</th><th>School</th><th>Role</th><th>Can switch</th></tr></thead>
+            <tbody>
+              {state.users.filter(u => u.status !== 'revoked').map(u => {
+                const owner = u.role === 'platform_owner'
+                const on = owner || u.canSwitchOrgs === true
+                return (
+                  <tr key={u.id}>
+                    <td>
+                      <span className="primary">{u.name}</span>
+                      <div className="tiny">{u.email}</div>
+                    </td>
+                    <td>{state.orgs.find(o => o.id === u.orgId)?.shortName ?? <span className="muted">—</span>}</td>
+                    <td>{ROLE_LABELS[u.role] ?? u.role}</td>
+                    <td>
+                      {owner ? (
+                        <Badge tone="navy">Always</Badge>
+                      ) : (
+                        <button className="tier-toggle" data-on={on} onClick={() => {
+                          update('users', u.id, { canSwitchOrgs: !on })
+                          toast(!on
+                            ? `${u.name} can now switch schools`
+                            : `${u.name} is now locked to ${state.orgs.find(o => o.id === u.orgId)?.shortName ?? 'their school'}`)
+                        }}>
+                          {on ? 'Yes' : 'No'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )

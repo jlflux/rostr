@@ -6,7 +6,7 @@ import { StoredImage } from './StoredImage'
 import { resolveSignedUrl } from '../lib/storage'
 import { I } from './icons'
 import { Avatar } from './ui'
-import { ROLE_LABELS, SECTION_LABELS, canSee, sectionLabel, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
+import { ROLE_LABELS, SECTION_LABELS, canSee, canSwitchOrgs, sectionLabel, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
 import { fmtDateTime } from '../lib/dates'
 
 function useClickOutside(onClose: () => void) {
@@ -93,6 +93,17 @@ function OrgSelector() {
   const [open, setOpen] = useState(false)
   const ref = useClickOutside(() => setOpen(false))
   const org = state.orgs.find(o => o.id === state.currentOrgId)!
+  const me = state.users.find(u => u.id === state.currentUserId)!
+
+  // School staff never see other schools exist — no dropdown, just their name.
+  if (!canSwitchOrgs(me)) {
+    return (
+      <span className="org-select" style={{ cursor: 'default' }}>
+        <span className="org-name">{org.shortName}</span>
+      </span>
+    )
+  }
+
   return (
     <div style={{ position: 'relative' }} ref={ref}>
       <button className="org-select" onClick={() => setOpen(v => !v)} aria-haspopup="true" aria-expanded={open}>
@@ -231,7 +242,7 @@ const NAV: NavItem[] = [
 ]
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { state, toasts, theme, setTheme } = useStore()
+  const { state, setState, toasts, theme, setTheme } = useStore()
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
   const contentRef = useRef<HTMLElement>(null)
@@ -258,6 +269,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     document.title = `${org.shortName} Command Center — Powered by Flux Athletics`
   }, [org])
+
+  // Keep anyone without switch rights on their own school. This is the backstop
+  // for every route into a wrong org — a stale saved currentOrgId, a shared
+  // device, or switch access being revoked while they're signed in.
+  useEffect(() => {
+    if (!canSwitchOrgs(me) && me.orgId && state.currentOrgId !== me.orgId) {
+      setState({ currentOrgId: me.orgId })
+    }
+  }, [me, state.currentOrgId, setState])
 
   // Swap in the platform's tab icon. This is product branding, so it's the same
   // for every school — deliberately not the school logo. Uploads live in a private

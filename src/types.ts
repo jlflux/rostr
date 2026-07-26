@@ -53,6 +53,12 @@ export interface User {
   teamIds?: string[]
   /** 'revoked' users keep their history but can't sign in */
   status?: 'active' | 'revoked'
+  /**
+   * Lets this person move between schools. Platform owners always can; everyone
+   * else is pinned to their own school unless this is granted on the Platform
+   * page. Off by default, so school staff can never see another school.
+   */
+  canSwitchOrgs?: boolean
 }
 
 export type RosterStatus = 'complete' | 'in_progress' | 'not_started'

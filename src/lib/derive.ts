@@ -302,6 +302,15 @@ export const SECTION_LABELS: Record<Section, string> = {
   reports: 'Reports', settings: 'Settings', platform: 'Platform',
 }
 
+/**
+ * Whether this person may move between schools. Platform owners always can;
+ * anyone else needs it granted explicitly, so school staff stay pinned to their
+ * own school.
+ */
+export function canSwitchOrgs(user: { role: string; canSwitchOrgs?: boolean }): boolean {
+  return user.role === 'platform_owner' || user.canSwitchOrgs === true
+}
+
 /** What this school calls a section (falls back to the default name). */
 export function sectionLabel(state: AppState, section: Section): string {
   const org = state.orgs.find(o => o.id === state.currentOrgId)
