@@ -34,8 +34,9 @@ Right now the database policy is `using (true)`: **anyone who knows the project 
 can read and write everything**, signed in or not. That was deliberate so setup
 couldn't lock you out, but it must be tightened before real data goes in.
 
-- [ ] Run the Step 6 SQL in `AUTH_SETUP.md` (restrict to signed-in users)
-- [ ] Confirm a signed-out browser can no longer load data
+- [ ] Run the Step 6 SQL in `AUTH_SETUP.md` — it makes your Users list the
+      database's gate, so a stranger who signs themselves up still gets nothing
+- [ ] Confirm a signed-out/incognito browser can no longer load data
 
 **Do Phase 3 and 4 together.** Logins are cosmetic until the database is locked —
 someone could still read everything by going around the app.

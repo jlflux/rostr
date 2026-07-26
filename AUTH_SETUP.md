@@ -166,19 +166,67 @@ Then **redeploy**. Now the site asks everyone to sign in.
 If something's wrong, set `VITE_REQUIRE_LOGIN` back to `false` and redeploy — you're
 immediately back to open access, and no data is lost.
 
-## Step 6 — Lock the data down (do this once logins work)
+## Step 6 — Lock the data down ❗ (do this once logins work)
 
-Until now, the data could still be read by anyone with the site address. Once
-you've confirmed logins work, tighten it so **only signed-in people** can read or
-write. In **SQL Editor**, run:
+Until now, the data can be read by anyone who knows the project address, signed in
+or not. This step closes that.
+
+The obvious rule — "allow any signed-in user" — isn't enough on its own, because
+**anyone can create a Supabase account by requesting a code for their own email.**
+They'd be blocked by the app's front door but could still reach the database
+directly. So instead, the rule below makes **your Users list the actual gate**: an
+account only gets data if its email is on the list in Settings → Users & roles and
+isn't revoked.
+
+Run this in **SQL Editor**:
 
 ```sql
+drop policy if exists "workspace open access" on workspaces;
 drop policy if exists "workspace transition access" on workspaces;
-create policy "workspace authenticated access" on workspaces
-  for all to authenticated using (true) with check (true);
+drop policy if exists "workspace authenticated access" on workspaces;
+
+create policy "workspace member access" on workspaces
+  for all to authenticated
+  using (
+    -- Safety valve: the platform owner can always get in, even if the user
+    -- list is ever emptied or damaged. Change this to your own email.
+    lower(auth.jwt() ->> 'email') = 'jl@fluxmedia.org'
+    or exists (
+      select 1 from jsonb_array_elements(coalesce(data -> 'users', '[]'::jsonb)) u
+      where lower(u ->> 'email') = lower(auth.jwt() ->> 'email')
+        and coalesce(u ->> 'status', 'active') <> 'revoked'
+    )
+  )
+  with check (
+    lower(auth.jwt() ->> 'email') = 'jl@fluxmedia.org'
+    or exists (
+      select 1 from jsonb_array_elements(coalesce(data -> 'users', '[]'::jsonb)) u
+      where lower(u ->> 'email') = lower(auth.jwt() ->> 'email')
+        and coalesce(u ->> 'status', 'active') <> 'revoked'
+    )
+  );
 ```
 
-After this, a signed-out visitor can't reach the data at all.
+This was tested against a real Postgres with the same table shape. Verified
+behavior:
+
+| Who | Result |
+| --- | --- |
+| Signed out | No access |
+| You (the owner) | Full access, always |
+| Staff on the Users list | Full access — email matching ignores capitalization |
+| Staff added without a status set | Full access |
+| Staff you **revoked** | No access |
+| Stranger who made their own Supabase account | **No read, write, delete, or insert** |
+| Owner, if the user list were emptied or damaged | Still gets in (safety valve) |
+
+### After running it
+
+1. Open the site in a private/incognito window. You should get the sign-in screen
+   and **no data**.
+2. Sign in normally and confirm everything still loads.
+3. Revoking someone in Settings → Users & roles now cuts off their database access
+   as well, not just their view of the app.
 
 ---
 
@@ -191,11 +239,9 @@ After this, a signed-out visitor can't reach the data at all.
 - **Roles today.** Everyone you add gets the role you pick, and the app already
   enforces what each role can see. Right now give trusted staff an admin or editor
   role; fine-grained per-person tweaks can come later.
-- **One remaining nuance.** With the Step 6 policy, anyone who creates *any*
-  Supabase account is technically "authenticated," so the strongest possible
-  lockdown (data readable only by emails on your list) is a further step we can add
-  when you want it. For an internal tool this level is a big, sensible improvement
-  to start with.
+- **Revoking really revokes.** With the Step 6 policy, the Users list is the
+  database's gate too — so revoking someone cuts off their data access, not just
+  their menu. It takes effect the next time their app talks to the server.
 - **Codes not arriving?** By far the most likely cause is Step 2c: without your own
   email provider connected, Supabase only delivers to members of your Supabase
   organization, and silently drops everything else. Second most likely is the
