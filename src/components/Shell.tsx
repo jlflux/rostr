@@ -6,7 +6,7 @@ import { StoredImage } from './StoredImage'
 import { resolveSignedUrl } from '../lib/storage'
 import { I } from './icons'
 import { Avatar } from './ui'
-import { ROLE_LABELS, SECTION_LABELS, canSee, canSwitchOrgs, sectionLabel, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
+import { ROLE_LABELS, SECTION_LABELS, canSee, canSwitchOrgs, currentOrg, currentUser, isResolving, openRequests, overdueTasks, sectionLabel, unfilledSlots } from '../lib/derive'
 import { fmtDateTime, todayISO } from '../lib/dates'
 
 function useClickOutside(onClose: () => void) {
@@ -30,7 +30,7 @@ function GlobalSearch() {
   const navigate = useNavigate()
   const ref = useClickOutside(() => { setOpen(false); setMobileOpen(false) })
 
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const results = useMemo(() => {
     const term = q.trim().toLowerCase()
     if (term.length < 2) return []
@@ -92,8 +92,8 @@ function OrgSelector() {
   const { state, setState, toast } = useStore()
   const [open, setOpen] = useState(false)
   const ref = useClickOutside(() => setOpen(false))
-  const org = state.orgs.find(o => o.id === state.currentOrgId)!
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const org = currentOrg(state)
+  const me = currentUser(state)
 
   // School staff never see other schools exist — no dropdown, just their name.
   if (!canSwitchOrgs(me)) {
@@ -181,7 +181,7 @@ function UserMenu() {
   const { enabled: authOn, email, signOut } = useAuth()
   const [open, setOpen] = useState(false)
   const ref = useClickOutside(() => setOpen(false))
-  const user = state.users.find(u => u.id === state.currentUserId)!
+  const user = currentUser(state)
   return (
     <div style={{ position: 'relative' }} ref={ref}>
       <button style={{ background: 'none', border: 'none', padding: 0, display: 'flex' }} onClick={() => setOpen(v => !v)} aria-label="User menu">
@@ -249,8 +249,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => setNavOpen(false), [location.pathname])
   // Start every page at the top rather than inheriting the previous scroll position
   useEffect(() => { contentRef.current?.scrollTo(0, 0) }, [location.pathname])
-  const org = state.orgs.find(o => o.id === state.currentOrgId)!
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const org = currentOrg(state)
+  const me = currentUser(state)
   const nav = NAV.filter(n => canSee(state, me.role, n.section))
   const openReqCount = openRequests(state).filter(r => r.status === 'submitted').length
   // Bottom bar shows the four most useful destinations on a phone, then "More".
@@ -294,6 +294,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
     })
     return () => { active = false }
   }, [state.platform?.faviconUrl])
+
+  // Neither the user nor the school could be resolved — the data hasn't arrived,
+  // or what arrived doesn't contain them. Say so plainly instead of rendering a
+  // half-built shell (which is what used to throw and blank the screen).
+  if (isResolving(state)) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}>
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Loading your school…</div>
+          <p className="small muted" style={{ maxWidth: 320 }}>
+            If this doesn't clear in a few seconds, reload the page. Your data is safe.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="shell">

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, broadcastState, can, canSee, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
+import { ROLE_LABELS, broadcastState, can, canSee, currentUser, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateLong, fmtTime, relDue, todayISO } from '../lib/dates'
 import { resolveSignedUrl } from '../lib/storage'
 import { StoredImage } from '../components/StoredImage'
@@ -28,7 +28,7 @@ export default function EventDetail() {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const e = state.events.find(x => x.id === id)
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const editable = can(me.role, 'edit')
   const conflicts = useMemo(() => venueConflicts(state), [state])
 
@@ -198,7 +198,7 @@ export default function EventDetail() {
 
 function Overview({ e, teamName, editable }: { e: SportEvent; teamName?: string; editable: boolean }) {
   const { state } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const showSponsors = canSee(state, me.role, 'sponsors')
   const score = visibleScore(state, e)
   const opp = state.opponents.find(o => o.id === e.opponentId && !o.deletedAt)

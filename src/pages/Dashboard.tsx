@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/store'
-import {
-  canSee, eventsThisWeek, missingSponsorAssets, openRequests, overdueTasks,
-  sponsorshipTotals, unfilledSlots, unpaidAgreements, upcomingContent,
-} from '../lib/derive'
+import { canSee, currentUser, eventsThisWeek, missingSponsorAssets, openRequests, overdueTasks, sponsorshipTotals, unfilledSlots, unpaidAgreements, upcomingContent } from '../lib/derive'
 import { Avatar, Badge, Card, Empty, PriorityBadge, StatCard, StatusBadge } from '../components/ui'
 import { EventRow } from '../components/EventRow'
 import { fmtDate, fmtDateLong, fmtDateTime, fmtMoney, fmtTime, relDue, todayISO } from '../lib/dates'
@@ -11,7 +8,7 @@ import { I } from '../components/icons'
 
 export default function Dashboard() {
   const { state, update, remove, toast } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const showSponsors = canSee(state, me.role, 'sponsors')
   const showRequests = canSee(state, me.role, 'requests')
   const isStaff = me.role === 'event_staff'

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, can, requests as allRequests } from '../lib/derive'
+import { ROLE_LABELS, can, currentUser, requests as allRequests } from '../lib/derive'
 import { fmtDate, fmtDateTime, relDue, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Field, Modal, PriorityBadge, SearchBox, Seg, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
@@ -25,7 +25,7 @@ export default function RequestsPage() {
   const [status, setStatus] = useState<'open' | 'completed' | 'all'>('open')
   const [creating, setCreating] = useState(params.get('new') === '1')
   useEffect(() => { if (params.get('new') === '1') { setCreating(true); setParams({}, { replace: true }) } }, [params, setParams])
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const isCoach = me.role === 'coach'
 
   const rows = useMemo(() => {
@@ -106,7 +106,7 @@ export default function RequestsPage() {
 
 function RequestForm({ onClose, onSave }: { onClose: () => void; onSave: (r: CoachRequest) => void }) {
   const { state } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const myTeams = me.role === 'coach' ? state.teams.filter(t => me.teamIds?.includes(t.id)) : state.teams
   const [form, setForm] = useState({
     teamId: myTeams[0]?.id ?? '', type: 'General Communications' as RequestType, title: '', description: '',
@@ -177,7 +177,7 @@ export function RequestDetail() {
   const { state, update, logActivity, toast } = useStore()
   const [note, setNote] = useState('')
   const r = state.requests.find(x => x.id === id)
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   if (!r) return <Card><Empty icon="?" title="Request not found" /></Card>
 
   const coach = state.users.find(u => u.id === r.coachId)

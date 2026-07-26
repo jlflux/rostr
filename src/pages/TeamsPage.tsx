@@ -1,7 +1,7 @@
 import React, { Fragment, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, broadcastState, can, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
+import { ROLE_LABELS, broadcastState, can, currentUser, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { splitCsvLine } from './EventsPage'
@@ -28,7 +28,7 @@ const SPORT_SEASON: Record<string, Team['season']> = {
 export default function TeamsPage() {
   const { state } = useStore()
   const teams = allTeams(state)
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const editable = can(me.role, 'edit')
   const [adding, setAdding] = useState(false)
   const sports = [...new Set(teams.map(t => t.sport))].sort((a, b) => a.localeCompare(b))
@@ -289,7 +289,7 @@ function RosterTab({ team }: { team: Team }) {
   const [draft, setDraft] = useState({ number: '', name: '', grade: '', position: '' })
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [editingAthlete, setEditingAthlete] = useState<Athlete | null>(null)
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const editable = can(me.role, 'edit')
   const roster = team.roster ?? []
   const toggleExpand = (id: string) => setExpanded(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -575,7 +575,7 @@ function AthleteModal({ athlete, onClose, onSave }: { athlete: Athlete; onClose:
 
 function SocialsEditor({ team }: { team: Team }) {
   const { state, update, toast } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ instagram: team.socials?.instagram ?? '', x: team.socials?.x ?? '', facebook: team.socials?.facebook ?? '' })
   if (!can(me.role, 'edit')) return null
@@ -604,7 +604,7 @@ function SocialsEditor({ team }: { team: Team }) {
 
 function CoachingStaffCard({ team }: { team: Team }) {
   const { state, update, toast } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const editable = can(me.role, 'edit')
   const [editing, setEditing] = useState(false)
   const [headId, setHeadId] = useState(team.coachIds[0] ?? '')
@@ -670,7 +670,7 @@ function CoachingStaffCard({ team }: { team: Team }) {
 
 function ImportantDatesCard({ team }: { team: Team }) {
   const { state, update, toast } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const editable = can(me.role, 'edit')
   const [editing, setEditing] = useState(false)
   const [dates, setDates] = useState(team.importantDates)

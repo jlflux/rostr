@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, can, fulfillmentForTier, fulfillmentProgress, newBuyDefaults, sponsorAgreements, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTrade, sponsors as allSponsors, teamEarmarks, tierSetting } from '../lib/derive'
+import { PIPELINE_STAGES, can, currentUser, fulfillmentForTier, fulfillmentProgress, newBuyDefaults, sponsorAgreements, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTrade, sponsors as allSponsors, teamEarmarks, tierSetting } from '../lib/derive'
 import { fmtMoney, todayISO } from '../lib/dates'
 import { Badge, Empty, Field, Modal, Progress, SearchBox, Seg, SortTh, StatCard, StatusBadge, sortRows, useSort } from '../components/ui'
 import { I } from '../components/icons'
@@ -28,7 +28,7 @@ export default function SponsorsPage() {
   const [payment, setPayment] = useState('')
   const [creating, setCreating] = useState<false | 'sponsor' | 'prospect'>(false)
   const [view, setView] = useState<'committed' | 'pipeline' | 'earmarks'>('committed')
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const totals = sponsorProgramTotals(state)
   const editable = can(me.role, 'edit')
   const pipeline = allSponsors(state).filter(s => s.stage !== 'committed')

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { activeOpponents, can, eventTitle, trashedOpponents } from '../lib/derive'
+import { activeOpponents, can, currentUser, eventTitle, trashedOpponents } from '../lib/derive'
 import { addDays, fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Badge, Card, Empty, Field, Modal, SearchBox } from '../components/ui'
 import { I } from '../components/icons'
@@ -28,7 +28,7 @@ export default function OpponentsPage() {
   const [creating, setCreating] = useState(false)
   const [showTrash, setShowTrash] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const editable = can(me.role, 'edit')
   const trash = trashedOpponents(state)
   const toggleSel = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -158,7 +158,7 @@ function OpponentDetailModal({ opponent: o, onClose }: { opponent: Opponent; onC
   const { state, toast } = useStore()
   const [editing, setEditing] = useState(false)
   const { update } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const editable = can(me.role, 'edit')
   const games = state.events.filter(e => e.opponentId === o.id).sort((a, b) => a.date.localeCompare(b.date))
   const logoAsset = state.assets.find(a => a.id === o.logoAssetId)

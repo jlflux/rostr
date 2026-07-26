@@ -1,10 +1,49 @@
-import type { Agreement, AppState, BroadcastCheckItem, CoachRequest, EventStatus, FulfillmentItem, Payment, PaymentStatus, PipelineStage, SponsorTier, SportEvent, Task } from '../types'
+import type { Agreement, AppState, BroadcastCheckItem, CoachRequest, EventStatus, FulfillmentItem, Organization, Payment, PaymentStatus, PipelineStage, SponsorTier, SportEvent, Task, User } from '../types'
 import { addDays, todayISO, weekStart } from './dates'
 
 // ---------- Business/derived logic, kept out of display components ----------
 
 export function orgScoped<T extends { orgId: string }>(state: AppState, rows: T[]): T[] {
   return rows.filter(r => r.orgId === state.currentOrgId)
+}
+
+// ---------- Who am I / which school am I in ----------
+//
+// Every page needs the current user and org. Resolving them with a bare `!`
+// throws the moment the loaded data doesn't contain them — which is exactly what
+// happens when the app fetches a single school with a stale id carried over from
+// a previous session. These resolve with fallbacks instead, so a mismatch shows a
+// loading panel rather than white-screening the app.
+
+const PLACEHOLDER_USER: User = {
+  id: '', orgId: '', name: 'Loading…', email: '', role: 'read_only',
+  title: '', initials: '·', color: '#888888',
+}
+
+const PLACEHOLDER_ORG: Organization = {
+  id: '', name: 'Loading…', shortName: 'Loading…', mascot: '', city: '', state: '',
+  initials: '·', theme: { primary: '#888888', navy: '#444444', accent: '#888888' },
+}
+
+/** The signed-in/selected user, falling back so callers never deal with undefined. */
+export function currentUser(s: AppState): User {
+  return s.users.find(u => u.id === s.currentUserId)
+    ?? s.users.find(u => u.status !== 'revoked')
+    ?? s.users[0]
+    ?? PLACEHOLDER_USER
+}
+
+/** The school being viewed, falling back to the current user's own school. */
+export function currentOrg(s: AppState): Organization {
+  return s.orgs.find(o => o.id === s.currentOrgId)
+    ?? s.orgs.find(o => o.id === currentUser(s).orgId)
+    ?? s.orgs[0]
+    ?? PLACEHOLDER_ORG
+}
+
+/** True while neither could be resolved — data hasn't arrived (or is unusable). */
+export function isResolving(s: AppState): boolean {
+  return currentUser(s) === PLACEHOLDER_USER || currentOrg(s) === PLACEHOLDER_ORG
 }
 
 export const events = (s: AppState) => orgScoped(s, s.events).filter(e => !e.deletedAt)

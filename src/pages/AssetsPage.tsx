@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store/store'
-import { assets as allAssets, can } from '../lib/derive'
+import { assets as allAssets, can, currentUser } from '../lib/derive'
 import { fmtDate, todayISO } from '../lib/dates'
 import { Badge, ConfirmDialog, Empty, Field, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
@@ -47,7 +47,7 @@ export default function AssetsPage() {
   const [uploading, setUploading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Asset | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const canApprove = ['school_admin', 'comms_admin', 'platform_owner'].includes(me.role)
   const canEdit = can(me.role, 'edit')
   const isAdmin = can(me.role, 'admin')

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { activeOpponents, events as allEvents, can, eventTitle, matchupLabel, trashedEvents, visibleScore, visibleStatus } from '../lib/derive'
+import { activeOpponents, can, currentUser, eventTitle, events as allEvents, matchupLabel, trashedEvents, visibleScore, visibleStatus } from '../lib/derive'
 import { addDays, fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, Seg, StatusBadge } from '../components/ui'
 import { I, SportIcon } from '../components/icons'
@@ -18,7 +18,7 @@ export default function EventsPage() {
   const [creating, setCreating] = useState(false)
   const [importing, setImporting] = useState(false)
   const [showTrash, setShowTrash] = useState(false)
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const editable = can(me.role, 'edit')
   const trash = trashedEvents(state)
 

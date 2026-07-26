@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore, type Skin } from '../store/store'
-import { ROLE_LABELS, benefitTemplates, can, tierSettings } from '../lib/derive'
+import { ROLE_LABELS, benefitTemplates, can, currentOrg, currentUser, tierSettings } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { fmtMoney, todayISO } from '../lib/dates'
 import { I } from '../components/icons'
@@ -38,8 +38,8 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url)
     toast('Backup downloaded')
   }
-  const me = state.users.find(u => u.id === state.currentUserId)!
-  const org = state.orgs.find(o => o.id === state.currentOrgId)!
+  const me = currentUser(state)
+  const org = currentOrg(state)
   const isAdmin = can(me.role, 'admin')
 
   return (
@@ -348,7 +348,7 @@ export default function SettingsPage() {
 
 function TierSettingsCard() {
   const { state, update } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const canEdit = can(me.role, 'finance')
   const sports = [...new Set(state.teams.map(t => t.sport))].sort((a, b) => a.localeCompare(b))
   const order = SPONSOR_TIERS
@@ -395,7 +395,7 @@ function TierSettingsCard() {
 
 function BenefitTemplatesCard() {
   const { state, add, update, remove, toast } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const canEdit = can(me.role, 'finance')
   const templates = benefitTemplates(state)
   const [label, setLabel] = useState('')

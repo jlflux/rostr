@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore, SKINS, type Skin } from '../store/store'
-import { CONFIGURABLE_SECTIONS, ROLE_LABELS, SECTION_LABELS, type Section } from '../lib/derive'
+import { CONFIGURABLE_SECTIONS, ROLE_LABELS, SECTION_LABELS, currentOrg, currentUser, type Section } from '../lib/derive'
 import { Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { StoredImage } from '../components/StoredImage'
 import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
@@ -27,7 +27,7 @@ function orgStats(state: ReturnType<typeof useStore>['state'], orgId: string) {
  */
 export default function PlatformPage() {
   const { state, setState, add, update, remove, toast, setSkin } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const [adding, setAdding] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Organization | null>(null)
 
@@ -36,7 +36,7 @@ export default function PlatformPage() {
     return <Card><div className="card-pad">Only the platform owner can open this page.</div></Card>
   }
 
-  const current = state.orgs.find(o => o.id === state.currentOrgId)!
+  const current = currentOrg(state)
   const platformFavicon = state.platform?.faviconUrl
   const cfg: OrgConfig = current.config ?? {}
 

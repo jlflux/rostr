@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import {
-  PIPELINE_STAGES, agreementCash, agreementPaid, allocationLabel, can, eventTitle, fulfillmentForTier, fulfillmentProgress,
-  sponsorAgreements, sponsorAllocations, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsorTrade, teams as allTeams, visibleStatus,
-} from '../lib/derive'
+import { PIPELINE_STAGES, agreementCash, agreementPaid, allocationLabel, can, currentUser, eventTitle, fulfillmentForTier, fulfillmentProgress, sponsorAgreements, sponsorAllocations, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsorTrade, teams as allTeams, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateTime, fmtMoney, fmtTime, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, Modal, Progress, StatusBadge } from '../components/ui'
 import { StageBadge, TierBadge } from './SponsorsPage'
@@ -21,7 +18,7 @@ export default function SponsorDetail() {
   const [buyModal, setBuyModal] = useState<Agreement | 'new' | null>(null)
   const [payingBuy, setPayingBuy] = useState<Agreement | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   const s = state.sponsors.find(x => x.id === id)
   if (!s) return <Card><Empty icon="?" title="Sponsor not found" /></Card>
 

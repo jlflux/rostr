@@ -3,7 +3,7 @@ import { StoreProvider, useStore } from './store/store'
 import { AuthProvider } from './lib/auth'
 import { LoginGate } from './components/LoginGate'
 import { Shell } from './components/Shell'
-import { canSee, type Section } from './lib/derive'
+import { canSee, currentUser, type Section } from './lib/derive'
 import Dashboard from './pages/Dashboard'
 import CalendarPage from './pages/CalendarPage'
 import EventsPage from './pages/EventsPage'
@@ -21,7 +21,7 @@ import PlatformPage from './pages/PlatformPage'
 /** Redirect to the dashboard if the current user's role can't see this section. */
 function Guard({ section, children }: { section: Section; children: React.ReactNode }) {
   const { state } = useStore()
-  const me = state.users.find(u => u.id === state.currentUserId)!
+  const me = currentUser(state)
   return canSee(state, me.role, section) ? <>{children}</> : <Navigate to="/" replace />
 }
 
