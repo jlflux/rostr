@@ -79,7 +79,50 @@ export async function cloudPull(): Promise<{ data: AppState; updatedAt: string }
   return rows.length ? { data: rows[0].data, updatedAt: rows[0].updated_at } : null
 }
 
-/** Upsert the shared dataset (last write wins). */
+/** One record-level change, applied server-side instead of re-uploading everything. */
+export interface RecordChange {
+  collection: string
+  id: string
+  /** update: the changed fields. add: the whole record. remove: ignored. */
+  patch: Record<string, unknown>
+  op: 'update' | 'add' | 'remove'
+}
+
+/**
+ * Send a single changed record for Postgres to merge into the stored document.
+ *
+ * This is what avoids re-uploading the entire workspace on every edit, and
+ * because the merge happens against the row's current contents, two people
+ * editing different records no longer overwrite one another.
+ *
+ * Returns false when the server couldn't apply it (e.g. the record isn't there),
+ * so the caller can fall back to a full save rather than silently losing the edit.
+ */
+export async function cloudApplyChange(change: RecordChange): Promise<boolean> {
+  const cfg = cloudConfig()
+  if (!cfg) return false
+  try {
+    const res = await request(`${cfg.url}/rest/v1/rpc/apply_record_change`, {
+      method: 'POST',
+      headers: headers(cfg, await authToken()),
+      body: JSON.stringify({
+        p_workspace: cfg.workspace,
+        p_collection: change.collection,
+        p_id: change.id,
+        p_patch: change.op === 'remove' ? {} : change.patch,
+        p_op: change.op,
+      }),
+    })
+    return (await res.json()) === true
+  } catch {
+    // The function may not be installed yet (or the request failed). Report "not
+    // applied" so the caller saves the whole document instead — that keeps this
+    // safe to deploy before the SQL is run, and safe if it's ever dropped.
+    return false
+  }
+}
+
+/** Upsert the shared dataset (last write wins). Used for bulk/structural saves. */
 export async function cloudPush(state: AppState): Promise<void> {
   const cfg = cloudConfig()
   if (!cfg) return

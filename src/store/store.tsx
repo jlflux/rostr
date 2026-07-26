@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { AppState, Collection } from '../types'
 import { buildSeedState } from '../data/seed'
-import { cloudEnabled, cloudPull, cloudPush } from '../lib/cloud'
+import { cloudApplyChange, cloudEnabled, cloudPull, cloudPush, type RecordChange } from '../lib/cloud'
 import { todayISO } from '../lib/dates'
 
 export type CloudStatus = 'off' | 'idle' | 'syncing' | 'saved' | 'error'
@@ -136,6 +136,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const lastSyncedJson = useRef<string | null>(null)
   const cloudReady = useRef(false)
   const pushTimer = useRef<ReturnType<typeof setTimeout>>()
+  /** Record-level edits waiting to be sent, in the order they happened. */
+  const changeQueue = useRef<RecordChange[]>([])
+  /** Set when an edit can't be expressed as a single record and needs a full save. */
+  const needsFullPush = useRef(false)
+
+  const queueChange = (c: RecordChange) => { changeQueue.current.push(c) }
+  /** logActivity also mutates a collection, so route it through the queue too. */
+  const queueActivity = (rec: Record<string, unknown>) =>
+    queueChange({ collection: 'activity', id: String(rec.id), patch: rec, op: 'add' })
 
   useEffect(() => {
     try {
@@ -167,17 +176,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true }
   }, [])
 
-  // Auto-save to the cloud (debounced) whenever the data changes after the first load.
+  // Auto-save to the cloud (debounced) after the first load.
+  //
+  // Record-level edits send only the record that changed and let Postgres merge
+  // it, so an edit costs ~1 KB instead of the whole workspace, and two people
+  // editing different records don't overwrite each other. Anything that can't be
+  // expressed as a single record — or a record change the server couldn't apply —
+  // falls back to saving the whole document, so no edit is ever silently dropped.
   useEffect(() => {
     if (!cloudEnabled() || !cloudReady.current) return
     const json = JSON.stringify(state)
     if (json === lastSyncedJson.current) return
     setCloudStatus('syncing')
     clearTimeout(pushTimer.current)
-    pushTimer.current = setTimeout(() => {
-      cloudPush(state)
-        .then(() => { lastSyncedJson.current = json; setCloudError(null); setCloudStatus('saved') })
-        .catch((e: unknown) => { setCloudError(String((e as Error)?.message ?? e)); setCloudStatus('error') })
+    pushTimer.current = setTimeout(async () => {
+      const queued = changeQueue.current
+      changeQueue.current = []
+      const wantsFull = needsFullPush.current
+      needsFullPush.current = false
+      try {
+        let full = wantsFull || queued.length === 0
+        if (!full) {
+          for (const c of queued) {
+            if (!(await cloudApplyChange(c))) { full = true; break }
+          }
+        }
+        if (full) await cloudPush(stateRef.current)
+        lastSyncedJson.current = JSON.stringify(stateRef.current)
+        setCloudError(null)
+        setCloudStatus('saved')
+      } catch (e: unknown) {
+        // Put the work back so a retry or a later full save still carries it.
+        changeQueue.current = [...queued, ...changeQueue.current]
+        needsFullPush.current = true
+        setCloudError(String((e as Error)?.message ?? e))
+        setCloudStatus('error')
+      }
     }, 1200)
     return () => clearTimeout(pushTimer.current)
   }, [state])
@@ -217,28 +251,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ...s,
       [collection]: (s[collection] as unknown as T[]).map(r => (r.id === id ? { ...r, ...patch } : r)),
     }))
+    queueChange({ collection, id, patch: patch as Record<string, unknown>, op: 'update' })
   }, [])
 
   const add = useCallback(<T extends Entity>(collection: Collection, record: T) => {
     setFullState(s => ({ ...s, [collection]: [record, ...(s[collection] as unknown as T[])] }))
+    queueChange({ collection, id: record.id, patch: record as Record<string, unknown>, op: 'add' })
   }, [])
 
   const remove = useCallback((collection: Collection, id: string) => {
     setFullState(s => ({ ...s, [collection]: (s[collection] as Entity[]).filter(r => r.id !== id) }))
+    queueChange({ collection, id, patch: {}, op: 'remove' })
   }, [])
 
+  /** Top-level/structural edits can't be expressed as one record, so these
+   *  still save the whole document. */
   const setState = useCallback((patch: Partial<AppState>) => {
     setFullState(s => ({ ...s, ...patch }))
+    needsFullPush.current = true
   }, [])
 
   const logActivity = useCallback((text: string, link?: string) => {
-    setFullState(s => ({
-      ...s,
-      activity: [
-        { id: `act-${Date.now()}`, orgId: s.currentOrgId, at: new Date(todayISO() + 'T' + new Date().toTimeString().slice(0, 8)).toISOString(), userId: s.currentUserId, text, link },
-        ...s.activity,
-      ],
-    }))
+    const entry = {
+      id: `act-${Date.now()}`,
+      orgId: stateRef.current.currentOrgId,
+      at: new Date().toISOString(),
+      userId: stateRef.current.currentUserId,
+      text,
+      link,
+    }
+    setFullState(s => ({ ...s, activity: [entry, ...s.activity] }))
+    queueActivity(entry as unknown as Record<string, unknown>)
   }, [])
 
   const resetDemo = useCallback(() => {
