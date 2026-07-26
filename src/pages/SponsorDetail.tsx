@@ -148,7 +148,7 @@ export default function SponsorDetail() {
           <Card title="Benefit inventory & fulfillment" pad={false} action={<span className="tiny">{s.benefitSummary}</span>}>
             {allItems.length === 0 && <Empty title="No fulfillment items" hint={editable ? 'Add items below.' : undefined} />}
             {allItems.map(({ item, agId }) => (
-              <FulfillmentRow key={item.id} item={item} editable={editable} today={state.demoToday}
+              <FulfillmentRow key={item.id} item={item} editable={editable} today={todayISO()}
                 buys={ags.map(a => ({ id: a.id, label: a.label ?? 'Sponsorship' }))}
                 onToggle={() => toggleItem(agId, item)}
                 onSave={patch => patchItem(agId, item.id, patch)}
@@ -196,7 +196,7 @@ export default function SponsorDetail() {
               <div key={t.id} className="checklist-item" style={{ padding: '9px 18px' }}>
                 <Check checked={false} disabled={!editable} onChange={() => { update('tasks', t.id, { status: 'done' }); toast('Action item completed') }} />
                 <span className="label">{t.title}<div className="tiny">Due {fmtDate(t.dueDate)}</div></span>
-                {t.dueDate < state.demoToday && <Badge tone="danger">Overdue</Badge>}
+                {t.dueDate < todayISO() && <Badge tone="danger">Overdue</Badge>}
               </div>
             ))}
           </Card>

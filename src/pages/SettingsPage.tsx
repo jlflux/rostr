@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useStore, type Skin } from '../store/store'
 import { ROLE_LABELS, benefitTemplates, can, tierSettings } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
-import { fmtMoney } from '../lib/dates'
+import { fmtMoney, todayISO } from '../lib/dates'
 import { I } from '../components/icons'
 import { StoredImage } from '../components/StoredImage'
 import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
@@ -33,7 +33,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `command-center-backup-${state.demoToday}.json`
+    a.download = `command-center-backup-${todayISO()}.json`
     a.click()
     URL.revokeObjectURL(url)
     toast('Backup downloaded')
@@ -288,11 +288,6 @@ export default function SettingsPage() {
               </select>
             </Field>
             <p className="tiny">Nothing has actually been played yet — scores on past dates are generated for the demo. Turning them off shows the app as it looks before a season starts. Scores you enter yourself always stay visible.</p>
-            <div className="divider" />
-            <Field label="Demo date (the app's 'today')">
-              <input type="date" value={state.demoToday} onChange={e => { setState({ demoToday: e.target.value }); toast(`Demo clock set to ${e.target.value}`) }} />
-            </Field>
-            <p className="tiny">The fall 2026 schedule runs Aug 20 – Nov 21. Moving the demo date changes what counts as past, upcoming, and overdue.</p>
             <div className="divider" />
             <button className="btn danger" onClick={() => setConfirmReset(true)}>Reset demo data</button>
             <p className="tiny" style={{ marginBottom: 0 }}>Clears your local changes and restores the seeded Homewood dataset.</p>

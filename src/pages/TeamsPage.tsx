@@ -2,7 +2,7 @@ import React, { Fragment, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, broadcastState, can, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
-import { fmtDate, fmtTime } from '../lib/dates'
+import { fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { splitCsvLine } from './EventsPage'
 import { I } from '../components/icons'
@@ -49,7 +49,7 @@ export default function TeamsPage() {
             <h2>{sport} <span className="tiny">{group[0].gender && group[0].gender !== 'Coed' ? group[0].gender : ''}</span></h2>
             {group.map(t => {
               const rec = teamRecord(state, t.id)
-              const upcoming = state.events.filter(e => e.teamId === t.id && e.date >= state.demoToday).length
+              const upcoming = state.events.filter(e => e.teamId === t.id && e.date >= todayISO()).length
               const openReqs = state.requests.filter(r => r.teamId === t.id && r.status !== 'completed').length
               const coach = state.users.find(u => u.id === t.coachIds[0])
               return (
@@ -85,7 +85,7 @@ export function TeamDetail() {
   if (!t) return <Card><Empty icon="?" title="Team not found" /></Card>
 
   const events = state.events.filter(e => e.teamId === t.id).sort((a, b) => a.date.localeCompare(b.date))
-  const broadcasts = events.filter(e => e.broadcastStatus !== 'none' && e.date >= state.demoToday)
+  const broadcasts = events.filter(e => e.broadcastStatus !== 'none' && e.date >= todayISO())
   const openReqs = state.requests.filter(r => r.teamId === t.id && r.status !== 'completed')
   const teamAssets = state.assets.filter(a => a.teamId === t.id)
   const rec = teamRecord(state, t.id)

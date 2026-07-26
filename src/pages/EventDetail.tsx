@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, broadcastState, can, canSee, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
-import { fmtDate, fmtDateLong, fmtTime, relDue } from '../lib/dates'
+import { fmtDate, fmtDateLong, fmtTime, relDue, todayISO } from '../lib/dates'
 import { resolveSignedUrl } from '../lib/storage'
 import { StoredImage } from '../components/StoredImage'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, HomeAwayBadge, Modal, PriorityBadge, StatusBadge } from '../components/ui'
@@ -189,7 +189,7 @@ export default function EventDetail() {
       {confirmDelete && (
         <ConfirmDialog title="Delete this event?" danger confirmLabel="Move to trash"
           message={`${eventTitle(e)} will move to the trash for 30 days, then be removed permanently. You can restore it from the Events page any time before then.`}
-          onConfirm={() => { patch({ deletedAt: state.demoToday }); logActivity(`moved event ${eventTitle(e, { short: true })} to the trash`); toast('Event moved to trash'); navigate('/events') }}
+          onConfirm={() => { patch({ deletedAt: todayISO() }); logActivity(`moved event ${eventTitle(e, { short: true })} to the trash`); toast('Event moved to trash'); navigate('/events') }}
           onClose={() => setConfirmDelete(false)} />
       )}
     </>
@@ -606,7 +606,7 @@ function EventTasks({ e, tasks, editable }: { e: SportEvent; tasks: Task[]; edit
       {tasks.length === 0 && <Empty icon="☑" title="Nothing tracked for this event yet" hint="Add operational tasks or social content reminders below." />}
       {tasks.map(t => {
         const assignee = state.users.find(u => u.id === t.assigneeId)
-        const due = relDue(t.dueDate, state.demoToday)
+        const due = relDue(t.dueDate, todayISO())
         return (
           <div key={t.id} className={`checklist-item ${t.status === 'done' ? 'done' : ''}`} style={{ padding: '10px 18px' }}>
             <Check checked={t.status === 'done'} disabled={!editable}
@@ -692,7 +692,7 @@ function Results({ e, editable }: { e: SportEvent; editable: boolean }) {
         ) : (
           <Card title="No result yet">
             <p className="small muted" style={{ margin: 0 }}>
-              {e.date > state.demoToday ? 'This event hasn\'t been played yet.' : 'Enter the final score when the game wraps.'}
+              {e.date > todayISO() ? 'This event hasn\'t been played yet.' : 'Enter the final score when the game wraps.'}
             </p>
           </Card>
         )}

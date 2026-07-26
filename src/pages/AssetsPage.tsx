@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store/store'
 import { assets as allAssets, can } from '../lib/derive'
-import { fmtDate } from '../lib/dates'
+import { fmtDate, todayISO } from '../lib/dates'
 import { Badge, ConfirmDialog, Empty, Field, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
 import { StoredImage } from '../components/StoredImage'
@@ -311,7 +311,7 @@ function UploadForm({ defaultType, defaultTeamId, onClose, onSave }: {
       fileType, sizeKB, storagePath,
       sport: form.sport || undefined, teamId: form.teamId || undefined, sponsorId: form.sponsorId || undefined,
       season: 'Fall 2026', approvalStatus: 'pending', uploadedById: state.currentUserId,
-      uploadedAt: state.demoToday, tint: tints[Math.floor(Math.random() * tints.length)],
+      uploadedAt: todayISO(), tint: tints[Math.floor(Math.random() * tints.length)],
     })
     if (form.type === 'Opponent Logo' && form.opponentId && form.setPrimary) {
       update('opponents', form.opponentId, { logoAssetId: id } as Partial<Opponent>)

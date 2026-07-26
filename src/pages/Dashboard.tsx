@@ -6,7 +6,7 @@ import {
 } from '../lib/derive'
 import { Avatar, Badge, Card, Empty, PriorityBadge, StatCard, StatusBadge } from '../components/ui'
 import { EventRow } from '../components/EventRow'
-import { fmtDate, fmtDateLong, fmtDateTime, fmtMoney, fmtTime, relDue } from '../lib/dates'
+import { fmtDate, fmtDateLong, fmtDateTime, fmtMoney, fmtTime, relDue, todayISO } from '../lib/dates'
 import { I } from '../components/icons'
 
 export default function Dashboard() {
@@ -29,7 +29,7 @@ export default function Dashboard() {
     return (
       <>
         <div className="page-head">
-          <div><h1 className="page-title">Dashboard</h1><p className="page-sub">{fmtDateLong(state.demoToday)}</p></div>
+          <div><h1 className="page-title">Dashboard</h1><p className="page-sub">{fmtDateLong(todayISO())}</p></div>
         </div>
         <Card><Empty icon="◎" title="This organization hasn't been set up yet"
           hint="Riverbend Academy is an empty tenant that shows the platform is multi-school ready. Switch back to Homewood in the organization selector to explore the full demo." /></Card>
@@ -44,7 +44,7 @@ export default function Dashboard() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Good morning, {me.name.split(' ')[0]}</h1>
-          <p className="page-sub">{fmtDateLong(state.demoToday)} · Here's what needs attention.</p>
+          <p className="page-sub">{fmtDateLong(todayISO())} · Here's what needs attention.</p>
         </div>
         <Link to="/calendar" className="btn navy">View calendar</Link>
       </div>
@@ -94,7 +94,7 @@ export default function Dashboard() {
                   <button className="checkbox" onClick={() => { update('tasks', t.id, { status: 'done' }); toast('Task completed') }} aria-label="Complete task" />
                   <span className="label">
                     {t.title}
-                    <div className="tiny">{relDue(t.dueDate, state.demoToday).label} · due {fmtDate(t.dueDate)}</div>
+                    <div className="tiny">{relDue(t.dueDate, todayISO()).label} · due {fmtDate(t.dueDate)}</div>
                   </span>
                   <PriorityBadge p={t.priority} />
                   <Avatar user={assignee} size="sm" />
@@ -114,7 +114,7 @@ export default function Dashboard() {
                     <button className="checkbox" onClick={() => { update('tasks', t.id, { status: 'done' }); toast('Reminder marked complete') }} aria-label="Complete reminder" />
                     <span className="label">
                       {t.title}
-                      <div className="tiny">{t.contentKind} · {relDue(t.dueDate, state.demoToday).label}</div>
+                      <div className="tiny">{t.contentKind} · {relDue(t.dueDate, todayISO()).label}</div>
                     </span>
                     {t.eventId && <Link className="link small" to={`/events/${t.eventId}`}>Event</Link>}
                     <Avatar user={assignee} size="sm" />

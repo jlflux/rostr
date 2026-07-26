@@ -1,12 +1,9 @@
 import rawSchedule from './scheduleEvents.json'
+import { todayISO } from '../lib/dates'
 import type {
   Activity, Agreement, AppState, Asset, Athlete, BenefitTemplate, CoachRequest, FulfillmentItem, Guardian, Opponent, Organization,
   SportEvent, Sponsor, SponsorTier, StaffRole, StaffSlot, Task, Team, TierSetting, User,
 } from '../types'
-
-// The prototype runs on a frozen "demo clock" so the fall 2026 season data
-// reads as an in-progress season. Changeable in Settings.
-export const DEFAULT_DEMO_TODAY = '2026-08-20'
 
 // Deterministic pseudo-random from a string, so seeded data is stable.
 function hash(s: string): number {
@@ -635,7 +632,7 @@ function buildOpponents(events: SportEvent[]): Opponent[] {
 }
 
 export function buildSeedState(): AppState {
-  const demoToday = DEFAULT_DEMO_TODAY
+  const demoToday = todayISO()
   const events = buildEvents(demoToday)
   const opponents = buildOpponents(events)
   const byName = new Map(opponents.map(o => [o.name, o.id]))
@@ -647,7 +644,6 @@ export function buildSeedState(): AppState {
     orgs,
     currentOrgId: 'org-hhs',
     currentUserId: 'u-owner',
-    demoToday,
     showSampleResults: true,
     users,
     teams: teams.map(t => ({ ...t, socials: SOCIALS[t.id], assistantCoaches: ASSISTANTS[t.id], roster: t.id === 't-ffb-jv' ? [] : buildRoster(t) })),

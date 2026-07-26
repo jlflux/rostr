@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { events as allEvents, venueConflicts } from '../lib/derive'
-import { addDays, fmtDate, parseISO, toISO, weekStart } from '../lib/dates'
+import { addDays, fmtDate, parseISO, toISO, todayISO, weekStart } from '../lib/dates'
 import { Badge, Empty, Seg } from '../components/ui'
 import { EventRow } from '../components/EventRow'
 import { I } from '../components/icons'
@@ -20,7 +20,7 @@ const NO_FILTERS: Filters = { sport: '', team: '', type: '', ha: '', venue: '', 
 export default function CalendarPage() {
   const { state } = useStore()
   const [view, setView] = useState<View>('month')
-  const [anchor, setAnchor] = useState(state.demoToday)
+  const [anchor, setAnchor] = useState(todayISO())
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const conflicts = useMemo(() => venueConflicts(state), [state])
 
@@ -73,7 +73,7 @@ export default function CalendarPage() {
       <div className="toolbar">
         <button className="iconbtn" onClick={() => shift(-1)} aria-label="Previous"><I.left /></button>
         <button className="iconbtn" onClick={() => shift(1)} aria-label="Next"><I.right /></button>
-        <button className="btn sm" onClick={() => setAnchor(state.demoToday)}>Today</button>
+        <button className="btn sm" onClick={() => setAnchor(todayISO())}>Today</button>
         <strong style={{ fontSize: '1rem' }}>{view === 'week' ? `Week of ${fmtDate(wkStart, { month: 'long', day: 'numeric' })}` : monthLabel}</strong>
         <div className="spacer" />
         {sel('sport', 'All sports', sports.map(s => ({ v: s, l: s })))}
@@ -92,9 +92,9 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {view === 'month' && <MonthGrid anchor={anchor} events={evs} today={state.demoToday} conflicts={conflicts} />}
+      {view === 'month' && <MonthGrid anchor={anchor} events={evs} today={todayISO()} conflicts={conflicts} />}
       {view === 'week' && <WeekList start={wkStart} events={evs} conflicts={conflicts} />}
-      {view === 'agenda' && <Agenda events={evs.filter(e => e.date >= state.demoToday)} conflicts={conflicts} />}
+      {view === 'agenda' && <Agenda events={evs.filter(e => e.date >= todayISO())} conflicts={conflicts} />}
     </>
   )
 }

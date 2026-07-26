@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { activeOpponents, events as allEvents, can, eventTitle, matchupLabel, trashedEvents, visibleScore, visibleStatus } from '../lib/derive'
-import { addDays, fmtDate, fmtTime } from '../lib/dates'
+import { addDays, fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, Seg, StatusBadge } from '../components/ui'
 import { I, SportIcon } from '../components/icons'
 import type { EventKind, GameType, Opponent, SportEvent } from '../types'
@@ -24,8 +24,8 @@ export default function EventsPage() {
 
   const list = useMemo(() => {
     let evs = allEvents(state)
-    if (scope === 'upcoming') evs = evs.filter(e => e.date >= state.demoToday)
-    if (scope === 'past') evs = evs.filter(e => e.date < state.demoToday)
+    if (scope === 'upcoming') evs = evs.filter(e => e.date >= todayISO())
+    if (scope === 'past') evs = evs.filter(e => e.date < todayISO())
     if (sport) evs = evs.filter(e => e.sport === sport)
     const term = q.trim().toLowerCase()
     if (term) evs = evs.filter(e => [e.opponent, e.sport, e.venue, e.level, e.designation].some(s => s?.toLowerCase().includes(term)))
@@ -249,7 +249,7 @@ export function EventForm({ initial, onClose, onSave }: { initial?: SportEvent; 
   const [form, setForm] = useState(() => initial ?? {
     id: `ev-new-${Date.now()}`, orgId: state.currentOrgId, teamId: state.teams[0]?.id ?? '',
     sport: state.teams[0]?.sport ?? '', level: state.teams[0]?.level ?? 'Varsity',
-    date: state.demoToday, time: '19:00', homeAway: 'home', eventKind: 'single', opponent: '', venue: 'Waldrop Stadium',
+    date: todayISO(), time: '19:00', homeAway: 'home', eventKind: 'single', opponent: '', venue: 'Waldrop Stadium',
     gameType: 'non', status: 'scheduled', broadcastStatus: 'none', staffSlots: [], runOfShow: [],
     sponsorActivations: [], gameMoments: [],
   } as SportEvent)

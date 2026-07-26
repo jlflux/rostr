@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { activeOpponents, can, eventTitle, trashedOpponents } from '../lib/derive'
-import { addDays, fmtDate, fmtTime } from '../lib/dates'
+import { addDays, fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Badge, Card, Empty, Field, Modal, SearchBox } from '../components/ui'
 import { I } from '../components/icons'
 import { StoredImage } from '../components/StoredImage'
@@ -36,7 +36,7 @@ export default function OpponentsPage() {
   const bulkTrash = () => {
     const ids = selected
     setState({
-      opponents: state.opponents.map(o => ids.has(o.id) ? { ...o, deletedAt: state.demoToday } : o),
+      opponents: state.opponents.map(o => ids.has(o.id) ? { ...o, deletedAt: todayISO() } : o),
       events: state.events.map(e => e.opponentId && ids.has(e.opponentId) ? { ...e, opponent: 'TBD' } : e),
     })
     logActivity(`moved ${ids.size} opponents to the trash`)
@@ -296,7 +296,7 @@ function DeleteOpponentButton({ opponent: o, onDeleted }: { opponent: Opponent; 
       <span className="small">Move to trash? {games > 0 ? `${games} game${games === 1 ? '' : 's'} will show “vs TBD”.` : ''} Kept 30 days.</span>
       <button className="btn danger sm" onClick={() => {
         setState({
-          opponents: state.opponents.map(x => (x.id === o.id ? { ...x, deletedAt: state.demoToday } : x)),
+          opponents: state.opponents.map(x => (x.id === o.id ? { ...x, deletedAt: todayISO() } : x)),
           events: state.events.map(e => (e.opponentId === o.id ? { ...e, opponent: 'TBD' } : e)),
         })
         logActivity(`moved opponent ${o.name} to the trash`)

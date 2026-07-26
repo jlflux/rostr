@@ -459,7 +459,6 @@ export interface AppState {
   orgs: Organization[]
   currentOrgId: string
   currentUserId: string
-  demoToday: string
   /** When false, demo-generated scores are hidden (preseason view) */
   showSampleResults: boolean
   users: User[]

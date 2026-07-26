@@ -1,6 +1,6 @@
 import { useStore } from '../store/store'
 import { agreementCash, agreementPaid, committedAgreements, requests as allRequests, revenueByDepartment, sponsors as allSponsors, sponsorshipTotals, tasks as allTasks, teamCompleteness, teams as allTeams, events as allEvents } from '../lib/derive'
-import { fmtDate, fmtMoney } from '../lib/dates'
+import { fmtDate, fmtMoney, todayISO } from '../lib/dates'
 import { Card, Empty, StatCard } from '../components/ui'
 import { Link } from 'react-router-dom'
 
@@ -68,7 +68,7 @@ export default function ReportsPage() {
   const sports = [...new Set(evs.map(e => e.sport))]
   const hosted = sports.map(s => ({ sport: s, count: evs.filter(e => e.sport === s && e.homeAway === 'home').length })).sort((a, b) => b.count - a.count)
 
-  const played = evs.filter(e => e.date < state.demoToday)
+  const played = evs.filter(e => e.date < todayISO())
   const broadcastsDone = played.filter(e => e.broadcastStatus === 'archived').length
   const allSlots = evs.flatMap(e => e.staffSlots)
   const filledSlots = allSlots.filter(s => s.userId).length
@@ -78,7 +78,7 @@ export default function ReportsPage() {
   })).sort((a, b) => b.total - a.total)
 
   const content = tks.filter(t => t.kind === 'content')
-  const contentDue = content.filter(t => t.dueDate <= state.demoToday)
+  const contentDue = content.filter(t => t.dueDate <= todayISO())
   const contentDone = contentDue.filter(t => t.status === 'done')
 
   const renewals = sps.map(s => ({ s, a: ags.find(a => a.sponsorId === s.id) }))
@@ -92,7 +92,7 @@ export default function ReportsPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Reports</h1>
-          <p className="page-sub">Operational reporting for the Fall 2026 season (through {fmtDate(state.demoToday, { month: 'long', day: 'numeric' })}).</p>
+          <p className="page-sub">Operational reporting for the Fall 2026 season (through {fmtDate(todayISO(), { month: 'long', day: 'numeric' })}).</p>
         </div>
       </div>
 

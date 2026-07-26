@@ -1,5 +1,5 @@
 import type { Agreement, AppState, BroadcastCheckItem, CoachRequest, EventStatus, FulfillmentItem, Payment, PaymentStatus, PipelineStage, SponsorTier, SportEvent, Task } from '../types'
-import { addDays, weekStart } from './dates'
+import { addDays, todayISO, weekStart } from './dates'
 
 // ---------- Business/derived logic, kept out of display components ----------
 
@@ -17,7 +17,7 @@ export const teams = (s: AppState) => orgScoped(s, s.teams)
 export const assets = (s: AppState) => orgScoped(s, s.assets)
 
 export function eventsThisWeek(s: AppState): SportEvent[] {
-  const start = weekStart(s.demoToday)
+  const start = weekStart(todayISO())
   const end = addDays(start, 7)
   return events(s).filter(e => e.date >= start && e.date < end && e.status !== 'canceled')
     .sort((a, b) => (a.date + (a.time ?? '99')).localeCompare(b.date + (b.time ?? '99')))
@@ -25,14 +25,14 @@ export function eventsThisWeek(s: AppState): SportEvent[] {
 
 export function upcomingBroadcasts(s: AppState, limit = 6): SportEvent[] {
   return events(s)
-    .filter(e => e.date >= s.demoToday && (e.broadcastStatus === 'planned' || e.broadcastStatus === 'confirmed'))
+    .filter(e => e.date >= todayISO() && (e.broadcastStatus === 'planned' || e.broadcastStatus === 'confirmed'))
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, limit)
 }
 
 export function unfilledSlots(s: AppState): { event: SportEvent; count: number }[] {
   return events(s)
-    .filter(e => e.date >= s.demoToday)
+    .filter(e => e.date >= todayISO())
     .map(e => ({ event: e, count: e.staffSlots.filter(sl => sl.status === 'unfilled' || sl.status === 'declined').length }))
     .filter(x => x.count > 0)
     .sort((a, b) => a.event.date.localeCompare(b.event.date))
@@ -75,7 +75,7 @@ export function fulfillmentProgress(a: Agreement): { done: number; total: number
 }
 
 export function obligationsDue(s: AppState) {
-  const soon = addDays(s.demoToday, 14)
+  const soon = addDays(todayISO(), 14)
   const out: { agreement: Agreement; label: string; dueDate: string }[] = []
   for (const a of agreements(s)) {
     for (const f of a.fulfillment) {
@@ -93,13 +93,13 @@ export function openRequests(s: AppState): CoachRequest[] {
 }
 
 export function overdueTasks(s: AppState): Task[] {
-  return tasks(s).filter(t => t.status !== 'done' && t.dueDate < s.demoToday)
+  return tasks(s).filter(t => t.status !== 'done' && t.dueDate < todayISO())
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 }
 
 export function upcomingContent(s: AppState, days = 7): Task[] {
-  const end = addDays(s.demoToday, days)
-  return tasks(s).filter(t => t.kind === 'content' && t.status !== 'done' && t.dueDate >= s.demoToday && t.dueDate <= end)
+  const end = addDays(todayISO(), days)
+  return tasks(s).filter(t => t.kind === 'content' && t.status !== 'done' && t.dueDate >= todayISO() && t.dueDate <= end)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 }
 

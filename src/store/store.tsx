@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import type { AppState, Collection } from '../types'
 import { buildSeedState } from '../data/seed'
 import { cloudEnabled, cloudPull, cloudPush } from '../lib/cloud'
+import { todayISO } from '../lib/dates'
 
 export type CloudStatus = 'off' | 'idle' | 'syncing' | 'saved' | 'error'
 
@@ -102,7 +103,6 @@ function migrate(s: AppState): AppState {
     activity: s.activity ?? seed.activity,
     currentOrgId: s.currentOrgId ?? seed.currentOrgId,
     currentUserId: s.currentUserId ?? seed.currentUserId,
-    demoToday: s.demoToday ?? seed.demoToday,
     showSampleResults: s.showSampleResults ?? seed.showSampleResults,
     version: SCHEMA_VERSION,
   }
@@ -235,7 +235,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setFullState(s => ({
       ...s,
       activity: [
-        { id: `act-${Date.now()}`, orgId: s.currentOrgId, at: new Date(s.demoToday + 'T' + new Date().toTimeString().slice(0, 8)).toISOString(), userId: s.currentUserId, text, link },
+        { id: `act-${Date.now()}`, orgId: s.currentOrgId, at: new Date(todayISO() + 'T' + new Date().toTimeString().slice(0, 8)).toISOString(), userId: s.currentUserId, text, link },
         ...s.activity,
       ],
     }))

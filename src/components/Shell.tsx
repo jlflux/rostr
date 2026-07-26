@@ -7,7 +7,7 @@ import { resolveSignedUrl } from '../lib/storage'
 import { I } from './icons'
 import { Avatar } from './ui'
 import { ROLE_LABELS, SECTION_LABELS, canSee, canSwitchOrgs, sectionLabel, openRequests, overdueTasks, unfilledSlots } from '../lib/derive'
-import { fmtDateTime } from '../lib/dates'
+import { fmtDateTime, todayISO } from '../lib/dates'
 
 function useClickOutside(onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null)
@@ -315,7 +315,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-footer">
-          Powered by Flux Athletics<br />Demo date: {state.demoToday}
+          Powered by Flux Athletics
         </div>
       </aside>
       <div className="main">

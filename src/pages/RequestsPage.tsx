@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, can, requests as allRequests } from '../lib/derive'
-import { fmtDate, fmtDateTime, relDue } from '../lib/dates'
+import { fmtDate, fmtDateTime, relDue, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Field, Modal, PriorityBadge, SearchBox, Seg, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
 import type { CoachRequest, Priority, RequestStatus, RequestType } from '../types'
@@ -73,7 +73,7 @@ export default function RequestsPage() {
             {rows.map(r => {
               const team = state.teams.find(t => t.id === r.teamId)
               const assignee = state.users.find(u => u.id === r.assigneeId)
-              const due = relDue(r.neededBy, state.demoToday)
+              const due = relDue(r.neededBy, todayISO())
               return (
                 <tr key={r.id} className="clickable" onClick={() => navigate(`/requests/${r.id}`)}>
                   <td><span className="primary">{r.title}</span><div className="tiny">by {state.users.find(u => u.id === r.coachId)?.name}</div></td>
@@ -118,7 +118,7 @@ function RequestForm({ onClose, onSave }: { onClose: () => void; onSave: (r: Coa
     if (!form.title.trim()) errs.title = 'Give the request a short title.'
     if (form.description.trim().length < 12) errs.description = 'Add enough detail for the comms team to act on (at least a sentence).'
     if (!form.neededBy) errs.neededBy = 'A needed-by date is required.'
-    else if (form.neededBy < state.demoToday) errs.neededBy = 'Needed-by date can\'t be in the past.'
+    else if (form.neededBy < todayISO()) errs.neededBy = 'Needed-by date can\'t be in the past.'
     setErrors(errs)
     if (Object.keys(errs).length) return
     onSave({
@@ -204,7 +204,7 @@ export function RequestDetail() {
           <div className="pill-row" style={{ marginTop: 8 }}>
             <StatusBadge status={r.status} />
             <PriorityBadge p={r.priority} />
-            <Badge tone={relDue(r.neededBy, state.demoToday).overdue && r.status !== 'completed' ? 'danger' : 'outline'}>Needed by {fmtDate(r.neededBy)}</Badge>
+            <Badge tone={relDue(r.neededBy, todayISO()).overdue && r.status !== 'completed' ? 'danger' : 'outline'}>Needed by {fmtDate(r.neededBy)}</Badge>
           </div>
         </div>
         {staffCanWork && r.status !== 'completed' && (
