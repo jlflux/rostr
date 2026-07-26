@@ -48,27 +48,41 @@ someone could still read everything by going around the app.
 - [ ] Enter real teams, events, sponsors
 - [ ] Export a backup from Settings → Data & backup once it's loaded
 
-## Phase 5b — Separate each school's data ❗ REQUIRED BEFORE A SECOND REAL SCHOOL
+## Phase 5b — Separate each school's data ✅ DONE
 
-Staff are now locked to their own school: only the platform owner (plus anyone
-granted it on the Platform page) sees the school switcher, and anyone else is
-snapped back to their own school even if the saved state is tampered with.
+Staff are locked to their own school in the interface: only the platform owner
+(plus anyone granted it on the Platform page) sees the school switcher, and anyone
+else is snapped back to their own school even if the saved state is tampered with.
 
-**But that lock is in the interface, not in the data.** Every school still lives
-in one JSON document, and the browser downloads the whole thing. A Homewood coach
-who opened browser devtools could read Riverbend's records out of it. That's fine
-while every school on the platform is yours, and not fine the moment a paying
-client's data is in there next to another client's.
+That lock is now in the **data** as well. Each school has its own row in the
+`workspaces` table (row id = the school's id), plus a `__platform__` row for the
+shared tab icon. The security policy in `AUTH_SETUP.md` grants access when your
+email appears in *that row's* user list, so a Homewood coach's browser only ever
+receives the Homewood row — another school's records aren't hidden in devtools,
+they're never sent.
 
-The fix is smaller than Phase 6: give **each school its own row** in the
-`workspaces` table (row id = the school's id) instead of one shared row. The
-security policy already written in `AUTH_SETUP.md` generalizes to this for free —
-it grants access when your email appears in *that row's* user list, so Homewood
-staff could only ever fetch the Homewood row. Work needed is on the app side:
-loading and saving per school, and keeping the school registry in its own row.
+- [x] Split the workspace document into one row per school
+      (`supabase/split-per-school.sql`)
+- [x] Verify a school user's browser can only fetch their own school's row
+- [ ] **Delete the old `default` row** — see below
 
-- [ ] Split the workspace document into one row per school
-- [ ] Verify a school user's browser can only fetch their own school's row
+### The leftover `default` row
+
+The migration deliberately left the original combined row in place as a rollback
+target. Two things to know about it:
+
+1. **It is stale and getting staler.** All writes now go to the per-school rows,
+   so `default` is frozen at the moment you migrated. Rolling back to it a month
+   later means losing a month of work.
+2. **Isolation isn't complete until it's gone.** Its user list contains everyone,
+   so the policy still lets any staff member read it — and it holds every school.
+
+So: keep it for about a week as insurance, then delete it. Delete it sooner if a
+second school with **real** data is about to be added — that's the hard deadline.
+
+```sql
+delete from workspaces where id = 'default';
+```
 
 ## Phase 6 — Multi-user data model 🔧 THE REAL "BACKEND" WORK
 
@@ -77,39 +91,41 @@ uses it at the same time. See the warning below.
 
 ---
 
-## ⚠️ The one thing that will bite you: simultaneous edits
+## ⚠️ Simultaneous edits — mostly fixed, worth understanding
 
 You already *have* a backend — Supabase is the database, login system, and file
-storage. What you don't have is a **per-record** data model.
+storage. What you don't have yet is a **per-record** data model.
 
-Today the entire app (every event, sponsor, team, task) is stored as **one big JSON
-document in a single database row**. The app loads that document when it starts, and
-saves the whole thing back about a second after any change.
+Each school's data is still one JSON document in one database row. **But saves are
+now record-level**: changing an event sends just that event's changed fields (about
+100 bytes) and the database merges it into the document. It no longer uploads your
+whole snapshot.
 
-That means:
+That removes the bad failure:
 
-> If two people have the app open at once, whoever saves **last** overwrites
-> everything the other person did — silently, with no warning and no way to recover
-> it except a backup file.
+> Two people editing **different** records no longer overwrite each other. You can
+> change a sponsor's phone number while a coach adds three events, and both survive.
 
-Concretely: you open the app at 9:00. A coach opens it at 9:00. They add three
-events at 10:00. At 10:05 you change one phone number — your app sends its whole
-9:00 snapshot, and those three events are gone.
+What's still true:
 
-It's also worth knowing the app only fetches data **once, at startup**. It won't pick
-up someone else's changes until you reload.
+- **Same record, same moment** — if you and a coach edit the *same* event within a
+  second of each other, the later save wins for the fields it touched. Small blast
+  radius, and no longer silent data loss across the whole workspace.
+- **The app fetches once, at startup.** It won't show someone else's changes until
+  you reload.
+- **A few whole-document saves remain** as a fallback (imports, restoring a backup,
+  bulk operations). Those still behave the old way.
 
 ### What to do about it
 
-**Short term (works now, no code):** treat it as a one-editor-at-a-time tool. One
-person edits, others reload before they start. Export a backup from Settings before
-any big editing session. Genuinely fine for one or two people.
+**Now:** nothing special for day-to-day use. Before a bulk import or restoring a
+backup, make sure nobody else is mid-edit, and export a backup from Settings first.
+Hourly snapshots (`supabase/snapshots.sql`) run regardless.
 
 **Proper fix (Phase 6):** split the JSON document into real database tables — events,
-sponsors, teams, users, tasks — so each record saves independently. Two people
-editing different events stop colliding entirely, and it unlocks per-record
-permissions (a coach only touching their own team) and live updates without a
-reload.
+sponsors, teams, users, tasks — so each record is a real row. That gets you live
+updates without a reload, per-record permissions (a coach only touching their own
+team), and it stops the per-school document growing without bound.
 
 That's a substantial piece of work and it touches every page, so it's worth doing
 deliberately rather than mid-season. **My recommendation:** finish Phases 3–5, run
