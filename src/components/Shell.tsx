@@ -6,7 +6,7 @@ import { StoredImage } from './StoredImage'
 import { resolveSignedUrl } from '../lib/storage'
 import { I } from './icons'
 import { Avatar } from './ui'
-import { ROLE_LABELS, SECTION_LABELS, canSee, canSwitchOrgs, currentOrg, currentUser, isResolving, openRequests, overdueTasks, sectionLabel, sortedByLastName, unfilledSlots } from '../lib/derive'
+import { ROLE_LABELS, SECTION_LABELS, canSee, canSwitchOrgs, currentOrg, currentUser, events as allEvents, isResolving, openRequests, overdueTasks, sectionLabel, sortedByLastName, unfilledSlots } from '../lib/derive'
 import { fmtDateTime, todayISO } from '../lib/dates'
 
 function useClickOutside(onClose: () => void) {
@@ -36,7 +36,7 @@ function GlobalSearch() {
     if (term.length < 2) return []
     const out: { kind: string; label: string; sub: string; to: string }[] = []
     const match = (s?: string) => !!s && s.toLowerCase().includes(term)
-    for (const e of state.events) {
+    for (const e of allEvents(state)) {
       if (match(e.opponent) || match(e.sport) || match(e.venue) || match(e.designation)) {
         out.push({ kind: 'Event', label: `${e.sport} ${e.level} vs ${e.opponent}`, sub: e.date, to: `/events/${e.id}` })
       }

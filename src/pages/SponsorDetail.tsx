@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, agreementCash, agreementPaid, allocationLabel, can, currentUser, eventTitle, fulfillmentForTier, fulfillmentProgress, sponsorAgreements, sponsorAllocations, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsorTrade, teams as allTeams, visibleStatus } from '../lib/derive'
+import { PIPELINE_STAGES, agreementCash, agreementPaid, allocationLabel, can, currentUser, eventTitle, fulfillmentForTier, fulfillmentProgress, sponsorAgreements, sponsorAllocations, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsorTrade, events as allEvents, teams as allTeams, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateTime, fmtMoney, fmtTime, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, Modal, Progress, StatusBadge } from '../components/ui'
 import { StageBadge, TierBadge } from './SponsorsPage'
@@ -33,7 +33,7 @@ export default function SponsorDetail() {
   const allocations = sponsorAllocations(state, s.id)
   const allItems = ags.flatMap(a => a.fulfillment.map(f => ({ item: f, agId: a.id })))
   const prog = allItems.reduce((acc, { item }) => ({ done: acc.done + (item.status === 'complete' ? 1 : 0), total: acc.total + (item.status === 'na' ? 0 : 1) }), { done: 0, total: 0 })
-  const linkedEvents = state.events.filter(e => e.sponsorActivations.some(x => x.sponsorId === s.id)).sort((x, y) => x.date.localeCompare(y.date))
+  const linkedEvents = allEvents(state).filter(e => e.sponsorActivations.some(x => x.sponsorId === s.id)).sort((x, y) => x.date.localeCompare(y.date))
   const sponsorAssets = state.assets.filter(x => x.sponsorId === s.id)
   const sponsorTasks = state.tasks.filter(t => t.sponsorId === s.id && t.status !== 'done')
   const primaryAg = ags[0]

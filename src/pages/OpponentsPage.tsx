@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { activeOpponents, can, currentUser, eventTitle, trashedOpponents } from '../lib/derive'
+import { activeOpponents, can, currentUser, eventTitle, events as allEvents, trashedOpponents } from '../lib/derive'
 import { addDays, fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Badge, Card, Empty, Field, Modal, SearchBox } from '../components/ui'
 import { I } from '../components/icons'
@@ -55,7 +55,7 @@ export default function OpponentsPage() {
     return list.sort((a, b) => a.name.localeCompare(b.name))
   }, [state, q])
 
-  const gamesFor = (id: string) => state.events.filter(e => e.opponentId === id)
+  const gamesFor = (id: string) => allEvents(state).filter(e => e.opponentId === id)
   const open = state.opponents.find(o => o.id === openId)
 
   return (
@@ -160,7 +160,7 @@ function OpponentDetailModal({ opponent: o, onClose }: { opponent: Opponent; onC
   const { update } = useStore()
   const me = currentUser(state)
   const editable = can(me.role, 'edit')
-  const games = state.events.filter(e => e.opponentId === o.id).sort((a, b) => a.date.localeCompare(b.date))
+  const games = allEvents(state).filter(e => e.opponentId === o.id).sort((a, b) => a.date.localeCompare(b.date))
   const logoAsset = state.assets.find(a => a.id === o.logoAssetId)
   const maps = mapsUrl(o)
 
@@ -287,7 +287,7 @@ function OpponentEditModal({ title, initial, onClose, onSave }: {
 function DeleteOpponentButton({ opponent: o, onDeleted }: { opponent: Opponent; onDeleted: () => void }) {
   const { state, setState, logActivity, toast } = useStore()
   const [confirming, setConfirming] = useState(false)
-  const games = state.events.filter(e => e.opponentId === o.id).length
+  const games = allEvents(state).filter(e => e.opponentId === o.id).length
   if (!confirming) {
     return <button className="btn danger" style={{ marginRight: 'auto' }} onClick={() => setConfirming(true)}>Delete opponent</button>
   }
@@ -319,7 +319,7 @@ function TrashPanel() {
       {trash.length === 0 && <Empty icon="🗑" title="Trash is empty" />}
       {trash.map(o => {
         const purgeDate = addDays(o.deletedAt!, 30)
-        const games = state.events.filter(e => e.opponentId === o.id).length
+        const games = allEvents(state).filter(e => e.opponentId === o.id).length
         return (
           <div key={o.id} className="notif-item" style={{ alignItems: 'center' }}>
             <span style={{ flex: 1 }}>
