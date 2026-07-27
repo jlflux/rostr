@@ -64,25 +64,28 @@ they're never sent.
 - [x] Split the workspace document into one row per school
       (`supabase/split-per-school.sql`)
 - [x] Verify a school user's browser can only fetch their own school's row
-- [ ] **Delete the old `default` row** — see below
+- [x] Retire the old `default` row (`supabase/retire-default-row.sql`)
 
-### The leftover `default` row
+### What went wrong, and the rule that came out of it
 
-The migration deliberately left the original combined row in place as a rollback
-target. Two things to know about it:
+The migration ran on a Friday and the site deployed on the Sunday. Over the
+Saturday in between, a browser still running the pre-split build kept saving into
+`default` — successfully, with no error shown — while the deployed app read the
+per-school rows. That work was invisible in the app until it was recovered from
+the old row (`supabase/recover-weekend-work.sql`).
 
-1. **It is stale and getting staler.** All writes now go to the per-school rows,
-   so `default` is frozen at the moment you migrated. Rolling back to it a month
-   later means losing a month of work.
-2. **Isolation isn't complete until it's gone.** Its user list contains everyone,
-   so the policy still lets any staff member read it — and it holds every school.
+Two fixes came out of it, both in place now:
 
-So: keep it for about a week as insurance, then delete it. Delete it sooner if a
-second school with **real** data is about to be added — that's the hard deadline.
+- **A retired row is deleted *and* blocked.** Deleting alone isn't enough: an
+  out-of-date browser recreates the row on its next save. `retire-default-row.sql`
+  adds a RESTRICTIVE policy so `default` can't be read, written, or recreated.
+- **A failed save is now visible on every page**, not just Settings. If the app
+  can't save, a red banner says so and warns that changes are local only.
 
-```sql
-delete from workspaces where id = 'default';
-```
+**The rule for any future data migration: never leave a row that the old build
+writes and the new build ignores.** Either ship the schema change and the deploy
+together, or make the old row read-only the moment the new one exists. A rollback
+target that's still writable is a data-loss trap, not a safety net.
 
 ## Phase 6 — Multi-user data model 🔧 THE REAL "BACKEND" WORK
 
