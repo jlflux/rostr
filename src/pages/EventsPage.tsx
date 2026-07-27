@@ -484,6 +484,13 @@ function importBatches(events: SportEvent[], teamName: (id: string) => string) {
  * otherwise 30-odd events to fix by hand, and the events themselves are usually
  * correct — only the team is wrong — so moving is offered alongside deleting.
  */
+/** "Varsity 12 · JV 11 · Freshman 8" — so you can see what a move will affect. */
+function levelBreakdown(events: SportEvent[]): string {
+  const counts = new Map<string, number>()
+  for (const e of events) counts.set(e.level, (counts.get(e.level) ?? 0) + 1)
+  return [...counts.entries()].map(([level, n]) => `${level} ${n}`).join(' · ')
+}
+
 function UndoImports({ onDone }: { onDone: () => void }) {
   const { state, setState, logActivity, toast } = useStore()
   const [moveTo, setMoveTo] = useState<Record<string, string>>({})
@@ -496,6 +503,20 @@ function UndoImports({ onDone }: { onDone: () => void }) {
 
   const orgTeams = state.teams.filter(t => t.orgId === state.currentOrgId)
 
+  // Move targets a whole program (sport + gender), not a single team, because an
+  // import usually spans Varsity, JV and Freshman. Each event keeps its level and
+  // lands on the matching team within the program.
+  const programs = useMemo(() => {
+    const byKey = new Map<string, { key: string; label: string; teams: Team[] }>()
+    for (const t of orgTeams) {
+      const key = `${t.sport}::${t.gender ?? ''}`
+      const entry = byKey.get(key)
+      if (entry) entry.teams.push(t)
+      else byKey.set(key, { key, label: `${t.sport}${t.gender ? ` — ${t.gender}` : ''}`, teams: [t] })
+    }
+    return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label))
+  }, [state.teams, state.currentOrgId])
+
   const remove = (b: ReturnType<typeof importBatches>[number]) => {
     const ids = new Set(b.events.map(e => e.id))
     const when = new Date().toISOString().slice(0, 10)
@@ -505,16 +526,29 @@ function UndoImports({ onDone }: { onDone: () => void }) {
     onDone()
   }
 
-  const move = (b: ReturnType<typeof importBatches>[number], teamId: string) => {
-    const team = orgTeams.find(t => t.id === teamId)
-    if (!team) return
+  const move = (b: ReturnType<typeof importBatches>[number], programKey: string) => {
+    const program = programs.find(p => p.key === programKey)
+    if (!program) return
     const ids = new Set(b.events.map(e => e.id))
-    setState({
-      events: state.events.map(e =>
-        ids.has(e.id) ? { ...e, teamId: team.id, sport: team.sport, level: team.level } : e),
+    let moved = 0
+    const missing = new Set<string>()
+    const events = state.events.map(e => {
+      if (!ids.has(e.id)) return e
+      // Keep the event's own level — a Freshman game must not become Varsity.
+      const target = program.teams.find(t => t.level === e.level)
+      if (!target) { missing.add(e.level); return e }
+      moved++
+      return { ...e, teamId: target.id, sport: target.sport, level: target.level }
     })
-    logActivity(`moved ${b.events.length} imported events to ${team.name}`, '/events')
-    toast(`${b.events.length} events moved to ${team.name}`)
+    if (moved === 0) {
+      toast(`${program.label} has no team at ${[...missing].join(' or ')} level — add it first in Teams`, 'error')
+      return
+    }
+    setState({ events })
+    logActivity(`moved ${moved} imported events to ${program.label}`, '/events')
+    toast(missing.size
+      ? `${moved} events moved · ${[...missing].join(', ')} left behind — no ${program.label} team at that level`
+      : `${moved} events moved to ${program.label}`, missing.size ? 'error' : 'success')
     onDone()
   }
 
@@ -522,21 +556,23 @@ function UndoImports({ onDone }: { onDone: () => void }) {
     <div className="card card-pad" style={{ marginTop: 16 }}>
       <strong className="small">Undo a recent import</strong>
       <p className="tiny muted" style={{ margin: '4px 0 10px' }}>
-        Deleting sends the events to Events → Trash, where they can be restored for 30 days.
+        Moving keeps each event's level, so a Varsity/JV/Freshman schedule stays split across
+        those teams. Deleting sends the events to Events → Trash, restorable for 30 days.
       </p>
       {batches.map(b => (
         <div key={b.id} style={{ borderTop: '1px solid var(--border)', padding: '10px 0' }}>
           <div className="small"><strong>{b.events.length} events</strong> · {b.teams.join(', ')}</div>
           <div className="tiny muted" style={{ marginBottom: 8 }}>
-            Imported {fmtDate(b.when.toISOString().slice(0, 10))}
+            Imported {fmtDate(b.when.toISOString().slice(0, 10))} ·{' '}
+            {levelBreakdown(b.events)}
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <select
-              aria-label={`Move ${b.events.length} events to another team`}
+              aria-label={`Move ${b.events.length} events to another program`}
               value={moveTo[b.id] ?? ''}
               onChange={e => setMoveTo(m => ({ ...m, [b.id]: e.target.value }))}>
-              <option value="">Move to another team…</option>
-              {orgTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              <option value="">Move to another program…</option>
+              {programs.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
             </select>
             <button className="btn sm" disabled={!moveTo[b.id]} onClick={() => move(b, moveTo[b.id])}>Move</button>
             <button className="btn sm danger" onClick={() => remove(b)}>Delete all {b.events.length}</button>
