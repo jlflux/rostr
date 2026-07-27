@@ -159,6 +159,7 @@ export interface Opponent {
   id: string
   orgId: string
   name: string
+  /** The asset shown wherever a single logo is needed. Others stay linked via `Asset.opponentId`. */
   logoAssetId?: string
   tint: string
   mascot?: string
@@ -400,6 +401,11 @@ export interface Asset {
   sport?: string
   teamId?: string
   sponsorId?: string
+  /**
+   * Which opponent this belongs to. An opponent can have any number of assets;
+   * the one shown by default is named by `Opponent.logoAssetId`.
+   */
+  opponentId?: string
   season: string
   approvalStatus: ApprovalStatus
   uploadedById: string

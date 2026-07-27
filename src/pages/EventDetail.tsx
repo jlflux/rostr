@@ -44,15 +44,18 @@ export default function EventDetail() {
   const team = state.teams.find(t => t.id === e.teamId)
   const tasks = state.tasks.filter(t => t.eventId === e.id)
   const activationSponsorIds = e.sponsorActivations.map(a => a.sponsorId)
-  // Primary logos of every opponent on this event (single or multi-opponent).
+  // Every logo on file for the opponents on this event (single or multi-opponent),
+  // not just the primary — the alternates are often what you actually need for a
+  // particular graphic.
   const opponentIds = [e.opponentId, ...(e.opponentIds ?? [])].filter(Boolean) as string[]
-  const opponentLogoIds = state.opponents
+  const primaryLogoIds = state.opponents
     .filter(o => opponentIds.includes(o.id) && o.logoAssetId)
     .map(o => o.logoAssetId!)
   const eventAssets = state.assets.filter(a =>
     activationSponsorIds.includes(a.sponsorId ?? '') ||
     a.teamId === e.teamId ||
-    opponentLogoIds.includes(a.id))
+    opponentIds.includes(a.opponentId ?? '') ||
+    primaryLogoIds.includes(a.id))
   const conflictIds = conflicts.get(e.id) ?? []
   const openSlots = e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length
   const score = visibleScore(state, e)

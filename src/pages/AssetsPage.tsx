@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store/store'
-import { assets as allAssets, can, currentUser } from '../lib/derive'
+import { activeOpponents, assets as allAssets, can, currentUser } from '../lib/derive'
 import { fmtDate, todayISO } from '../lib/dates'
 import { Badge, ConfirmDialog, Empty, Field, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
@@ -227,6 +227,7 @@ function AssetCard({ a, canApprove, canDelete, onApprove, onDownload, onDelete }
   const sp = state.sponsors.find(s => s.id === a.sponsorId)
   const team = state.teams.find(t => t.id === a.teamId)
   const primaryFor = state.opponents.find(o => o.logoAssetId === a.id)
+  const opponent = state.opponents.find(o => o.id === a.opponentId)
 
   return (
     <div className="card asset-card">
@@ -240,21 +241,45 @@ function AssetCard({ a, canApprove, canDelete, onApprove, onDownload, onDelete }
         <div className="pill-row">
           {sp && <Badge tone="info">{sp.name}</Badge>}
           {team && <Badge>{team.name}</Badge>}
-          {primaryFor && <Badge tone="navy">Primary logo · {primaryFor.name}</Badge>}
+          {opponent && (primaryFor?.id === opponent.id
+            ? <Badge tone="navy">Primary logo · {opponent.name}</Badge>
+            : <Badge tone="outline">{opponent.name}</Badge>)}
         </div>
         <div className="tiny">{fmtSize(a.sizeKB)} · {fmtDate(a.uploadedAt)}</div>
         {a.type === 'Opponent Logo' && (
-          <select className="inline-select" value={primaryFor?.id ?? ''} aria-label="Assign as opponent primary logo"
-            onChange={e => {
-              if (primaryFor) update('opponents', primaryFor.id, { logoAssetId: undefined } as Partial<Opponent>)
-              if (e.target.value) {
-                update('opponents', e.target.value, { logoAssetId: a.id } as Partial<Opponent>)
-                toast(`Set as primary logo for ${state.opponents.find(o => o.id === e.target.value)?.name}`)
-              }
-            }}>
-            <option value="">Not assigned to opponent</option>
-            {state.opponents.filter(o => !o.deletedAt).map(o => <option key={o.id} value={o.id}>Primary for {o.name}</option>)}
-          </select>
+          <>
+            <select className="inline-select" value={a.opponentId ?? ''} aria-label="Assign to opponent"
+              onChange={e => {
+                const next = e.target.value || undefined
+                // Moving or unassigning must not leave the old opponent pointing here.
+                if (primaryFor && primaryFor.id !== next) {
+                  update('opponents', primaryFor.id, { logoAssetId: undefined } as Partial<Opponent>)
+                }
+                update('assets', a.id, { opponentId: next } as Partial<Asset>)
+                toast(next
+                  ? `Assigned to ${state.opponents.find(o => o.id === next)?.name}`
+                  : 'Unassigned')
+              }}>
+              <option value="">Not assigned to an opponent</option>
+              {activeOpponents(state).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+            {a.opponentId && (
+              <label className="tiny" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="checkbox"
+                  checked={primaryFor?.id === a.opponentId}
+                  aria-label="Use as the primary logo for this opponent"
+                  onChange={ev => {
+                    update('opponents', a.opponentId!, {
+                      logoAssetId: ev.target.checked ? a.id : undefined,
+                    } as Partial<Opponent>)
+                    toast(ev.target.checked ? 'Set as the primary logo' : 'No longer the primary logo')
+                  }}
+                />
+                Primary logo
+              </label>
+            )}
+          </>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2, gap: 6, flexWrap: 'wrap' }}>
           <StatusBadge status={a.approvalStatus} />
@@ -310,6 +335,7 @@ function UploadForm({ defaultType, defaultTeamId, onClose, onSave }: {
       id, orgId: state.currentOrgId, name, type: form.type,
       fileType, sizeKB, storagePath,
       sport: form.sport || undefined, teamId: form.teamId || undefined, sponsorId: form.sponsorId || undefined,
+      opponentId: form.type === 'Opponent Logo' ? (form.opponentId || undefined) : undefined,
       season: 'Fall 2026', approvalStatus: 'pending', uploadedById: state.currentUserId,
       uploadedAt: todayISO(), tint: tints[Math.floor(Math.random() * tints.length)],
     })

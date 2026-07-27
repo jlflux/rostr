@@ -85,7 +85,29 @@ function loadState(): AppState {
  * only for a genuine breaking change, and transform in place — never replace the
  * user's records with seed data.
  */
-function migrate(s: AppState): AppState {
+/**
+ * An opponent's logo used to be linked only by `Opponent.logoAssetId`, so the
+ * asset itself didn't know which opponent it belonged to. Now that an opponent
+ * can hold several, point each existing primary logo back at its opponent so
+ * previously uploaded logos keep their link.
+ */
+function backfillOpponentAssets(s: AppState): AppState {
+  if (!Array.isArray(s.assets) || !Array.isArray(s.opponents)) return s
+  const ownerOf = new Map<string, string>()
+  for (const o of s.opponents) if (o.logoAssetId) ownerOf.set(o.logoAssetId, o.id)
+  if (ownerOf.size === 0) return s
+  let changed = false
+  const assets = s.assets.map(a => {
+    const owner = ownerOf.get(a.id)
+    if (!owner || a.opponentId) return a
+    changed = true
+    return { ...a, opponentId: owner }
+  })
+  return changed ? { ...s, assets } : s
+}
+
+function migrate(input: AppState): AppState {
+  const s = backfillOpponentAssets(input)
   const seed = buildSeedState()
   return {
     ...seed,          // supplies defaults for anything missing below

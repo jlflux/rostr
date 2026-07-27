@@ -219,6 +219,7 @@ function OpponentDetailModal({ opponent: o, onClose }: { opponent: Opponent; onC
           </div>
         </Card>
       </div>
+      <OpponentLogos opponent={o} editable={editable} onClose={onClose} />
       {o.address && (
         <iframe
           title={`Map to ${o.name}`}
@@ -228,6 +229,101 @@ function OpponentDetailModal({ opponent: o, onClose }: { opponent: Opponent; onC
         />
       )}
     </Modal>
+  )
+}
+
+/** One logo in the opponent's logo grid: square thumbnail plus a download. */
+function LogoTile({ asset, highlight }: { asset: import('../types').Asset; highlight: boolean }) {
+  const { toast } = useStore()
+  const isImage = !!asset.storagePath && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(asset.fileType.toLowerCase())
+  const download = async () => {
+    if (asset.storagePath) {
+      const url = await resolveSignedUrl(asset.storagePath)
+      if (url) window.open(url, '_blank', 'noopener')
+      else toast('Could not open file — sign in to view uploads.', 'error')
+    } else toast(`Downloading ${asset.name} (mock)`)
+  }
+  return (
+    <>
+      <div
+        style={{
+          width: 132, height: 96, borderRadius: 10, overflow: 'hidden',
+          display: 'grid', placeItems: 'center', background: asset.tint,
+          // The primary logo is ringed so it's obvious at a glance which one wins.
+          outline: highlight ? '2px solid var(--brand)' : '1px solid var(--border)',
+          outlineOffset: highlight ? 1 : 0,
+        }}>
+        {isImage
+          ? <StoredImage src={asset.storagePath} alt={asset.name}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              fallback={<span className="tiny" style={{ color: '#fff' }}>{asset.fileType}</span>} />
+          : <span className="tiny" style={{ color: '#fff' }}>{asset.fileType}</span>}
+      </div>
+      <button className="btn sm" style={{ marginTop: 4, width: '100%' }} onClick={download}>Download</button>
+    </>
+  )
+}
+
+/**
+ * Every logo on file for one opponent. Schools often have several looks — a
+ * wordmark, a mascot head, a sport-specific variant — so they all live here and
+ * one is marked primary for the places that show a single logo.
+ */
+function OpponentLogos({ opponent, editable, onClose }: {
+  opponent: Opponent; editable: boolean; onClose: () => void
+}) {
+  const { state, update, toast } = useStore()
+  const logos = state.assets
+    .filter(a => a.opponentId === opponent.id)
+    .sort((a, b) =>
+      Number(b.id === opponent.logoAssetId) - Number(a.id === opponent.logoAssetId) ||
+      a.name.localeCompare(b.name))
+
+  return (
+    <div style={{ marginTop: 12 }}>
+    <Card title={`Logos (${logos.length})`}>
+      {logos.length === 0 ? (
+        <p className="small muted" style={{ margin: 0 }}>
+          No logos on file. <Link to="/assets" className="link" onClick={onClose}>Upload one →</Link>
+        </p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {logos.map(a => {
+              const isPrimary = a.id === opponent.logoAssetId
+              return (
+                <div key={a.id} style={{ width: 132 }}>
+                  <LogoTile asset={a} highlight={isPrimary} />
+                  <div className="tiny" style={{ marginTop: 4, wordBreak: 'break-word' }}>{a.name}</div>
+                  {a.sport && <div className="tiny muted">{a.sport}</div>}
+                  {editable ? (
+                    <label className="tiny" style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                      <input
+                        type="checkbox"
+                        checked={isPrimary}
+                        aria-label={`Use ${a.name} as the primary logo`}
+                        onChange={ev => {
+                          update('opponents', opponent.id, {
+                            logoAssetId: ev.target.checked ? a.id : undefined,
+                          } as Partial<Opponent>)
+                          toast(ev.target.checked ? `${a.name} is now the primary logo` : 'No primary logo set')
+                        }}
+                      />
+                      Primary
+                    </label>
+                  ) : isPrimary && <Badge tone="navy">Primary</Badge>}
+                </div>
+              )
+            })}
+          </div>
+          <p className="tiny muted" style={{ margin: '10px 0 0' }}>
+            The primary logo is the one shown on games, schedules and this profile.
+            Assign more in the <Link to="/assets" className="link" onClick={onClose}>asset library</Link>.
+          </p>
+        </>
+      )}
+    </Card>
+    </div>
   )
 }
 
