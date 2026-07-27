@@ -80,7 +80,14 @@ input, select, textarea { font: inherit; color: inherit; }
    Island and the home indicator would otherwise sit on top of the UI. env() is 0
    on hardware without them, so these are harmless everywhere else.
    100dvh tracks the browser's collapsing toolbars; 100vh is the fallback. */
-.shell { display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
+/* --sync-banner-h is 0 unless the "not saving" banner is up, in which case the
+   whole shell drops by exactly its height so nothing is hidden behind it. */
+.shell {
+  display: flex; overflow: hidden;
+  height: 100vh; height: 100dvh;
+  padding-top: var(--sync-banner-h, 0px);
+  box-sizing: border-box;
+}
 .sidebar {
   width: 232px; flex-shrink: 0; background: var(--sidebar-bg); color: var(--sidebar-text);
   display: flex; flex-direction: column; overflow-y: auto;
@@ -351,6 +358,20 @@ select.inline-select {
 .modal-close:hover { color: var(--text); }
 
 /* ---------- Toasts ---------- */
+/* Sits above everything, including the mobile drawer and its backdrop: if saves
+   are failing, that outranks whatever else is on screen. Fixed rather than a
+   flex child because .shell lays its children out in a row. */
+.sync-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 250;
+  display: flex; align-items: center; justify-content: center; gap: 9px; flex-wrap: wrap;
+  padding: calc(9px + env(safe-area-inset-top)) 16px 9px;
+  background: var(--danger); color: #fff;
+  font-size: 0.87rem; font-weight: 550; line-height: 1.35; text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+.sync-banner svg { flex-shrink: 0; }
+.sync-banner-detail { opacity: 0.85; font-weight: 450; font-size: 0.8rem; width: 100%; word-break: break-word; }
+
 .toasts { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
 .toast {
   background: var(--app-dark); color: #fff; padding: 11px 16px; border-radius: 10px;

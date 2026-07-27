@@ -242,10 +242,11 @@ const NAV: NavItem[] = [
 ]
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { state, setState, toasts, theme, setTheme } = useStore()
+  const { state, setState, toasts, theme, setTheme, cloudEnabled, cloudStatus, cloudError } = useStore()
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
   const contentRef = useRef<HTMLElement>(null)
+  const syncBannerRef = useRef<HTMLDivElement>(null)
   useEffect(() => setNavOpen(false), [location.pathname])
   // Start every page at the top rather than inheriting the previous scroll position
   useEffect(() => { contentRef.current?.scrollTo(0, 0) }, [location.pathname])
@@ -265,6 +266,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
     document.documentElement.style.setProperty('--brand', org.theme.primary)
     document.documentElement.style.setProperty('--brand-navy', org.theme.navy)
   }, [org])
+
+  // The banner is fixed so it can outrank the mobile drawer, which means it
+  // would otherwise sit on top of the header. Measure it and inset the shell by
+  // exactly that much; its height varies with the length of the error text.
+  const syncBanner = cloudEnabled && cloudStatus === 'error'
+  useEffect(() => {
+    const el = syncBannerRef.current
+    if (!syncBanner || !el) {
+      document.documentElement.style.removeProperty('--sync-banner-h')
+      return
+    }
+    const measure = () => document.documentElement.style
+      .setProperty('--sync-banner-h', `${el.getBoundingClientRect().height}px`)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => { ro.disconnect(); document.documentElement.style.removeProperty('--sync-banner-h') }
+  }, [syncBanner, cloudError])
 
   useEffect(() => {
     document.title = `${org.shortName} Command Center — Powered by Flux Athletics`
@@ -313,6 +332,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="shell">
+      {/* A failed save used to be visible only on the Settings page, so you could
+          work for hours believing everything was stored. Say so everywhere. */}
+      {cloudEnabled && cloudStatus === 'error' && (
+        <div className="sync-banner" role="alert" ref={syncBannerRef}>
+          <I.warn />
+          <span>
+            <strong>Not saving.</strong> Your recent changes are only on this device.
+            Reload the page; if this stays, don't keep entering data.
+          </span>
+          {cloudError && <span className="sync-banner-detail">{cloudError}</span>}
+        </div>
+      )}
       {navOpen && <div className="backdrop" onClick={() => setNavOpen(false)} />}
       <aside className={`sidebar ${navOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
