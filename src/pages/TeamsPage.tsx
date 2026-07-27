@@ -1,4 +1,4 @@
-import React, { Fragment, useRef, useState } from 'react'
+import React, { Fragment, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, broadcastState, can, currentUser, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
@@ -19,6 +19,16 @@ export const TEAM_GENDERS: { value: NonNullable<Team['gender']>; label: string }
   { value: 'Boys', label: 'Boys' }, { value: 'Girls', label: 'Girls' }, { value: 'Coed', label: 'Co-ed' },
 ]
 const LEVEL_ORDER: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2, '8th Grade': 3, '7th Grade': 4 }
+// Boys before girls before co-ed; anything without a gender set sorts last so it
+// stands out as needing attention.
+const GENDER_ORDER: Record<string, number> = { Boys: 0, Girls: 1, Coed: 2 }
+
+/** The team name this sport/gender/level combination produces, e.g. "Varsity Girls Basketball". */
+export function derivedTeamName(sport: string, gender: Team['gender'], level: Team['level']) {
+  if (!sport) return ''
+  const label = TEAM_GENDERS.find(g => g.value === gender)?.label ?? gender ?? ''
+  return `${level} ${gender && gender !== 'Coed' ? label + ' ' : ''}${sport}`.replace(/\s+/g, ' ').trim()
+}
 const SPORT_SEASON: Record<string, Team['season']> = {
   Football: 'Fall', 'Flag Football': 'Fall', Volleyball: 'Fall', 'Cross Country': 'Fall', Cheerleading: 'Fall',
   Basketball: 'Winter', Bowling: 'Winter', 'Indoor Track & Field': 'Winter', Wrestling: 'Winter', 'Swimming & Diving': 'Winter', Esports: 'Winter', Gymnastics: 'Winter',
@@ -31,23 +41,47 @@ export default function TeamsPage() {
   const me = currentUser(state)
   const editable = can(me.role, 'edit')
   const [adding, setAdding] = useState(false)
-  const sports = [...new Set(teams.map(t => t.sport))].sort((a, b) => a.localeCompare(b))
+  // Grouped by sport AND gender, so boys' and girls' basketball are separate
+  // programs rather than one merged list labelled with whichever came first.
+  const groups = useMemo(() => {
+    const byKey = new Map<string, Team[]>()
+    for (const t of teams) {
+      const key = `${t.sport}::${t.gender ?? ''}`
+      const list = byKey.get(key)
+      if (list) list.push(t)
+      else byKey.set(key, [t])
+    }
+    return [...byKey.entries()]
+      .map(([key, list]) => ({
+        key,
+        sport: list[0].sport,
+        gender: list[0].gender,
+        teams: [...list].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]),
+      }))
+      .sort((a, b) =>
+        a.sport.localeCompare(b.sport) ||
+        (GENDER_ORDER[a.gender ?? ''] ?? 9) - (GENDER_ORDER[b.gender ?? ''] ?? 9))
+  }, [teams])
   return (
     <>
       <div className="page-head">
         <div>
           <h1 className="page-title">Teams</h1>
-          <p className="page-sub">{teams.length} programs · {new Set(teams.map(t => t.sport)).size} sports</p>
+          <p className="page-sub">{teams.length} teams · {groups.length} programs · {new Set(teams.map(t => t.sport)).size} sports</p>
         </div>
         {editable && <button className="btn primary" onClick={() => setAdding(true)}><I.plus /> Add team</button>}
       </div>
       {adding && <AddTeamModal onClose={() => setAdding(false)} />}
-      {sports.map(sport => {
-        const group = teams.filter(t => t.sport === sport).sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level])
+      {groups.map(g => {
         return (
-          <div key={sport} className="sport-group">
-            <h2>{sport} <span className="tiny">{group[0].gender && group[0].gender !== 'Coed' ? group[0].gender : ''}</span></h2>
-            {group.map(t => {
+          <div key={g.key} className="sport-group">
+            <h2>
+              {g.sport}{' '}
+              <span className="tiny">
+                {g.gender === 'Coed' ? 'Co-ed' : g.gender ?? 'Gender not set'}
+              </span>
+            </h2>
+            {g.teams.map(t => {
               const rec = teamRecord(state, t.id)
               const upcoming = state.events.filter(e => e.teamId === t.id && e.date >= todayISO()).length
               const openReqs = state.requests.filter(r => r.teamId === t.id && r.status !== 'completed').length
@@ -81,6 +115,8 @@ export function TeamDetail() {
   const { id } = useParams()
   const { state } = useStore()
   const [tab, setTab] = useState<'overview' | 'roster'>('overview')
+  const [editing, setEditing] = useState(false)
+  const canEdit = can(currentUser(state).role, 'edit')
   const t = state.teams.find(x => x.id === id)
   if (!t) return <Card><Empty icon="?" title="Team not found" /></Card>
 
@@ -104,8 +140,12 @@ export function TeamDetail() {
             <StatusBadge status={t.rosterStatus} label={`Roster ${t.rosterStatus.replace('_', ' ')}`} />
           </div>
         </div>
-        <Link to="/requests?new=1" className="btn navy">Submit request</Link>
+        <div className="pill-row">
+          {canEdit && <button className="btn" onClick={() => setEditing(true)}>Edit team</button>}
+          <Link to="/requests?new=1" className="btn navy">Submit request</Link>
+        </div>
       </div>
+      {editing && <EditTeamModal team={t} onClose={() => setEditing(false)} />}
 
       {t.missingInfo.length > 0 && (
         <div className="card card-pad" style={{ marginBottom: 14, borderColor: 'var(--warn)', display: 'flex', gap: 10 }}>
@@ -222,6 +262,91 @@ export function TeamDetail() {
   )
 }
 
+/**
+ * Correct an existing team's sport, gender or level. Needed because a team
+ * created before gender was set — or set wrongly — otherwise had no way to be
+ * fixed, which left boys' and girls' teams stuck in the same program group.
+ */
+function EditTeamModal({ team, onClose }: { team: Team; onClose: () => void }) {
+  const { state, update, logActivity, toast } = useStore()
+  const [sport, setSport] = useState(team.sport)
+  const [gender, setGender] = useState<NonNullable<Team['gender']>>(team.gender ?? 'Boys')
+  const [level, setLevel] = useState<Team['level']>(team.level)
+  const [name, setName] = useState(team.name)
+  // Follow the pickers only while the name still matches what they produce, so a
+  // hand-written name ("Lady Patriots Basketball") is never silently replaced.
+  const [nameTouched, setNameTouched] = useState(
+    team.name !== derivedTeamName(team.sport, team.gender, team.level))
+
+  const retitle = (s: string, g: NonNullable<Team['gender']>, l: Team['level']) => {
+    if (!nameTouched) setName(derivedTeamName(s, g, l))
+  }
+
+  const save = () => {
+    const dup = state.teams.find(t =>
+      t.id !== team.id && t.orgId === team.orgId &&
+      t.sport === sport && t.level === level && t.gender === gender)
+    if (dup) { toast(`That would duplicate ${dup.name}`, 'error'); return }
+    const season = SPORT_SEASON[sport] ?? team.season
+    const patch: Partial<Team> = {
+      sport, gender, level,
+      name: name.trim() || derivedTeamName(sport, gender, level),
+      // Season follows the sport; keep the year part of the existing label.
+      season,
+      seasonLabel: team.seasonLabel.replace(/^\S+/, season),
+    }
+    update('teams', team.id, patch)
+    logActivity(`updated the ${patch.name} team`, `/teams/${team.id}`)
+    toast('Team updated')
+    onClose()
+  }
+
+  return (
+    <Modal title="Edit team" onClose={onClose} footer={
+      <>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn primary" onClick={save}>Save changes</button>
+      </>
+    }>
+      <Field label="Sport" required>
+        <select value={sport} aria-label="Sport"
+          onChange={e => { setSport(e.target.value); retitle(e.target.value, gender, level) }}>
+          {SPORTS.map(s => <option key={s} value={s}>{s}</option>)}
+          {/* Keep a sport that isn't on the standard list rather than silently changing it. */}
+          {!SPORTS.includes(sport) && <option value={sport}>{sport}</option>}
+        </select>
+      </Field>
+      <div className="form-row">
+        <Field label="Gender">
+          <select value={gender} aria-label="Gender"
+            onChange={e => {
+              const g = e.target.value as NonNullable<Team['gender']>
+              setGender(g); retitle(sport, g, level)
+            }}>
+            {TEAM_GENDERS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Level">
+          <select value={level} aria-label="Level"
+            onChange={e => {
+              const l = e.target.value as Team['level']
+              setLevel(l); retitle(sport, gender, l)
+            }}>
+            {TEAM_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </Field>
+      </div>
+      <Field label="Team name">
+        <input value={name} aria-label="Team name"
+          onChange={e => { setName(e.target.value); setNameTouched(true) }} />
+      </Field>
+      <p className="small muted" style={{ marginBottom: 0 }}>
+        Games, roster and requests stay attached to this team.
+      </p>
+    </Modal>
+  )
+}
+
 function AddTeamModal({ onClose }: { onClose: () => void }) {
   const { state, add, logActivity, toast } = useStore()
   const navigate = useNavigate()
@@ -229,10 +354,9 @@ function AddTeamModal({ onClose }: { onClose: () => void }) {
   const [gender, setGender] = useState<NonNullable<Team['gender']>>('Boys')
   const [level, setLevel] = useState<Team['level']>('Varsity')
 
-  const genderLabel = TEAM_GENDERS.find(g => g.value === gender)?.label ?? gender
   // Name mirrors the seed convention (level + sport) but adds the gender word so
   // e.g. boys and girls basketball don't collapse to the same name.
-  const name = sport ? `${level} ${gender !== 'Coed' ? genderLabel + ' ' : ''}${sport}`.replace(/\s+/g, ' ').trim() : ''
+  const name = derivedTeamName(sport, gender, level)
   const season = sport ? (SPORT_SEASON[sport] ?? 'Fall') : 'Fall'
 
   const save = () => {
