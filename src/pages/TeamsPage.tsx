@@ -1,7 +1,7 @@
 import React, { Fragment, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, broadcastState, can, currentUser, fmtWLT, hasGames, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
+import { ROLE_LABELS, broadcastState, can, currentUser, fmtWLT, hasGames, sortedByLastName, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { splitCsvLine } from './EventsPage'
@@ -734,7 +734,7 @@ function CoachingStaffCard({ team }: { team: Team }) {
   const [headId, setHeadId] = useState(team.coachIds[0] ?? '')
   const [assistants, setAssistants] = useState(team.assistantCoaches ?? [])
   const [draft, setDraft] = useState({ name: '', role: '' })
-  const orgUsers = state.users.filter(u => u.orgId === team.orgId && u.status !== 'revoked')
+  const orgUsers = sortedByLastName(state.users.filter(u => u.orgId === team.orgId && u.status !== 'revoked'))
   const head = state.users.find(u => u.id === team.coachIds[0])
 
   const save = () => {

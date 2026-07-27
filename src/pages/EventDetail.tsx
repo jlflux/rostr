@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, broadcastState, can, canSee, currentUser, defaultBroadcastChecklist, eventTitle, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
+import { ROLE_LABELS, broadcastState, can, canSee, currentUser, defaultBroadcastChecklist, eventTitle, sortedByLastName, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateLong, fmtTime, relDue, todayISO } from '../lib/dates'
 import { resolveSignedUrl } from '../lib/storage'
 import { StoredImage } from '../components/StoredImage'
@@ -410,7 +410,7 @@ function Staffing({ e, editable }: { e: SportEvent; editable: boolean }) {
   const { state, update, logActivity, toast } = useStore()
   const [addingRole, setAddingRole] = useState<StaffRole>('Ticket Worker')
   // Anyone with a school account can be assigned to a gameday role
-  const staffUsers = state.users.filter(u => u.orgId === e.orgId && u.status !== 'revoked')
+  const staffUsers = sortedByLastName(state.users.filter(u => u.orgId === e.orgId && u.status !== 'revoked'))
 
   const setSlot = (slotId: string, p: Partial<StaffSlot>) => {
     update('events', e.id, {
@@ -619,7 +619,7 @@ function EventTasks({ e, tasks, editable }: { e: SportEvent; tasks: Task[]; edit
             {editable ? (
               <select className="inline-select" value={t.assigneeId ?? ''} onChange={ev => update('tasks', t.id, { assigneeId: ev.target.value || null })} aria-label="Assignee">
                 <option value="">Unassigned</option>
-                {state.users.filter(u => u.role !== 'read_only' && u.role !== 'platform_owner').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                {sortedByLastName(state.users.filter(u => u.role !== 'read_only' && u.role !== 'platform_owner')).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             ) : <span className="tiny">{assignee?.name ?? 'Unassigned'}</span>}
             <Avatar user={assignee} size="sm" />

@@ -6,7 +6,7 @@ import { StoredImage } from './StoredImage'
 import { resolveSignedUrl } from '../lib/storage'
 import { I } from './icons'
 import { Avatar } from './ui'
-import { ROLE_LABELS, SECTION_LABELS, canSee, canSwitchOrgs, currentOrg, currentUser, isResolving, openRequests, overdueTasks, sectionLabel, unfilledSlots } from '../lib/derive'
+import { ROLE_LABELS, SECTION_LABELS, canSee, canSwitchOrgs, currentOrg, currentUser, isResolving, openRequests, overdueTasks, sectionLabel, sortedByLastName, unfilledSlots } from '../lib/derive'
 import { fmtDateTime, todayISO } from '../lib/dates'
 
 function useClickOutside(onClose: () => void) {
@@ -201,7 +201,7 @@ function UserMenu() {
           ) : (
             <>
               <div className="menu-label">View as (demo)</div>
-              {state.users.filter(u => u.status !== 'revoked').slice(0, 16).map(u => (
+              {sortedByLastName(state.users.filter(u => u.status !== 'revoked')).slice(0, 16).map(u => (
                 <button key={u.id} className={`menu-item ${u.id === state.currentUserId ? 'active' : ''}`}
                   onClick={() => { setState({ currentUserId: u.id }); setOpen(false); toast(`Now viewing as ${u.name} (${ROLE_LABELS[u.role]})`) }}>
                   <Avatar user={u} size="sm" />

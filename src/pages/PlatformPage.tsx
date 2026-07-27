@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore, SKINS, type Skin } from '../store/store'
-import { CONFIGURABLE_SECTIONS, ROLE_LABELS, SECTION_LABELS, currentOrg, currentUser, type Section } from '../lib/derive'
+import { CONFIGURABLE_SECTIONS, ROLE_LABELS, SECTION_LABELS, currentOrg, currentUser, sortedByLastName, type Section } from '../lib/derive'
 import { Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { StoredImage } from '../components/StoredImage'
 import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
@@ -159,7 +159,7 @@ export default function PlatformPage() {
           <table className="tbl">
             <thead><tr><th>Person</th><th>School</th><th>Role</th><th>Can switch</th></tr></thead>
             <tbody>
-              {state.users.filter(u => u.status !== 'revoked').map(u => {
+              {sortedByLastName(state.users.filter(u => u.status !== 'revoked')).map(u => {
                 const owner = u.role === 'platform_owner'
                 const on = owner || u.canSwitchOrgs === true
                 return (

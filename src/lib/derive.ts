@@ -7,6 +7,49 @@ export function orgScoped<T extends { orgId: string }>(state: AppState, rows: T[
   return rows.filter(r => r.orgId === state.currentOrgId)
 }
 
+// ---------- Ordering people ----------
+//
+// Staff lists are stored in the order people were added, so a new hire lands at
+// the top of every dropdown and roster. Sort by surname instead, the way a staff
+// directory reads.
+
+/** Generational suffixes, ignored when working out the surname. */
+const NAME_SUFFIXES = new Set(['jr', 'jr.', 'sr', 'sr.', 'ii', 'iii', 'iv', 'v'])
+
+/** Particles that belong to the surname: "Van Horn" files under V, not H. */
+const NAME_PARTICLES = new Set([
+  'van', 'von', 'de', 'del', 'della', 'der', 'den', 'di', 'da', 'dos', 'du',
+  'la', 'le', 'los', 'ter', 'ten', 'bin', 'ibn', 'al', 'st', 'st.', 'saint',
+])
+
+/**
+ * The surname to file a person under. Usually the last word, but generational
+ * suffixes are skipped ("Dana Whitfield Jr." → Whitfield) and leading particles
+ * are kept ("Mary Beth Van Horn" → Van Horn). A single-word name files under
+ * itself.
+ */
+export function lastName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  while (parts.length > 1 && NAME_SUFFIXES.has(parts[parts.length - 1].toLowerCase())) parts.pop()
+  if (parts.length === 0) return ''
+  // Walk back over particles, but never past the first word — otherwise a name
+  // made only of particles would leave nothing to sort on.
+  let start = parts.length - 1
+  while (start > 1 && NAME_PARTICLES.has(parts[start - 1].toLowerCase())) start--
+  return parts.slice(start).join(' ')
+}
+
+/** Sort people by surname, then by full name so identical surnames stay stable. */
+export function byLastName(a: { name: string }, b: { name: string }): number {
+  const cmp = lastName(a.name).localeCompare(lastName(b.name), undefined, { sensitivity: 'base' })
+  return cmp !== 0 ? cmp : a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+}
+
+/** A copy of the list ordered for display. Never mutates the stored order. */
+export function sortedByLastName<T extends { name: string }>(people: T[]): T[] {
+  return [...people].sort(byLastName)
+}
+
 // ---------- Who am I / which school am I in ----------
 //
 // Every page needs the current user and org. Resolving them with a bare `!`

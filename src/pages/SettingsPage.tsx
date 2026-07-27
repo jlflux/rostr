@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore, type Skin } from '../store/store'
-import { ROLE_LABELS, benefitTemplates, can, currentOrg, currentUser, tierSettings } from '../lib/derive'
+import { ROLE_LABELS, benefitTemplates, can, currentOrg, currentUser, sortedByLastName, tierSettings } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { fmtMoney, todayISO } from '../lib/dates'
 import { I } from '../components/icons'
@@ -109,7 +109,7 @@ export default function SettingsPage() {
             <table className="tbl">
               <thead><tr><th>User</th><th>Title</th><th>Role</th>{isAdmin && <th>Access</th>}</tr></thead>
               <tbody>
-                {state.users.map(u => {
+                {sortedByLastName(state.users).map(u => {
                   const revoked = u.status === 'revoked'
                   return (
                   <tr key={u.id} style={revoked ? { opacity: 0.55 } : undefined}>
