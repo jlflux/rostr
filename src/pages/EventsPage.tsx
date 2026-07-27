@@ -5,7 +5,7 @@ import { activeOpponents, can, currentUser, eventTitle, events as allEvents, mat
 import { addDays, fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, Seg, StatusBadge } from '../components/ui'
 import { I, SportIcon } from '../components/icons'
-import type { EventKind, GameType, Opponent, SportEvent } from '../types'
+import type { EventKind, GameType, Opponent, SportEvent, Team } from '../types'
 
 const OPP_TINTS = ['#b45309', '#166534', '#1d4ed8', '#7c3aed', '#be185d', '#0e7490', '#ca8a04', '#4d7c0f']
 
@@ -420,6 +420,133 @@ function parseTime(v: string): string | null | 'invalid' {
   return `${String(h).padStart(2, '0')}:${m[2]}`
 }
 
+/** Read a gender out of a spreadsheet cell. Returns undefined if it says nothing. */
+function parseGender(v: string): NonNullable<Team['gender']> | undefined {
+  const s = v.toLowerCase()
+  if (/\b(boys?|b|male|mens?|men's)\b/.test(s)) return 'Boys'
+  if (/\b(girls?|g|female|womens?|women's|ladys?|ladies)\b/.test(s)) return 'Girls'
+  if (/\b(coed|co-ed|mixed)\b/.test(s)) return 'Coed'
+  return undefined
+}
+
+/**
+ * Split a sport cell that carries its own gender — "Boys Basketball",
+ * "Basketball (Girls)", "Basketball - Boys" — so either style of spreadsheet
+ * works without the school having to restructure their export.
+ */
+function splitSportCell(v: string): { sport: string; gender?: NonNullable<Team['gender']> } {
+  const gender = parseGender(v)
+  if (!gender) return { sport: v.trim() }
+  const sport = v
+    .replace(/\b(boys?|girls?|male|female|mens?|womens?|men's|women's|ladys?|ladies|coed|co-ed|mixed)\b/gi, '')
+    .replace(/[()\-–—]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return { sport, gender }
+}
+
+/** Imported events carry the timestamp of the run that created them. */
+const IMPORT_ID = /^ev-imp-(\d+)-/
+
+/**
+ * Group already-imported events back into the runs they arrived in, so a whole
+ * import can be undone. Rows from one run now share a timestamp exactly, but an
+ * earlier version stamped each row separately, spreading a single import across
+ * a few milliseconds. The tolerance below reunites those without merging two
+ * imports a person actually did separately, which takes far longer than this.
+ */
+const SAME_RUN_MS = 2_000
+
+function importBatches(events: SportEvent[], teamName: (id: string) => string) {
+  const stamped = events
+    .map(e => ({ e, ts: Number(IMPORT_ID.exec(e.id)?.[1] ?? NaN) }))
+    .filter(x => Number.isFinite(x.ts))
+    .sort((a, b) => a.ts - b.ts)
+
+  const runs: { ts: number; events: SportEvent[] }[] = []
+  for (const { e, ts } of stamped) {
+    const last = runs[runs.length - 1]
+    if (last && ts - last.ts < SAME_RUN_MS) last.events.push(e)
+    else runs.push({ ts, events: [e] })
+  }
+  return runs
+    .map(r => ({
+      id: `ev-imp-${r.ts}`,
+      when: new Date(r.ts),
+      events: r.events,
+      teams: [...new Set(r.events.map(e => teamName(e.teamId)))],
+    }))
+    .sort((a, b) => b.when.getTime() - a.when.getTime())
+}
+
+/**
+ * Undo or re-file a previous import. An import that landed on the wrong team is
+ * otherwise 30-odd events to fix by hand, and the events themselves are usually
+ * correct — only the team is wrong — so moving is offered alongside deleting.
+ */
+function UndoImports({ onDone }: { onDone: () => void }) {
+  const { state, setState, logActivity, toast } = useStore()
+  const [moveTo, setMoveTo] = useState<Record<string, string>>({})
+  const teamNameOf = (id: string) => state.teams.find(t => t.id === id)?.name ?? 'Unknown team'
+  const batches = useMemo(
+    () => importBatches(allEvents(state), teamNameOf).slice(0, 5),
+    [state.events, state.teams],
+  )
+  if (batches.length === 0) return null
+
+  const orgTeams = state.teams.filter(t => t.orgId === state.currentOrgId)
+
+  const remove = (b: ReturnType<typeof importBatches>[number]) => {
+    const ids = new Set(b.events.map(e => e.id))
+    const when = new Date().toISOString().slice(0, 10)
+    setState({ events: state.events.map(e => (ids.has(e.id) ? { ...e, deletedAt: when } : e)) })
+    logActivity(`undid an import of ${b.events.length} events`, '/events')
+    toast(`${b.events.length} events moved to trash — restore them from Events → Trash`)
+    onDone()
+  }
+
+  const move = (b: ReturnType<typeof importBatches>[number], teamId: string) => {
+    const team = orgTeams.find(t => t.id === teamId)
+    if (!team) return
+    const ids = new Set(b.events.map(e => e.id))
+    setState({
+      events: state.events.map(e =>
+        ids.has(e.id) ? { ...e, teamId: team.id, sport: team.sport, level: team.level } : e),
+    })
+    logActivity(`moved ${b.events.length} imported events to ${team.name}`, '/events')
+    toast(`${b.events.length} events moved to ${team.name}`)
+    onDone()
+  }
+
+  return (
+    <div className="card card-pad" style={{ marginTop: 16 }}>
+      <strong className="small">Undo a recent import</strong>
+      <p className="tiny muted" style={{ margin: '4px 0 10px' }}>
+        Deleting sends the events to Events → Trash, where they can be restored for 30 days.
+      </p>
+      {batches.map(b => (
+        <div key={b.id} style={{ borderTop: '1px solid var(--border)', padding: '10px 0' }}>
+          <div className="small"><strong>{b.events.length} events</strong> · {b.teams.join(', ')}</div>
+          <div className="tiny muted" style={{ marginBottom: 8 }}>
+            Imported {fmtDate(b.when.toISOString().slice(0, 10))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <select
+              aria-label={`Move ${b.events.length} events to another team`}
+              value={moveTo[b.id] ?? ''}
+              onChange={e => setMoveTo(m => ({ ...m, [b.id]: e.target.value }))}>
+              <option value="">Move to another team…</option>
+              {orgTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <button className="btn sm" disabled={!moveTo[b.id]} onClick={() => move(b, moveTo[b.id])}>Move</button>
+            <button className="btn sm danger" onClick={() => remove(b)}>Delete all {b.events.length}</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function ImportScheduleModal({ onClose }: { onClose: () => void }) {
   const { state, setState, logActivity, toast } = useStore()
   const [text, setText] = useState('')
@@ -433,6 +560,7 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
     const col = (names: string[]) => header.findIndex(h => names.includes(h))
     const ci = {
       date: col(['date']), time: col(['time']), sport: col(['sport']),
+      gender: col(['gender', 'teamgender', 'boysgirls', 'boysorgirls', 'genderteam']),
       level: col(['level']), ha: col(['homeaway', 'ha', 'homeoraway']),
       opponent: col(['opponent', 'opp']), venue: col(['venue', 'location']),
       type: col(['gametype', 'type', 'regionarea']), notes: col(['notes', 'note']),
@@ -442,6 +570,9 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
       return
     }
     const out: ParsedRow[] = []
+    // One stamp for the whole run, so every row lands in the same batch and the
+    // import can be undone as a unit.
+    const batch = Date.now()
     lines.slice(1).forEach((line, idx) => {
       const cells = splitCsvLine(line)
       const get = (i: number) => (i >= 0 && i < cells.length ? cells[i] : '')
@@ -450,11 +581,38 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
       if (!date) { out.push({ line: idx + 2, error: `Unrecognized date “${get(ci.date)}” (use M/D/YYYY or YYYY-MM-DD)`, raw }); return }
       const time = parseTime(get(ci.time))
       if (time === 'invalid') { out.push({ line: idx + 2, error: `Unrecognized time “${get(ci.time)}” (use H:MM or H:MM PM)`, raw }); return }
-      const sport = get(ci.sport)
+      // The sport cell may carry the gender itself ("Boys Basketball"); an
+      // explicit Gender column wins if both are present.
+      const cell = splitSportCell(get(ci.sport))
+      const sport = cell.sport
+      const gender = parseGender(get(ci.gender)) ?? cell.gender
       const level = get(ci.level) || 'Varsity'
-      const team = state.teams.find(t => t.sport.toLowerCase() === sport.toLowerCase() && t.level.toLowerCase() === level.toLowerCase())
-        ?? state.teams.find(t => t.sport.toLowerCase() === sport.toLowerCase())
-      if (!team) { out.push({ line: idx + 2, error: `No team matches sport “${sport}” — add the team first in Teams`, raw }); return }
+
+      const bySport = state.teams.filter(t =>
+        t.orgId === state.currentOrgId && t.sport.toLowerCase() === sport.toLowerCase())
+      if (bySport.length === 0) {
+        out.push({ line: idx + 2, error: `No team matches sport “${sport}” — add the team first in Teams`, raw }); return
+      }
+      let pool = bySport
+      if (gender) {
+        pool = bySport.filter(t => (t.gender ?? '') === gender)
+        if (pool.length === 0) {
+          out.push({ line: idx + 2, error: `No ${gender.toLowerCase()} ${sport} team exists — add it first in Teams`, raw }); return
+        }
+      } else {
+        // Refuse to guess. Silently picking one is how a boys' schedule ends up
+        // filed under the girls' team.
+        const genders = [...new Set(bySport.map(t => t.gender).filter(Boolean))] as string[]
+        if (genders.length > 1) {
+          out.push({
+            line: idx + 2,
+            error: `“${sport}” has ${genders.join(' and ').toLowerCase()} teams — add a Gender column, or write “${genders[0]} ${sport}” in the Sport column`,
+            raw,
+          })
+          return
+        }
+      }
+      const team = pool.find(t => t.level.toLowerCase() === level.toLowerCase()) ?? pool[0]
       const opponentName = get(ci.opponent)
       if (!opponentName) { out.push({ line: idx + 2, error: 'Opponent is blank', raw }); return }
       const haRaw = get(ci.ha).toLowerCase()
@@ -467,7 +625,7 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
         line: idx + 2, raw,
         newOpponent: existing || isTourney ? undefined : opponentName,
         event: {
-          id: `ev-imp-${Date.now()}-${idx}`, orgId: state.currentOrgId, teamId: team.id,
+          id: `ev-imp-${batch}-${idx}`, orgId: state.currentOrgId, teamId: team.id,
           sport: team.sport, level: team.level, date, time,
           homeAway,
           eventKind: /tournament|invitational|classic|jamboree|play date/i.test(opponentName) ? 'tournament' : 'single',
@@ -525,8 +683,14 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
         <>
           <p className="small muted" style={{ marginTop: 0 }}>
             Upload a CSV file (in Excel or Google Sheets: <em>File → Save As / Download → CSV</em>) or paste rows below.
-            Expected columns: <strong>Date, Time, Sport, Level, Home/Away, Opponent, Venue, Game Type, Notes</strong> — only Date, Sport
+            Expected columns: <strong>Date, Time, Sport, Gender, Level, Home/Away, Opponent, Venue, Game Type, Notes</strong> — only Date, Sport
             and Opponent are required, and column order doesn't matter.
+          </p>
+          <p className="small muted" style={{ marginTop: -6 }}>
+            For a sport with separate boys' and girls' teams, say which one: either add a
+            <strong> Gender</strong> column (<em>Boys</em> or <em>Girls</em>) or write it in the Sport
+            column as <em>Boys Basketball</em>. Rows that don't say are reported as errors rather
+            than being filed under a guess.
           </p>
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <button className="btn" onClick={() => fileRef.current?.click()}>Choose CSV file…</button>
@@ -537,12 +701,13 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
               reader.onload = () => { setText(String(reader.result ?? '')); parse(String(reader.result ?? '')) }
               reader.readAsText(f)
             }} />
-            <button className="btn ghost" onClick={() => setText('Date,Time,Sport,Level,Home/Away,Opponent,Venue,Game Type\n11/6/2026,7:00 PM,Football,Varsity,Home,Vestavia Hills,Waldrop Stadium,Region\n11/13/2026,6:30 PM,Football,Varsity,Away,Hewitt-Trussville,Hewitt-Trussville Stadium,')}>Paste sample data</button>
+            <button className="btn ghost" onClick={() => setText('Date,Time,Sport,Gender,Level,Home/Away,Opponent,Venue,Game Type\n11/6/2026,7:00 PM,Football,Boys,Varsity,Home,Vestavia Hills,Waldrop Stadium,Region\n12/2/2026,7:00 PM,Basketball,Boys,Varsity,Home,Mountain Brook,Main Gym,Area\n12/2/2026,5:30 PM,Basketball,Girls,Varsity,Home,Mountain Brook,Main Gym,Area')}>Paste sample data</button>
           </div>
           <Field label="Or paste CSV rows (first row = headers)">
             <textarea rows={8} value={text} onChange={e => setText(e.target.value)} style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
-              placeholder={'Date,Time,Sport,Level,Home/Away,Opponent,Venue\n11/6/2026,7:00 PM,Football,Varsity,Home,Vestavia Hills,Waldrop Stadium'} />
+              placeholder={'Date,Time,Sport,Gender,Level,Home/Away,Opponent,Venue\n12/2/2026,7:00 PM,Basketball,Boys,Varsity,Home,Mountain Brook,Main Gym'} />
           </Field>
+          <UndoImports onDone={onClose} />
         </>
       ) : (
         <>
