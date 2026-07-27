@@ -19,7 +19,7 @@ Supabase Storage bucket. See `STORAGE_SETUP.md`.
 
 ## Phase 3 — Logins ⚠️ IN PROGRESS
 
-Invite-only sign-in with a 6-digit emailed code. See `AUTH_SETUP.md`.
+Invite-only sign-in with a one-time emailed code. See `AUTH_SETUP.md`.
 
 - [x] Email templates carry the code (`{{ .Token }}`)
 - [x] Resend connected so codes reach non-team addresses

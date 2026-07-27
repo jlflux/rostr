@@ -3,7 +3,7 @@
 Once cloud sync is working (see `SUPABASE_SETUP.md`), you can require people to
 **sign in** before they see anything. Logins are **invitation-only**: a person can
 only use the app if an administrator has added their email under
-**Settings → Users & roles**. Everyone signs in with a **6-digit code emailed to
+**Settings → Users & roles**. Everyone signs in with a **one-time code emailed to
 them** — no passwords to manage, reset, or forget.
 
 ### Why a code instead of just a link
@@ -52,9 +52,9 @@ In your Supabase dashboard:
    URL under **Redirect URLs**. This lets the sign-in link bring people back to
    your site. *(If you skip this, the link may bounce to the wrong place.)*
 
-## Step 2b — Put the 6-digit code in the email ⚠️ REQUIRED
+## Step 2b — Put the sign-in code in the email ⚠️ REQUIRED
 
-**Do not skip this.** People sign in by typing a 6-digit code, which matters
+**Do not skip this.** People sign in by typing a one-time code, which matters
 especially in the installed app (see "Why a code" below). Supabase only puts that
 code in the email if the template asks for it — by default the email contains just
 a link, and the code box will never work.
@@ -153,7 +153,7 @@ Then **redeploy**. Now the site asks everyone to sign in.
 ## Step 5 — Test it
 
 1. Open the site — you should see the sign-in screen.
-2. Enter your email. Check that the email that arrives **contains a 6-digit code**.
+2. Enter your email. Check that the email that arrives **contains a numeric code**.
    If it only has a link, Step 2b wasn't applied to the right template — go back
    and edit both templates.
 3. Type the code into the app and confirm you land in with your normal access.

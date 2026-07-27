@@ -92,7 +92,9 @@ function LoginScreen({ orgName }: { orgName?: string }) {
 
         {step === 'sent' ? (
           <form onSubmit={submitCode}>
-            <label className="small" style={{ fontWeight: 600 }}>6-digit code</label>
+            {/* No digit count here on purpose — the code's length is a Supabase
+                setting, so naming it would go stale the moment that changes. */}
+            <label className="small" style={{ fontWeight: 600 }}>Sign-in code</label>
             <input
               // one-time-code lets phones offer the code straight from the email.
               autoComplete="one-time-code"
@@ -101,7 +103,6 @@ function LoginScreen({ orgName }: { orgName?: string }) {
               required
               value={code}
               onChange={e => { setCode(e.target.value); setError(null) }}
-              placeholder="123456"
               style={{ ...inputStyle, fontSize: '1.35rem', letterSpacing: '0.32em', textAlign: 'center', fontWeight: 600 }}
             />
             <button className="btn primary" type="submit" disabled={busy} style={{ width: '100%' }}>
