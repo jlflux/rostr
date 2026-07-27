@@ -36,6 +36,30 @@ export default function EventsPage() {
 
   const sports = [...new Set(allEvents(state).map(e => e.sport))].sort()
 
+  // Bulk selection. Selecting is scoped to what the filters currently show, so
+  // "select all" after narrowing to one team can't reach past it.
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const shownIds = list.map(e => e.id)
+  const allShownSelected = shownIds.length > 0 && shownIds.every(id => selected.has(id))
+  const toggleOne = (id: string) =>
+    setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleAllShown = () =>
+    setSelected(s => {
+      const n = new Set(s)
+      if (allShownSelected) shownIds.forEach(id => n.delete(id))
+      else shownIds.forEach(id => n.add(id))
+      return n
+    })
+
+  const deleteSelected = () => {
+    const when = todayISO()
+    const n = selected.size
+    setState({ events: state.events.map(e => (selected.has(e.id) ? { ...e, deletedAt: when } : e)) })
+    logActivity(`deleted ${n} events`, '/events')
+    toast(`${n} events moved to trash — restore them from Trash above`)
+    setSelected(new Set())
+  }
+
   return (
     <>
       <div className="page-head">
@@ -64,22 +88,55 @@ export default function EventsPage() {
 
       {showTrash && <EventsTrash />}
 
+      {editable && selected.size > 0 && (
+        <div className="bulk-bar">
+          <strong>{selected.size} selected</strong>
+          <span className="tiny">{levelBreakdown(list.filter(e => selected.has(e.id)))}</span>
+          <div className="spacer" />
+          <button className="btn sm danger" onClick={deleteSelected}>
+            Move {selected.size} to trash
+          </button>
+          <button className="btn sm ghost" onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
+
       <div className="card tbl-wrap">
         <table className="tbl">
           <thead>
             <tr>
+              {editable && (
+                <th style={{ width: 34 }}>
+                  <input
+                    type="checkbox"
+                    aria-label={allShownSelected ? 'Clear selection' : 'Select all shown events'}
+                    checked={allShownSelected}
+                    onChange={toggleAllShown}
+                  />
+                </th>
+              )}
               <th>Date</th><th>Matchup</th><th>H/A</th><th>Venue</th><th>Staffing</th><th>Status</th>
             </tr>
           </thead>
           <tbody>
             {list.length === 0 && (
-              <tr><td colSpan={6}><div className="empty"><h4>No events match</h4><p>Adjust the search or filters.</p></div></td></tr>
+              <tr><td colSpan={editable ? 7 : 6}><div className="empty"><h4>No events match</h4><p>Adjust the search or filters.</p></div></td></tr>
             )}
             {list.map(e => {
               const open = e.staffSlots.filter(s => s.status === 'unfilled' || s.status === 'declined').length
               const score = visibleScore(state, e)
               return (
-                <tr key={e.id} className="clickable" onClick={() => navigate(`/events/${e.id}`)}>
+                <tr key={e.id} className={`clickable ${selected.has(e.id) ? 'row-selected' : ''}`} onClick={() => navigate(`/events/${e.id}`)}>
+                  {editable && (
+                    // Stop the click here so ticking a box doesn't open the event.
+                    <td onClick={ev => ev.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${eventTitle(e, { short: true })}`}
+                        checked={selected.has(e.id)}
+                        onChange={() => toggleOne(e.id)}
+                      />
+                    </td>
+                  )}
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <div style={{ fontWeight: 750 }}>{fmtDate(e.date)}</div>
                     <div className="tiny">{fmtTime(e.time)}</div>
@@ -126,10 +183,26 @@ export default function EventsPage() {
 }
 
 function EventsTrash() {
-  const { state, update, remove, toast } = useStore()
+  const { state, setState, update, remove, logActivity, toast } = useStore()
   const trash = trashedEvents(state).sort((a, b) => (b.deletedAt ?? '').localeCompare(a.deletedAt ?? ''))
+
+  // Deleting in bulk needs restoring in bulk — putting 30 events back one at a
+  // time isn't a real undo.
+  const restoreLatest = () => {
+    const newest = trash[0]?.deletedAt
+    if (!newest) return
+    const ids = new Set(trash.filter(e => e.deletedAt === newest).map(e => e.id))
+    setState({ events: state.events.map(e => (ids.has(e.id) ? { ...e, deletedAt: undefined } : e)) })
+    logActivity(`restored ${ids.size} events from trash`, '/events')
+    toast(`${ids.size} event${ids.size === 1 ? '' : 's'} restored`)
+  }
+
   return (
-    <Card title="Trash" pad={false}>
+    <Card title="Trash" pad={false} action={
+      trash.length > 1
+        ? <button className="card-link" onClick={restoreLatest}>Restore most recent batch</button>
+        : undefined
+    }>
       <p className="small muted" style={{ margin: '12px 18px 4px' }}>Deleted events are kept for 30 days, then removed permanently.</p>
       {trash.length === 0 && <Empty icon="🗑" title="Trash is empty" />}
       {trash.map(e => (
@@ -420,6 +493,21 @@ function parseTime(v: string): string | null | 'invalid' {
   return `${String(h).padStart(2, '0')}:${m[2]}`
 }
 
+/**
+ * Normalize how people actually write levels in a schedule spreadsheet, so
+ * "Freshmen", "9th" and "V" reach the team they obviously mean instead of
+ * failing to match and landing somewhere else.
+ */
+function normalizeLevel(v: string): string {
+  const s = v.trim().toLowerCase().replace(/[.\s]+/g, '')
+  if (/^(v|varsity|varsityteam)$/.test(s)) return 'Varsity'
+  if (/^(jv|juniorvarsity|jvarsity)$/.test(s)) return 'JV'
+  if (/^(f|fr|frosh|freshman|freshmen|9th|9thgrade|grade9)$/.test(s)) return 'Freshman'
+  if (/^(8|8th|8thgrade|grade8|eighth)$/.test(s)) return '8th Grade'
+  if (/^(7|7th|7thgrade|grade7|seventh)$/.test(s)) return '7th Grade'
+  return v.trim()
+}
+
 /** Read a gender out of a spreadsheet cell. Returns undefined if it says nothing. */
 function parseGender(v: string): NonNullable<Team['gender']> | undefined {
   const s = v.toLowerCase()
@@ -622,7 +710,7 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
       const cell = splitSportCell(get(ci.sport))
       const sport = cell.sport
       const gender = parseGender(get(ci.gender)) ?? cell.gender
-      const level = get(ci.level) || 'Varsity'
+      const level = normalizeLevel(get(ci.level) || 'Varsity')
 
       const bySport = state.teams.filter(t =>
         t.orgId === state.currentOrgId && t.sport.toLowerCase() === sport.toLowerCase())
@@ -648,7 +736,18 @@ function ImportScheduleModal({ onClose }: { onClose: () => void }) {
           return
         }
       }
-      const team = pool.find(t => t.level.toLowerCase() === level.toLowerCase()) ?? pool[0]
+      // Never fall back to another level. Silently filing a Freshman schedule
+      // under JV is the same failure as guessing the gender.
+      const team = pool.find(t => t.level.toLowerCase() === level.toLowerCase())
+      if (!team) {
+        const levels = pool.map(t => t.level).join(', ')
+        out.push({
+          line: idx + 2,
+          error: `No “${level}” team for ${gender ? `${gender.toLowerCase()} ` : ''}${sport} — this school has ${levels || 'none'}`,
+          raw,
+        })
+        return
+      }
       const opponentName = get(ci.opponent)
       if (!opponentName) { out.push({ line: idx + 2, error: 'Opponent is blank', raw }); return }
       const haRaw = get(ci.ha).toLowerCase()
