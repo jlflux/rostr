@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { ROLE_LABELS, broadcastState, can, currentUser, events as allEvents, fmtWLT, hasGames, sortedByLastName, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime, todayISO } from '../lib/dates'
-import { Avatar, Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, StatusBadge } from '../components/ui'
+import { Avatar, Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, SortTh, StatusBadge, sortRows, useSort } from '../components/ui'
 import { splitCsvLine } from './EventsPage'
 import { I } from '../components/icons'
 import type { Athlete, Guardian, Team } from '../types'
@@ -406,6 +406,27 @@ function AddTeamModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+type RosterKey = 'number' | 'name' | 'grade' | 'position' | 'guardians'
+
+/**
+ * The value each roster column sorts on.
+ *
+ * Jersey numbers are text ("00", "7", "24") but must order numerically, and an
+ * athlete without one belongs at the end rather than sorting as 0. Blank text
+ * fields sort last too, so the rows that need filling in don't crowd the top.
+ */
+function rosterSortValue(a: Athlete, key: RosterKey): unknown {
+  switch (key) {
+    case 'number': {
+      const n = Number(a.number)
+      return a.number?.trim() && Number.isFinite(n) ? n : Number.POSITIVE_INFINITY
+    }
+    case 'guardians': return (a.guardians ?? []).length
+    case 'name': return a.name || '￿'
+    default: return a[key]?.trim() || '￿'
+  }
+}
+
 function RosterTab({ team }: { team: Team }) {
   const { state, update, logActivity, toast } = useStore()
   const [q, setQ] = useState('')
@@ -418,7 +439,13 @@ function RosterTab({ team }: { team: Team }) {
   const roster = team.roster ?? []
   const toggleExpand = (id: string) => setExpanded(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   const term = q.trim().toLowerCase()
-  const shown = term ? roster.filter(a => a.name.toLowerCase().includes(term) || a.number === term || a.position?.toLowerCase().includes(term)) : roster
+  const matching = term ? roster.filter(a => a.name.toLowerCase().includes(term) || a.number === term || a.position?.toLowerCase().includes(term)) : roster
+
+  const { sort, onSort } = useSort<RosterKey>('number')
+  const shown = useMemo(
+    () => sortRows(matching, sort, (a, k) => rosterSortValue(a, k)),
+    [matching, sort],
+  )
 
   const setRoster = (next: Athlete[], msg?: string) => {
     update('teams', team.id, {
@@ -439,7 +466,15 @@ function RosterTab({ team }: { team: Team }) {
       <p className="tiny" style={{ margin: '0 0 10px' }}>Tap an athlete to see contact and guardian info — handy on the sideline in an emergency.</p>
       <div className="card tbl-wrap">
         <table className="tbl">
-          <thead><tr><th style={{ width: 34 }} /><th style={{ width: 50 }}>#</th><th>Name</th><th>Grade</th><th>Position</th><th>Guardians</th>{editable && <th style={{ width: 50 }} />}</tr></thead>
+          <thead><tr>
+            <th style={{ width: 34 }} />
+            <SortTh label="#" k="number" sort={sort} onSort={onSort} style={{ width: 50 }} />
+            <SortTh label="Name" k="name" sort={sort} onSort={onSort} />
+            <SortTh label="Grade" k="grade" sort={sort} onSort={onSort} />
+            <SortTh label="Position" k="position" sort={sort} onSort={onSort} />
+            <SortTh label="Guardians" k="guardians" sort={sort} onSort={onSort} />
+            {editable && <th style={{ width: 50 }} />}
+          </tr></thead>
           <tbody>
             {shown.length === 0 && (
               <tr><td colSpan={7}><div className="empty">
