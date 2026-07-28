@@ -1,7 +1,7 @@
 import React, { Fragment, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, broadcastState, can, currentUser, events as allEvents, fmtWLT, hasGames, sortedByLastName, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
+import { ROLE_LABELS, broadcastState, can, currentUser, events as allEvents, fmtWLT, hasGames, lastName, sortedByLastName, teamRecord, teams as allTeams, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtTime, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Empty, Field, HomeAwayBadge, Modal, SearchBox, SortTh, StatusBadge, sortRows, useSort } from '../components/ui'
 import { splitCsvLine } from './EventsPage'
@@ -422,7 +422,9 @@ function rosterSortValue(a: Athlete, key: RosterKey): unknown {
       return a.number?.trim() && Number.isFinite(n) ? n : Number.POSITIVE_INFINITY
     }
     case 'guardians': return (a.guardians ?? []).length
-    case 'name': return a.name || '￿'
+    // Files under the surname, the way a roster sheet reads, with the full name
+    // appended so athletes sharing one stay in a predictable order.
+    case 'name': return a.name ? `${lastName(a.name)} ${a.name}` : '￿'
     default: return a[key]?.trim() || '￿'
   }
 }
