@@ -200,6 +200,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const legacy = rows.filter(r => r.id !== PLATFORM_ROW_ID && !perSchool.includes(r))
 
     let shared: Partial<AppState> | null = null
+    if (rows.length === 0) {
+      // No rows at all is never a legitimate "the cloud is empty" answer here:
+      // a signed-in user can always read at least their own school. It means the
+      // read was refused — an expired sign-in returns an empty set rather than an
+      // error — so treat it as a failure and never let this device upload.
+      return null
+    }
     if (perSchool.length) {
       shared = mergeDocuments(
         perSchool.map(r => r.data as OrgDocument),
@@ -248,10 +255,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             return applied
           })
         }
+        if (!shared) {
+          // Loaded nothing. Leave auto-save disarmed: pushing now would upload
+          // whatever this device had cached over everyone else's work.
+          setCloudError('Could not load your data — you may need to sign in again. Nothing will be saved until this is fixed.')
+          setCloudStatus('error')
+          return
+        }
         cloudReady.current = true
         setCloudStatus('idle')
       })
-      .catch((e: unknown) => { cloudReady.current = true; setCloudError(String((e as Error)?.message ?? e)); setCloudStatus('error') })
+      // Leave cloudReady false: a device that could not read must not write.
+      .catch((e: unknown) => { setCloudError(String((e as Error)?.message ?? e)); setCloudStatus('error') })
     return () => { cancelled = true }
   }, [applyRows])
 
