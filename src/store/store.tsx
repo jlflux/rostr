@@ -48,8 +48,15 @@ export interface Store {
   cloudStatus: CloudStatus
   /** Human-readable reason the last cloud action failed, if any. */
   cloudError: string | null
-  /** Save this device's data to the shared cloud now. */
-  cloudPushNow: () => Promise<void>
+  /** True once cloud data has actually been loaded onto this device. */
+  cloudLoaded: boolean
+  /**
+   * Save this device's data to the shared cloud now. Refused unless a load has
+   * succeeded, because pushing before then replaces everyone's data with
+   * whatever this device happens to hold. Pass force to override deliberately —
+   * needed once, to populate an empty project for the first time.
+   */
+  cloudPushNow: (opts?: { force?: boolean }) => Promise<void>
   /** Load the shared cloud data onto this device now (keeps your local "view as"). */
   cloudPullNow: () => Promise<void>
   theme: 'light' | 'dark'
@@ -162,6 +169,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   /** Last saved contents per row, so unchanged schools aren't re-uploaded. */
   const rowBaselines = useRef(new Map<string, string>())
   const cloudReady = useRef(false)
+  /** Set only when cloud data has really been applied to this device. */
+  const cloudLoadedRef = useRef(false)
+  const [cloudLoaded, setCloudLoaded] = useState(false)
   const pushTimer = useRef<ReturnType<typeof setTimeout>>()
   /** Record-level edits waiting to be sent, in the order they happened. */
   const changeQueue = useRef<RecordChange[]>([])
@@ -263,6 +273,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           return
         }
         cloudReady.current = true
+        cloudLoadedRef.current = true
+        setCloudLoaded(true)
         setCloudStatus('idle')
       })
       // Leave cloudReady false: a device that could not read must not write.
@@ -421,13 +433,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const cloudPushNow = useCallback(async () => {
+  const cloudPushNow = useCallback(async (opts?: { force?: boolean }) => {
     if (!cloudEnabled()) return
+    // Saving before a successful load overwrites the shared data with whatever
+    // this device holds — which may be the demo seed on a fresh browser.
+    if (!cloudLoadedRef.current && !opts?.force) {
+      setCloudError('Your data hasn\u2019t loaded from the cloud yet, so saving now could replace it with what\u2019s on this device. Reload first, or sign in again.')
+      setCloudStatus('error')
+      return
+    }
     setCloudStatus('syncing')
     try {
       await pushChangedRows(stateRef.current)
       lastSyncedJson.current = JSON.stringify(withoutSessionState(stateRef.current))
       cloudReady.current = true
+      cloudLoadedRef.current = true
+      setCloudLoaded(true)
       setCloudError(null)
       setCloudStatus('saved')
     } catch (e: unknown) {
@@ -442,6 +463,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const shared = applyRows(await cloudPullAll())
       if (shared) {
+        cloudLoadedRef.current = true
+        setCloudLoaded(true)
         setFullState(prev => {
           // Keep this device's own view: which school and which user are per-person,
           // so a pull must never adopt whatever another device last wrote.
@@ -461,9 +484,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<Store>(() => ({
     state, update, add, remove, removeOrg, setState, logActivity, resetDemo, exportState, importState,
-    cloudEnabled: cloudEnabled(), cloudStatus, cloudError, cloudPushNow, cloudPullNow,
+    cloudEnabled: cloudEnabled(), cloudStatus, cloudError, cloudLoaded, cloudPushNow, cloudPullNow,
     theme, setTheme: setThemeState, skin, setSkin, toast, toasts,
-  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, skin, setSkin, toast, toasts])
+  }), [state, update, add, remove, setState, logActivity, resetDemo, exportState, importState, cloudStatus, cloudError, cloudLoaded, cloudPushNow, cloudPullNow, theme, skin, setSkin, toast, toasts])
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>
 }

@@ -21,8 +21,9 @@ const SKIN_OPTIONS: { id: Skin; label: string; hint: string; rows: number; gap: 
 const AVATAR_COLORS = ['#d60000', '#0e7490', '#15803d', '#b45309', '#7c3aed', '#be185d', '#1d4ed8', '#374151']
 
 export default function SettingsPage() {
-  const { state, update, add, remove, setState, resetDemo, exportState, importState, cloudEnabled, cloudStatus, cloudError, cloudPushNow, cloudPullNow, theme, setTheme, skin, setSkin, toast } = useStore()
+  const { state, update, add, remove, setState, resetDemo, exportState, importState, cloudEnabled, cloudStatus, cloudError, cloudLoaded, cloudPushNow, cloudPullNow, theme, setTheme, skin, setSkin, toast } = useStore()
   const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmSeed, setConfirmSeed] = useState(false)
   const [addingUser, setAddingUser] = useState(false)
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null)
   const [pendingImport, setPendingImport] = useState<{ raw: string; name: string } | null>(null)
@@ -222,13 +223,31 @@ export default function SettingsPage() {
               <>
                 <p className="small muted" style={{ marginTop: 0 }}>
                   This device is connected to your shared cloud dataset. Changes save automatically and every device that
-                  opens the site sees the same data. To seed it the first time, open this on the computer that has all your
-                  data and click <strong>Save to cloud</strong>.
+                  opens the site sees the same data.
                 </p>
+                {!cloudLoaded && (
+                  <div style={{ marginBottom: 10, padding: '10px 12px', border: '1px solid var(--warn)', borderRadius: 8, background: 'color-mix(in srgb, var(--warn) 10%, transparent)' }}>
+                    <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>Nothing has loaded from the cloud on this device</div>
+                    <div className="small">
+                      Saving is switched off, because sending what's on this device would replace the shared data with it.
+                      Use <strong>Load from cloud</strong>, or reload and sign in again.
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button className="btn primary" disabled={cloudStatus === 'syncing'} onClick={async () => { await cloudPushNow(); toast('Saved to cloud') }}>Save to cloud</button>
+                  <button className="btn primary" disabled={cloudStatus === 'syncing' || !cloudLoaded}
+                    title={cloudLoaded ? undefined : 'Load from the cloud first'}
+                    onClick={async () => { await cloudPushNow(); toast('Saved to cloud') }}>Save to cloud</button>
                   <button className="btn" disabled={cloudStatus === 'syncing'} onClick={async () => { await cloudPullNow(); toast('Loaded latest from cloud') }}>Load from cloud</button>
                 </div>
+                {!cloudLoaded && (
+                  // The one legitimate case for pushing without loading: an empty
+                  // project being filled for the first time. Deliberate, and confirmed.
+                  <p className="tiny" style={{ margin: '8px 0 0' }}>
+                    Setting up a brand-new, empty project?{' '}
+                    <button className="btn sm ghost danger" onClick={() => setConfirmSeed(true)}>Save anyway</button>
+                  </p>
+                )}
                 {cloudStatus === 'error' && (
                   <div style={{ marginTop: 10, padding: '10px 12px', border: '1px solid var(--danger)', borderRadius: 8, background: 'color-mix(in srgb, var(--danger) 8%, transparent)' }}>
                     <div className="small" style={{ fontWeight: 700, color: 'var(--danger)', marginBottom: 4 }}>Cloud error</div>
@@ -330,6 +349,13 @@ export default function SettingsPage() {
             setPendingImport(null)
           }}
           onClose={() => setPendingImport(null)} />
+      )}
+
+      {confirmSeed && (
+        <ConfirmDialog title="Save to cloud without loading first?" danger confirmLabel="Replace cloud data"
+          message="Nothing has loaded from the cloud on this device, so this will replace whatever is stored there with what's on this screen right now. That is only safe on a brand-new, empty project. If your school's data already exists in the cloud, cancel and use Load from cloud instead."
+          onConfirm={async () => { await cloudPushNow({ force: true }); toast('Saved to cloud') }}
+          onClose={() => setConfirmSeed(false)} />
       )}
 
       {confirmReset && (

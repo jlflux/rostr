@@ -87,6 +87,34 @@ writes and the new build ignores.** Either ship the schema change and the deploy
 together, or make the old row read-only the moment the new one exists. A rollback
 target that's still writable is a data-loss trap, not a safety net.
 
+## Protecting against data loss
+
+Three independent layers, added after a device pushed demo data over a live
+school (see `supabase/recover-overwritten-data.sql`):
+
+1. **A device that can't read can't write.** If the startup load fails — or comes
+   back empty, which is what an expired sign-in looks like — auto-save stays off
+   and the red "Not saving" banner appears. Nothing is uploaded.
+2. **Manual "Save to cloud" needs a successful load first.** It's disabled until
+   then, with an explicit confirmation available for the one legitimate case:
+   filling a brand-new, empty project.
+3. **The database refuses a destructive write** (`supabase/guard-overwrites.sql`).
+   Any save that would cut a sizeable collection to less than half its size is
+   rejected outright. This one doesn't depend on the app being correct, which is
+   the point — it's the layer that catches bugs nobody predicted.
+
+Plus hourly snapshots (`supabase/snapshots.sql`) as the recovery path if
+something still gets through.
+
+**If a save is ever legitimately meant to remove most of a collection**, run it as:
+
+```sql
+begin;
+set local app.allow_shrink = 'on';
+-- your update here
+commit;
+```
+
 ## Phase 6 — Multi-user data model 🔧 THE REAL "BACKEND" WORK
 
 Not required to go live with a small number of people. Required before a full staff
