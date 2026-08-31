@@ -17,9 +17,24 @@
 -- ============================================================
 
 
+-- ---------- 0. Preflight ----------
+-- Fail with a useful message rather than a bare "relation does not exist" if
+-- this is being run somewhere the app's table isn't.
+
+do $$
+begin
+  if to_regclass('public.workspaces') is null then
+    raise exception
+      'public.workspaces was not found in database "%" — this looks like the wrong Supabase project.',
+      current_database()
+      using hint = 'Run: select table_schema, table_name from information_schema.tables where table_name = ''workspaces''; If it returns nothing, switch to the project the app uses (its URL is VITE_SUPABASE_URL in Vercel). If it returns a different schema, tell me which.';
+  end if;
+end $$;
+
+
 -- ---------- 1. The table ----------
 
-create table if not exists public_site (
+create table if not exists public.public_site (
   org_id      text primary key,
   slug        text not null unique,
   published   boolean not null default false,
@@ -27,15 +42,15 @@ create table if not exists public_site (
   updated_at  timestamptz not null default now()
 );
 
-create index if not exists public_site_slug on public_site (slug) where published;
+create index if not exists public_site_slug on public.public_site (slug) where published;
 
-alter table public_site enable row level security;
+alter table public.public_site enable row level security;
 
 -- Anyone, signed in or not, may read a PUBLISHED school. Nothing may be written
 -- from outside: the trigger below is the only writer, and it runs as the table
 -- owner.
-drop policy if exists "published schools are public" on public_site;
-create policy "published schools are public" on public_site
+drop policy if exists "published schools are public" on public.public_site;
+create policy "published schools are public" on public.public_site
   for select to anon, authenticated
   using (published);
 
@@ -230,7 +245,7 @@ begin
     return new;
   end if;
 
-  insert into public_site (org_id, slug, data, updated_at)
+  insert into public.public_site (org_id, slug, data, updated_at)
   values (new.id, public_site_slug(org, new.id), build_public_site(new.data), now())
   on conflict (org_id) do update
     set slug = excluded.slug,
@@ -239,9 +254,9 @@ begin
   return new;
 end $$;
 
-drop trigger if exists workspaces_refresh_public_site on workspaces;
+drop trigger if exists workspaces_refresh_public_site on public.workspaces;
 create trigger workspaces_refresh_public_site
-  after insert or update on workspaces
+  after insert or update on public.workspaces
   for each row
   execute function refresh_public_site();
 
@@ -253,18 +268,18 @@ security definer
 set search_path = public
 as $$
 begin
-  delete from public_site where org_id = old.id;
+  delete from public.public_site where org_id = old.id;
   return old;
 end $$;
 
-drop trigger if exists workspaces_drop_public_site on workspaces;
+drop trigger if exists workspaces_drop_public_site on public.workspaces;
 create trigger workspaces_drop_public_site
-  after delete on workspaces
+  after delete on public.workspaces
   for each row
   execute function drop_public_site();
 
 -- Build rows for the schools that already exist.
-update workspaces set updated_at = updated_at where data -> 'orgs' -> 0 is not null;
+update public.workspaces set updated_at = updated_at where data -> 'orgs' -> 0 is not null;
 
 
 -- ---------- 5. Verify ----------
@@ -274,7 +289,7 @@ select org_id, slug, published, updated_at,
        jsonb_array_length(data -> 'events') as events,
        jsonb_array_length(data -> 'teams')  as teams,
        pg_size_pretty(length(data::text)::bigint) as size
-from public_site
+from public.public_site
 order by org_id;
 
 -- Nothing private may appear anywhere in the projection. Every count must be 0.
@@ -285,15 +300,15 @@ select org_id,
        (data::text ilike '%runOfShow%')::int     as run_of_show,
        (data::text ilike '%"email"%')::int       as emails,
        (data::text ilike '%checkoutTime%')::int  as checkout_time
-from public_site
+from public.public_site
 order by org_id;
 
 
 -- ---------- 6. Publishing a school ----------
 -- Nothing is visible to the public until this is run for that school:
 --
---   update public_site set published = true where org_id = 'org-hhs';
+--   update public.public_site set published = true where org_id = 'org-hhs';
 --
 -- and to take it down again:
 --
---   update public_site set published = false where org_id = 'org-hhs';
+--   update public.public_site set published = false where org_id = 'org-hhs';
