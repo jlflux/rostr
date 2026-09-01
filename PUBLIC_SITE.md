@@ -111,3 +111,27 @@ conversation later.
 **Sponsor wall.** Sponsorship stays internal, but logo-and-link on the public
 site is what a sponsor is actually buying, and it makes the sponsorship module
 sell itself. Per-sponsor opt-in. Contract terms never leave the backend.
+
+---
+
+## Phase B — status
+
+**Done:** the public app itself — home, schedule and the game page — reading the
+`public_site` projection anonymously, themed per school at runtime.
+
+It builds as a second entry point (`fans.html`) alongside the staff app. The fan
+bundle is ~12 KB against the staff app's ~570 KB, which is the check that no
+admin code reached it. `FANS_ONLY=1` builds only the public site and emits it as
+`index.html`, which is what its own Vercel project deploys.
+
+Addressing a school: the subdomain is the slug in production, `?school=<slug>`
+overrides it for previews and local work, and `VITE_PUBLIC_DEFAULT_SLUG` is the
+fallback. Real domains are Phase D.
+
+**Still to do before this can go live:**
+
+- **Copy logo files into the public bucket.** Paths are already correct
+  (`<schoolId>/<assetId>`); nothing copies the files across yet, so crests fall
+  back to initials. This is the next piece of work.
+- **Rosters, team pages and a scores page** — Phase C.
+- **Domains** — Phase D.
