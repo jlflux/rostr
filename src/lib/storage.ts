@@ -71,3 +71,47 @@ export async function removeFromStorage(ref?: string): Promise<void> {
   signedCache.delete(path)
   await sb.storage.from(bucket()).remove([path]).catch(() => {})
 }
+
+// ---------- The public site's images ----------
+//
+// The bucket above is private: its files are reached through signed URLs that
+// expire, which is right for rosters and documents but cannot back a public web
+// page. The handful of images that appear publicly are copied into a second,
+// public bucket, at a path derived from the school and asset ids so the database
+// projection can name the file without knowing whether it has been copied yet.
+
+function publicBucket(): string {
+  return import.meta.env.VITE_PUBLIC_STORAGE_BUCKET || 'public-assets'
+}
+
+/** Where a logo lives publicly. Must match `supabase/public-site.sql`. */
+export function publicLogoPath(orgId: string, assetId: string): string {
+  return `${orgId}/${assetId}`
+}
+
+/**
+ * Copy one stored file into the public bucket, replacing whatever is there.
+ * Returns an error message, or null on success.
+ */
+export async function copyToPublicBucket(ref: string, publicPath: string): Promise<string | null> {
+  const sb = getSupabase()
+  if (!sb) return 'Storage is not configured.'
+  if (!isStoredPath(ref)) return 'That file was never uploaded.'
+  const path = ref.slice(STORAGE_PREFIX.length)
+
+  const { data: file, error: readErr } = await sb.storage.from(bucket()).download(path)
+  if (readErr || !file) return readErr?.message ?? 'Could not read the file.'
+
+  const { error: writeErr } = await sb.storage.from(publicBucket()).upload(publicPath, file, {
+    contentType: file.type || undefined,
+    upsert: true,
+  })
+  return writeErr ? writeErr.message : null
+}
+
+/** Remove a file from the public bucket (best effort). */
+export async function removeFromPublicBucket(publicPath: string): Promise<void> {
+  const sb = getSupabase()
+  if (!sb) return
+  await sb.storage.from(publicBucket()).remove([publicPath]).catch(() => {})
+}

@@ -6,6 +6,7 @@ import { fmtMoney, todayISO } from '../lib/dates'
 import { I } from '../components/icons'
 import { StoredImage } from '../components/StoredImage'
 import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
+import { publicLogosFor, syncPublicLogos, type SyncResult } from '../lib/publicLogos'
 import type { Organization, Role, SponsorTier, User } from '../types'
 
 const SPONSOR_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
@@ -213,6 +214,8 @@ export default function SettingsPage() {
               </p>
             </Field>
           </Card>
+
+          <PublicSiteCard />
 
           <Card title="Cloud sync" action={cloudEnabled
             ? <Badge tone={cloudStatus === 'saved' || cloudStatus === 'idle' ? 'ok' : cloudStatus === 'error' ? 'danger' : 'neutral'}>
@@ -539,5 +542,60 @@ function AddUserModal({ onClose, onSave }: { onClose: () => void; onSave: (u: Us
         </Field>
       )}
     </Modal>
+  )
+}
+
+/**
+ * Publishing this school's logos to the public site.
+ *
+ * The database builds the public data automatically, but it cannot move image
+ * files — storage is outside its reach. So the images the public site needs are
+ * copied here, on demand, from the private bucket into the public one.
+ */
+function PublicSiteCard() {
+  const { state, toast } = useStore()
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<SyncResult | null>(null)
+  const me = currentUser(state)
+  const org = currentOrg(state)
+  if (!can(me.role, 'admin') || !storageEnabled()) return null
+
+  const logos = publicLogosFor(state, org.id)
+
+  const sync = async () => {
+    setBusy(true)
+    const r = await syncPublicLogos(state, org.id)
+    setBusy(false)
+    setResult(r)
+    toast(r.failed.length
+      ? `${r.copied} published, ${r.failed.length} failed`
+      : `${r.copied} logo${r.copied === 1 ? '' : 's'} published`,
+      r.failed.length ? 'error' : 'success')
+  }
+
+  return (
+    <Card title="Public site">
+      <p className="small muted" style={{ marginTop: 0 }}>
+        Schedules, scores and rosters reach the public site on their own. Logos are files,
+        so they have to be copied across — do this after adding or changing one.
+      </p>
+      <p className="small" style={{ marginBottom: 10 }}>
+        <strong>{logos.length}</strong> logo{logos.length === 1 ? '' : 's'} to publish:
+        this school's, each opponent's primary logo, and the logo of any sponsor billed on a game.
+      </p>
+      <button className="btn primary" disabled={busy || logos.length === 0} onClick={sync}>
+        {busy ? 'Publishing…' : 'Publish logos'}
+      </button>
+      {result && result.failed.length > 0 && (
+        <ul className="small" style={{ color: 'var(--danger)', marginBottom: 0 }}>
+          {result.failed.map((f, i) => <li key={i}>{f.label}: {f.error}</li>)}
+        </ul>
+      )}
+      {logos.length === 0 && (
+        <p className="tiny muted" style={{ marginBottom: 0, marginTop: 8 }}>
+          Nothing to publish yet — upload a school or opponent logo in the asset library first.
+        </p>
+      )}
+    </Card>
   )
 }

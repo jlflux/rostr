@@ -128,10 +128,29 @@ Addressing a school: the subdomain is the slug in production, `?school=<slug>`
 overrides it for previews and local work, and `VITE_PUBLIC_DEFAULT_SLUG` is the
 fallback. Real domains are Phase D.
 
+## Phase C — status
+
+**Done:** logo publishing, plus teams and rosters.
+
+Logos are files, so the database cannot move them — it names the path but the
+copy happens in the app. **Settings → Public site → Publish logos** copies
+exactly the images the projection references: the school's logo, each opponent's
+primary logo, and the logo of any sponsor billed on a game. Nothing else leaves
+the private bucket, so an opponent's alternate logos, team photos and athlete
+photos stay where they are.
+
+`src/lib/publicLogos.ts` and `supabase/public-site.sql` have to agree on that
+set. If one changes, change the other.
+
+Teams are grouped by sport and gender, matching the staff app, so boys' and
+girls' basketball read as two programs. A team page shows its schedule first and
+its roster behind a tab, sorted by jersey number with blanks last. Rosters carry
+number, name, grade and position — the projection never sends anything else.
+
 **Still to do before this can go live:**
 
-- **Copy logo files into the public bucket.** Paths are already correct
-  (`<schoolId>/<assetId>`); nothing copies the files across yet, so crests fall
-  back to initials. This is the next piece of work.
-- **Rosters, team pages and a scores page** — Phase C.
-- **Domains** — Phase D.
+- **Domains** — Phase D. Until then a school is reached with `?school=<slug>`.
+- **Publishing is still a SQL statement** (`update public.public_site set
+  published = true where org_id = '…'`). Worth a control in the app once there
+  is more than one school to manage.
+- **Social embeds and a sponsor wall** — Phase E.

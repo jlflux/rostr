@@ -212,6 +212,104 @@ function Game({ site }: { site: PublicSite }) {
   )
 }
 
+function Teams({ site }: { site: PublicSite }) {
+  // Grouped the way a school talks about its programs: sport, then boys/girls,
+  // then varsity down. Two basketball teams are two programs, not one list.
+  const groups = useMemo(() => {
+    const order: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2, '8th Grade': 3, '7th Grade': 4 }
+    const gorder: Record<string, number> = { Boys: 0, Girls: 1, Coed: 2 }
+    const by = new Map<string, { sport: string; gender?: string; teams: typeof site.teams }>()
+    for (const t of site.teams) {
+      const key = `${t.sport}::${t.gender ?? ''}`
+      const g = by.get(key)
+      if (g) g.teams.push(t)
+      else by.set(key, { sport: t.sport, gender: t.gender, teams: [t] })
+    }
+    return [...by.values()]
+      .map(g => ({ ...g, teams: [...g.teams].sort((a, b) => (order[a.level] ?? 9) - (order[b.level] ?? 9)) }))
+      .sort((a, b) => a.sport.localeCompare(b.sport) ||
+        (gorder[a.gender ?? ''] ?? 9) - (gorder[b.gender ?? ''] ?? 9))
+  }, [site])
+
+  return (
+    <>
+      <h1 className="page-h1">Teams</h1>
+      {groups.map(g => (
+        <div key={`${g.sport}${g.gender ?? ''}`} className="team-group">
+          <h2>{g.sport}{g.gender && g.gender !== 'Coed' ? ` · ${g.gender}` : ''}</h2>
+          <div className="list">
+            {g.teams.map(t => (
+              <Link key={t.id} to={`/team/${t.id}`} className="team-row">
+                <span className="lvl">{t.level}</span>
+                <span className="tr-main">{t.name}</span>
+                <span className="tr-sub">{t.roster.length > 0 ? `${t.roster.length} athletes` : ''}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  )
+}
+
+function TeamPage({ site }: { site: PublicSite }) {
+  const { id } = useParams()
+  const [tab, setTab] = useState<'schedule' | 'roster'>('schedule')
+  const team = site.teams.find(t => t.id === id)
+  if (!team) return <p className="empty">That team isn't listed.</p>
+
+  const games = site.events
+    .filter(e => e.teamId === team.id)
+    .sort((a, b) => (a.date + (a.time ?? '99')).localeCompare(b.date + (b.time ?? '99')))
+  // Jersey numbers are text but read as numbers; blanks go last.
+  const roster = [...team.roster].sort((a, b) => {
+    const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : Infinity)
+    return n(a.number) - n(b.number) || a.name.localeCompare(b.name)
+  })
+
+  return (
+    <>
+      <p className="crumb"><Link to="/teams">← Teams</Link></p>
+      <h1 className="page-h1">{team.name}</h1>
+      <p className="team-meta">
+        {team.seasonLabel}
+        {team.postseasonFinish ? ` · ${team.postseasonFinish}` : ''}
+      </p>
+
+      <div className="seg" style={{ marginBottom: 16 }}>
+        <button className={tab === 'schedule' ? 'on' : ''} onClick={() => setTab('schedule')}>
+          Schedule
+        </button>
+        <button className={tab === 'roster' ? 'on' : ''} onClick={() => setTab('roster')}>
+          Roster{roster.length ? ` (${roster.length})` : ''}
+        </button>
+      </div>
+
+      {tab === 'schedule' && (games.length === 0
+        ? <p className="empty">No games on the schedule yet.</p>
+        : <div className="list">{games.map(e => <GameCard key={e.id} site={site} e={e} />)}</div>)}
+
+      {tab === 'roster' && (roster.length === 0
+        ? <p className="empty">The roster hasn't been posted yet.</p>
+        : <div className="roster">
+            <table>
+              <thead><tr><th>#</th><th>Name</th><th>Grade</th><th>Position</th></tr></thead>
+              <tbody>
+                {roster.map(a => (
+                  <tr key={a.id}>
+                    <td className="num">{a.number || ''}</td>
+                    <td className="nm">{a.name}</td>
+                    <td>{a.grade || ''}</td>
+                    <td>{a.position || ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>)}
+    </>
+  )
+}
+
 // ---------- shell ----------
 
 export default function App() {
@@ -257,12 +355,15 @@ export default function App() {
         <nav>
           <Link to="/">Home</Link>
           <Link to="/schedule">Schedule</Link>
+          <Link to="/teams">Teams</Link>
         </nav>
       </header>
       <main className="wrap">
         <Routes>
           <Route path="/" element={<Home site={site} />} />
           <Route path="/schedule" element={<Schedule site={site} />} />
+          <Route path="/teams" element={<Teams site={site} />} />
+          <Route path="/team/:id" element={<TeamPage site={site} />} />
           <Route path="/game/:id" element={<Game site={site} />} />
           <Route path="*" element={<p className="empty">Page not found.</p>} />
         </Routes>

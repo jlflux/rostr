@@ -164,3 +164,39 @@ a { color: inherit; text-decoration: none; }
   .matchup { padding: 18px 10px; }
   .matchup .side strong { font-size: 0.88rem; }
 }
+
+/* ---------- teams & rosters ---------- */
+
+.team-group { margin-bottom: 26px; }
+.team-group h2 {
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--fs-muted); margin: 0 0 10px;
+}
+.team-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--fs-surface); border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius); padding: 12px 14px;
+}
+.team-row:hover { border-color: var(--fs-primary); }
+.team-row .lvl {
+  font-size: 0.68rem; font-weight: 800; letter-spacing: 0.05em; color: #fff;
+  background: var(--fs-navy); border-radius: 999px; padding: 3px 9px; flex-shrink: 0;
+}
+.tr-main { font-weight: 700; flex: 1; min-width: 0; }
+.tr-sub { font-size: 0.8rem; color: var(--fs-muted); flex-shrink: 0; }
+
+.team-meta { margin: -8px 0 16px; color: var(--fs-muted); font-size: 0.9rem; }
+
+.roster {
+  background: var(--fs-surface); border: 1px solid var(--fs-line);
+  border-radius: var(--fs-radius); overflow-x: auto;
+}
+.roster table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.roster th {
+  text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--fs-muted); font-weight: 700; padding: 12px 14px; border-bottom: 1px solid var(--fs-line);
+}
+.roster td { padding: 11px 14px; border-bottom: 1px solid var(--fs-line); }
+.roster tr:last-child td { border-bottom: 0; }
+.roster .num { width: 52px; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--fs-primary); }
+.roster .nm { font-weight: 600; }
