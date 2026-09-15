@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, can, currentUser, fulfillmentForTier, fulfillmentProgress, newBuyDefaults, sponsorAgreements, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTrade, sponsors as allSponsors, teamEarmarks, tierSetting } from '../lib/derive'
+import { PIPELINE_STAGES, can, currentUser, defaultSeasonLabel, fulfillmentForTier, sponsorTiers, fulfillmentProgress, newBuyDefaults, sponsorAgreements, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorProgramTotals, sponsorTrade, sponsors as allSponsors, teamEarmarks, tierSetting } from '../lib/derive'
 import { fmtMoney, todayISO } from '../lib/dates'
 import { Badge, Empty, Field, Modal, Progress, SearchBox, Seg, SortTh, StatCard, StatusBadge, sortRows, useSort } from '../components/ui'
 import { I } from '../components/icons'
 import type { Agreement, PipelineStage, Sponsor, SponsorTier } from '../types'
 
-const TIER_ORDER: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
+/** Tone by position in the school's own tier order, so any naming scheme reads. */
+const TIER_TONES = ['brand', 'outline', 'info', 'warn', 'neutral']
 
 export function TierBadge({ tier }: { tier: SponsorTier }) {
-  const tone = tier === 'Red' ? 'brand' : tier === 'Blue' ? 'info' : tier === 'White' ? 'outline' : tier === 'Add-On' ? 'warn' : 'neutral'
-  return <Badge tone={tone as any}>{tier}</Badge>
+  const { state } = useStore()
+  const i = sponsorTiers(state).indexOf(tier)
+  return <Badge tone={TIER_TONES[i < 0 ? TIER_TONES.length - 1 : i % TIER_TONES.length] as any}>{tier}</Badge>
 }
 
 export function StageBadge({ stage }: { stage: PipelineStage }) {
@@ -22,6 +24,7 @@ export function StageBadge({ stage }: { stage: PipelineStage }) {
 
 export default function SponsorsPage() {
   const { state, add, logActivity, toast } = useStore()
+  const tierOrder = sponsorTiers(state)
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [tier, setTier] = useState('')
@@ -62,7 +65,7 @@ export default function SponsorsPage() {
   const sorted = useMemo(() => sortRows(rows, sort, (r, key): unknown => {
     switch (key) {
       case 'name': return r.sponsor.name
-      case 'tier': return TIER_ORDER.indexOf(r.sponsor.tier)
+      case 'tier': return tierOrder.indexOf(r.sponsor.tier)
       case 'total': return r.total
       case 'outstanding': return Math.max(r.total - r.paid, 0)
       case 'payment': return r.pay
@@ -77,7 +80,7 @@ export default function SponsorsPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Sponsors</h1>
-          <p className="page-sub">Fall 2026 sponsorship program · {totals.committedCount} accepted sponsors</p>
+          <p className="page-sub">{defaultSeasonLabel(state)} sponsorship program · {totals.committedCount} accepted sponsors</p>
         </div>
         {editable && (
           <div style={{ display: 'flex', gap: 8 }}>
@@ -104,7 +107,7 @@ export default function SponsorsPage() {
             <SearchBox value={q} onChange={setQ} placeholder="Search sponsors…" />
             <select className="inline-select" value={tier} onChange={e => setTier(e.target.value)} aria-label="Tier filter">
               <option value="">All tiers</option>
-              {TIER_ORDER.map(t => <option key={t}>{t}</option>)}
+              {tierOrder.map(t => <option key={t}>{t}</option>)}
             </select>
             <select className="inline-select" value={payment} onChange={e => setPayment(e.target.value)} aria-label="Payment filter">
               <option value="">Any payment status</option>
@@ -182,13 +185,14 @@ export default function SponsorsPage() {
 
 function PipelineBoard({ editable }: { editable: boolean }) {
   const { state, update, add, logActivity, toast } = useStore()
+  const tierOrder = sponsorTiers(state)
   const navigate = useNavigate()
   const [accepting, setAccepting] = useState<Sponsor | null>(null)
   const pipeline = allSponsors(state).filter(s => s.stage !== 'committed')
   type PKey = 'name' | 'contact' | 'tier' | 'value'
   const { sort, onSort } = useSort<PKey>('name')
   const sortStage = (items: Sponsor[]) => sortRows(items, sort, (sp, key): unknown =>
-    key === 'contact' ? sp.contactName : key === 'tier' ? TIER_ORDER.indexOf(sp.tier) : key === 'value' ? (sp.estValue ?? 0) : sp.name)
+    key === 'contact' ? sp.contactName : key === 'tier' ? tierOrder.indexOf(sp.tier) : key === 'value' ? (sp.estValue ?? 0) : sp.name)
 
   const changeStage = (sp: Sponsor, stage: PipelineStage) => {
     if (stage === 'committed') { setAccepting(sp); return } // capture the deal first
@@ -249,7 +253,7 @@ function PipelineBoard({ editable }: { editable: boolean }) {
           update('sponsors', sp.id, { stage: 'committed', tier, benefitSummary: `${tier} tier package` })
           const defaults = newBuyDefaults(state, tier, amount, todayISO())
           add('agreements', {
-            id: `ag-${sp.id.slice(3)}-${Date.now()}`, orgId: state.currentOrgId, sponsorId: sp.id, season: 'Fall 2026',
+            id: `ag-${sp.id.slice(3)}-${Date.now()}`, orgId: state.currentOrgId, sponsorId: sp.id, season: defaultSeasonLabel(state),
             label: `${tier} sponsorship`, amount, paymentStatus: defaults.paymentStatus, payments: defaults.payments,
             fulfillment: fulfillmentForTier(state, tier),
             allocations: defaults.allocations.length ? defaults.allocations : undefined,
@@ -309,6 +313,7 @@ function EarmarksView() {
 
 function AcceptModal({ sponsor, onClose, onAccept }: { sponsor: Sponsor; onClose: () => void; onAccept: (amount: number, tier: SponsorTier) => void }) {
   const { state } = useStore()
+  const tierOrder = sponsorTiers(state)
   const tierDefault = (t: SponsorTier) => tierSetting(state, t)?.defaultAmount
   const [tier, setTier] = useState<SponsorTier>(sponsor.tier)
   const [amount, setAmount] = useState(String(sponsor.estValue ?? tierDefault(sponsor.tier) ?? 3000))
@@ -330,7 +335,7 @@ function AcceptModal({ sponsor, onClose, onAccept }: { sponsor: Sponsor; onClose
       <div className="form-row">
         <Field label="Tier">
           <select value={tier} onChange={e => pickTier(e.target.value as SponsorTier)}>
-            {TIER_ORDER.map(t => <option key={t}>{t}</option>)}
+            {tierOrder.map(t => <option key={t}>{t}</option>)}
           </select>
         </Field>
         <Field label="Agreement amount ($)" required error={err}>
@@ -349,6 +354,7 @@ function AcceptModal({ sponsor, onClose, onAccept }: { sponsor: Sponsor; onClose
 
 function ProspectForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Sponsor) => void }) {
   const { state } = useStore()
+  const tierOrder = sponsorTiers(state)
   const [form, setForm] = useState({ name: '', contactName: '', tier: 'Blue' as SponsorTier, stage: 'prospect' as PipelineStage, estValue: '', note: '' })
   const [err, setErr] = useState('')
   return (
@@ -379,7 +385,7 @@ function ProspectForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Sp
         </Field>
         <Field label="Target tier">
           <select value={form.tier} onChange={e => setForm(f => ({ ...f, tier: e.target.value as SponsorTier }))}>
-            {TIER_ORDER.map(t => <option key={t}>{t}</option>)}
+            {tierOrder.map(t => <option key={t}>{t}</option>)}
           </select>
         </Field>
       </div>
@@ -398,6 +404,7 @@ function ProspectForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Sp
 
 function SponsorForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Sponsor, a: Agreement) => void }) {
   const { state } = useStore()
+  const tierOrder = sponsorTiers(state)
   const initialTier: SponsorTier = 'Blue'
   const [form, setForm] = useState<{ name: string; tier: SponsorTier; contactName: string; email: string; phone: string; renewalDate: string; amount: string; trade: string }>({
     name: '', tier: initialTier, contactName: '', email: '', phone: '', renewalDate: '2027-06-01',
@@ -435,7 +442,7 @@ function SponsorForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Spo
         renewalDate: form.renewalDate, notes: [], benefitSummary: `${form.tier} tier package`,
       },
       {
-        id: `ag-new-${Date.now()}`, orgId: state.currentOrgId, sponsorId: id, season: 'Fall 2026', amount: amtNum,
+        id: `ag-new-${Date.now()}`, orgId: state.currentOrgId, sponsorId: id, season: defaultSeasonLabel(state), amount: amtNum,
         tradeValue: tradeNum > 0 ? tradeNum : undefined,
         paymentStatus: defaults.paymentStatus, payments: defaults.payments,
         fulfillment: fulfillmentForTier(state, form.tier),
@@ -457,7 +464,7 @@ function SponsorForm({ onClose, onSave }: { onClose: () => void; onSave: (s: Spo
       <div className="form-row">
         <Field label="Tier" required>
           <select value={form.tier} onChange={e => pickTier(e.target.value as SponsorTier)}>
-            {TIER_ORDER.map(t => <option key={t}>{t}</option>)}
+            {tierOrder.map(t => <option key={t}>{t}</option>)}
           </select>
         </Field>
         <Field label="Agreement amount ($)" required error={errors.amount}>

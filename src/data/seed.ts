@@ -1,4 +1,5 @@
 import rawSchedule from './scheduleEvents.json'
+import { buildRiverbend, riverbendOrg } from './riverbend'
 import { todayISO } from '../lib/dates'
 import type {
   Activity, Agreement, AppState, Asset, Athlete, BenefitTemplate, CoachRequest, FulfillmentItem, Guardian, Opponent, Organization,
@@ -22,11 +23,7 @@ export const orgs: Organization[] = [
     mascot: 'Patriots', city: 'Homewood', state: 'AL', initials: 'HW',
     theme: { primary: '#d60000', navy: '#12223c', accent: '#b8933f' },
   },
-  {
-    id: 'org-demo', name: 'Riverbend Academy Athletics', shortName: 'Riverbend',
-    mascot: 'Ospreys', city: 'Chattanooga', state: 'TN', initials: 'RA',
-    theme: { primary: '#0e7a5f', navy: '#122b3c', accent: '#c46a1f' },
-  },
+  riverbendOrg,
 ]
 
 export const users: User[] = [
@@ -637,6 +634,9 @@ export function buildSeedState(): AppState {
   const opponents = buildOpponents(events)
   const byName = new Map(opponents.map(o => [o.name, o.id]))
   for (const e of events) if (e.eventKind === 'single') e.opponentId = byName.get(e.opponent)
+  // The demo school, built separately so it stays clearly distinct from the real
+  // Homewood data it exists to stand in for.
+  const rb = buildRiverbend(demoToday)
   return {
     // Matches SCHEMA_VERSION in store.tsx. Do NOT bump this for demo-content
     // tweaks — only for a breaking data-shape change (with a migrate() step).
@@ -645,17 +645,17 @@ export function buildSeedState(): AppState {
     currentOrgId: 'org-hhs',
     currentUserId: 'u-owner',
     showSampleResults: true,
-    users,
-    teams: teams.map(t => ({ ...t, socials: SOCIALS[t.id], assistantCoaches: ASSISTANTS[t.id], roster: t.id === 't-ffb-jv' ? [] : buildRoster(t) })),
-    events,
-    opponents,
-    sponsors,
-    agreements,
-    benefitTemplates,
-    tierSettings,
-    requests,
-    assets,
-    tasks: buildTasks(events, demoToday),
+    users: [...users, ...rb.users],
+    teams: [...teams.map(t => ({ ...t, socials: SOCIALS[t.id], assistantCoaches: ASSISTANTS[t.id], roster: t.id === 't-ffb-jv' ? [] : buildRoster(t) })), ...rb.teams],
+    events: [...events, ...rb.events],
+    opponents: [...opponents, ...rb.opponents],
+    sponsors: [...sponsors, ...rb.sponsors],
+    agreements: [...agreements, ...rb.agreements],
+    benefitTemplates: [...benefitTemplates, ...rb.benefitTemplates],
+    tierSettings: [...tierSettings, ...rb.tierSettings],
+    requests: [...requests, ...rb.requests],
+    assets: [...assets, ...rb.assets],
+    tasks: [...buildTasks(events, demoToday), ...rb.tasks],
     activity,
   }
 }

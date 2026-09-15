@@ -521,6 +521,29 @@ export function allocationLabel(s: AppState, target: string): string {
 // ---------- Sponsor tier settings ----------
 
 export const tierSettings = (s: AppState) => orgScoped(s, s.tierSettings)
+/**
+ * The season label to prefill on something new — the one most of this school's
+ * teams are in. Hardcoding "Fall 2026" was fine for a single school running one
+ * season; it is wrong for a school whose year spans autumn to spring.
+ */
+export function defaultSeasonLabel(s: AppState): string {
+  const counts = new Map<string, number>()
+  for (const t of teams(s)) counts.set(t.seasonLabel, (counts.get(t.seasonLabel) ?? 0) + 1)
+  let best = ''
+  let most = 0
+  for (const [label, n] of counts) if (n > most) { best = label; most = n }
+  return best || String(new Date().getFullYear())
+}
+
+/**
+ * The sponsorship levels this school offers, in the order they're configured.
+ * Everything that lists or sorts tiers reads this, so a school's own level names
+ * appear rather than another school's.
+ */
+export function sponsorTiers(s: AppState): SponsorTier[] {
+  return tierSettings(s).map(t => t.tier)
+}
+
 export function tierSetting(s: AppState, tier: SponsorTier) {
   return tierSettings(s).find(t => t.tier === tier)
 }

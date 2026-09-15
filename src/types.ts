@@ -235,7 +235,12 @@ export interface SportEvent {
   score?: EventScore
 }
 
-export type SponsorTier = 'Red' | 'White' | 'Blue' | 'Patriot Partner' | 'Add-On'
+/**
+ * A sponsorship level's name. Free text, because every school names its own —
+ * Homewood sells Red/White/Blue, another school sells Gold/Silver/Bronze. The
+ * levels a school offers, and their order, come from its `tierSettings` rows.
+ */
+export type SponsorTier = string
 
 export type FulfillmentStatus = 'complete' | 'pending' | 'blocked' | 'na'
 

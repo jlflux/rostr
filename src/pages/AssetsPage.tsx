@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store/store'
-import { activeOpponents, assets as allAssets, can, currentUser } from '../lib/derive'
+import { activeOpponents, assets as allAssets, can, currentUser, defaultSeasonLabel } from '../lib/derive'
 import { fmtDate, todayISO } from '../lib/dates'
 import { Badge, ConfirmDialog, Empty, Field, Modal, SearchBox, StatusBadge } from '../components/ui'
 import { I } from '../components/icons'
@@ -65,7 +65,7 @@ export default function AssetsPage() {
 
   const folder = FOLDERS.find(f => f.type === path.type)
   const inFolder = allAssets(state).filter(a => a.type === path.type)
-  const seasonLabel = 'Fall 2026'
+  const seasonLabel = defaultSeasonLabel(state)
 
   const visible = useMemo(() => {
     let list = allAssets(state)
@@ -336,7 +336,7 @@ function UploadForm({ defaultType, defaultTeamId, onClose, onSave }: {
       fileType, sizeKB, storagePath,
       sport: form.sport || undefined, teamId: form.teamId || undefined, sponsorId: form.sponsorId || undefined,
       opponentId: form.type === 'Opponent Logo' ? (form.opponentId || undefined) : undefined,
-      season: 'Fall 2026', approvalStatus: 'pending', uploadedById: state.currentUserId,
+      season: defaultSeasonLabel(state), approvalStatus: 'pending', uploadedById: state.currentUserId,
       uploadedAt: todayISO(), tint: tints[Math.floor(Math.random() * tints.length)],
     })
     if (form.type === 'Opponent Logo' && form.opponentId && form.setPrimary) {

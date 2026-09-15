@@ -65,7 +65,7 @@ export default function EventsPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Events</h1>
-          <p className="page-sub">{allEvents(state).length} events on the Fall 2026 composite schedule.</p>
+          <p className="page-sub">{allEvents(state).length} events across {sports.length} sports.</p>
         </div>
         {can(me.role, 'edit') && (
           <div style={{ display: 'flex', gap: 8 }}>

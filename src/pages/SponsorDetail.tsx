@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { PIPELINE_STAGES, agreementCash, agreementPaid, allocationLabel, can, currentUser, eventTitle, fulfillmentForTier, fulfillmentProgress, sponsorAgreements, sponsorAllocations, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsorTrade, events as allEvents, teams as allTeams, visibleStatus } from '../lib/derive'
+import { PIPELINE_STAGES, agreementCash, defaultSeasonLabel, sponsorTiers, agreementPaid, allocationLabel, can, currentUser, eventTitle, fulfillmentForTier, fulfillmentProgress, sponsorAgreements, sponsorAllocations, sponsorCash, sponsorPaid, sponsorPaymentStatus, sponsorTotal, sponsorTrade, events as allEvents, teams as allTeams, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateTime, fmtMoney, fmtTime, todayISO } from '../lib/dates'
 import { Avatar, Badge, Card, Check, ConfirmDialog, Empty, Field, Modal, Progress, StatusBadge } from '../components/ui'
 import { StageBadge, TierBadge } from './SponsorsPage'
 import { I } from '../components/icons'
 import type { Agreement, Allocation, FulfillmentItem, FulfillmentStatus, Payment, PipelineStage, Sponsor, SponsorTier, User } from '../types'
 
-const TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
 
 export default function SponsorDetail() {
   const { id } = useParams()
@@ -420,7 +419,7 @@ function BuyModal({ sponsorId, existing, onClose, onSave }: {
   const { state } = useStore()
   const teams = allTeams(state)
   const [label, setLabel] = useState(existing?.label ?? 'Additional donation')
-  const [season, setSeason] = useState(existing?.season ?? 'Fall 2026')
+  const [season, setSeason] = useState(existing?.season ?? defaultSeasonLabel(state))
   const [amount, setAmount] = useState(existing ? String(existing.amount) : '')
   const [trade, setTrade] = useState(existing?.tradeValue ? String(existing.tradeValue) : '')
   const [tradeNote, setTradeNote] = useState(existing?.tradeNote ?? '')
@@ -448,7 +447,7 @@ function BuyModal({ sponsorId, existing, onClose, onSave }: {
     }
     onSave({
       id: existing?.id ?? `ag-${sponsorId.slice(3)}-${Date.now()}`,
-      orgId: state.currentOrgId, sponsorId, season: season.trim() || 'Fall 2026', label: label.trim() || 'Sponsorship',
+      orgId: state.currentOrgId, sponsorId, season: season.trim() || defaultSeasonLabel(state), label: label.trim() || 'Sponsorship',
       amount: amt, tradeValue: tradeAmt > 0 ? tradeAmt : undefined, tradeNote: tradeAmt > 0 && tradeNote.trim() ? tradeNote.trim() : undefined,
       paymentStatus: existing?.paymentStatus ?? 'unpaid', payments: existing?.payments ?? [],
       fulfillment: existing?.fulfillment ?? [], allocations: finalAllocs, signedDate: existing?.signedDate,
@@ -519,6 +518,7 @@ function BuyModal({ sponsorId, existing, onClose, onSave }: {
 // ---------- Edit sponsor profile ----------
 
 function EditSponsorModal({ sponsor: s, onClose, onSave }: { sponsor: Sponsor; onClose: () => void; onSave: (patch: Partial<Sponsor>) => void }) {
+  const { state } = useStore()
   const [form, setForm] = useState({
     name: s.name, tier: s.tier, contactName: s.contactName, email: s.email ?? '', phone: s.phone ?? '',
     website: s.website ?? '', renewalDate: s.renewalDate, benefitSummary: s.benefitSummary, logoStatus: s.logoStatus,
@@ -558,7 +558,7 @@ function EditSponsorModal({ sponsor: s, onClose, onSave }: { sponsor: Sponsor; o
       <div className="form-row">
         <Field label="Tier">
           <select value={form.tier} onChange={e => set({ tier: e.target.value as SponsorTier })}>
-            {TIERS.map(t => <option key={t}>{t}</option>)}
+            {sponsorTiers(state).map(t => <option key={t}>{t}</option>)}
           </select>
         </Field>
         <Field label="Logo status">

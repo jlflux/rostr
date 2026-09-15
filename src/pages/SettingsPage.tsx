@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore, type Skin } from '../store/store'
-import { ROLE_LABELS, benefitTemplates, can, currentOrg, currentUser, sortedByLastName, tierSettings } from '../lib/derive'
+import { ROLE_LABELS, benefitTemplates, can, currentOrg, currentUser, sortedByLastName, sponsorTiers, tierSettings } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { fmtMoney, todayISO } from '../lib/dates'
 import { I } from '../components/icons'
@@ -9,7 +9,6 @@ import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/stora
 import { publicLogosFor, syncPublicLogos, type SyncResult } from '../lib/publicLogos'
 import type { Organization, Role, SponsorTier, User } from '../types'
 
-const SPONSOR_TIERS: SponsorTier[] = ['Red', 'White', 'Blue', 'Add-On', 'Patriot Partner']
 
 /** Visual styles offered in Settings → Appearance. Typography and spacing only —
  *  every style uses the same brand colors. */
@@ -383,7 +382,7 @@ function TierSettingsCard() {
   const me = currentUser(state)
   const canEdit = can(me.role, 'finance')
   const sports = [...new Set(state.teams.map(t => t.sport))].sort((a, b) => a.localeCompare(b))
-  const order = SPONSOR_TIERS
+  const order = sponsorTiers(state)
   const rows = [...tierSettings(state)].sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier))
 
   return (
@@ -431,12 +430,13 @@ function BenefitTemplatesCard() {
   const canEdit = can(me.role, 'finance')
   const templates = benefitTemplates(state)
   const [label, setLabel] = useState('')
-  const [tiers, setTiers] = useState<SponsorTier[]>(['Red', 'White', 'Blue'])
+  // Default a new benefit to the school's top three levels, whatever they're called.
+  const [tiers, setTiers] = useState<SponsorTier[]>(() => sponsorTiers(state).slice(0, 3))
   const flip = (arr: SponsorTier[], t: SponsorTier) => (arr.includes(t) ? arr.filter(x => x !== t) : [...arr, t])
 
   const TierToggles = ({ value, onToggle }: { value: SponsorTier[]; onToggle: (t: SponsorTier) => void }) => (
     <div className="pill-row" style={{ gap: 4 }}>
-      {SPONSOR_TIERS.map(t => (
+      {sponsorTiers(state).map(t => (
         <button key={t} type="button" className="tier-toggle" data-on={value.includes(t)} disabled={!canEdit} onClick={() => onToggle(t)}>{t}</button>
       ))}
     </div>
