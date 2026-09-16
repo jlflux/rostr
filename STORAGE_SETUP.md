@@ -26,25 +26,77 @@ In your Supabase dashboard → **Storage**:
 *(If you name the bucket something other than `assets`, add a Vercel env var
 `VITE_STORAGE_BUCKET` set to that name.)*
 
-## Step 2 — Allow signed-in users to upload and view
+## Step 2 — Let each school reach only its own files
 
-In **SQL Editor**, run this once. It lets any signed-in user upload to, view, and
-delete files in the `assets` bucket. (Viewing needs the "read" policy because
-private files are shown through short-lived signed links.)
+Files are stored under the id of the school that owns them —
+`org-hhs/team-photo/<id>.jpg` — and these rules read that first part of the path
+to decide who may touch the file. Without it, any signed-in user could list and
+download every file in the bucket, including another school's.
+
+**Run `supabase/role-enforcement.sql` first**, since these rules use the helpers
+it creates.
+
+**And move existing files first.** Anything uploaded before paths carried the
+school has no school in its path, so these rules would make it unreachable. The
+app shows a **Files need moving** card in Settings while any remain — use it
+before running the SQL below. If you have already run the SQL and files have gone
+missing, put the old policies back, move the files, then run this again.
 
 ```sql
-create policy "assets read for authenticated"
-  on storage.objects for select to authenticated
-  using (bucket_id = 'assets');
+-- Members of a school may reach that school's files. Platform owners reach all.
+create or replace function public.can_reach_storage_path(object_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    -- Shared platform files (the browser tab icon): any signed-in user may read.
+    when split_part(object_name, '/', 1) = '__platform__' then true
+    when public.is_platform_owner() then true
+    else exists (
+      select 1
+      from public.workspaces w,
+           jsonb_array_elements(coalesce(w.data -> 'users', '[]'::jsonb)) u
+      where w.id = split_part(object_name, '/', 1)
+        and lower(u ->> 'email') = lower(coalesce(auth.jwt() ->> 'email', ''))
+        and coalesce(u ->> 'status', 'active') <> 'revoked'
+    )
+  end
+$$;
 
-create policy "assets upload for authenticated"
-  on storage.objects for insert to authenticated
-  with check (bucket_id = 'assets');
+drop policy if exists "assets read for authenticated"   on storage.objects;
+drop policy if exists "assets upload for authenticated" on storage.objects;
+drop policy if exists "assets delete for authenticated" on storage.objects;
+drop policy if exists "assets read for members"   on storage.objects;
+drop policy if exists "assets write for members"  on storage.objects;
+drop policy if exists "assets update for members" on storage.objects;
+drop policy if exists "assets delete for members" on storage.objects;
 
-create policy "assets delete for authenticated"
-  on storage.objects for delete to authenticated
-  using (bucket_id = 'assets');
+create policy "assets read for members" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'assets' and public.can_reach_storage_path(name));
+
+-- Writing the shared platform folder stays with the owner, unlike reading it.
+create policy "assets write for members" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'assets' and public.can_reach_storage_path(name)
+              and (split_part(name, '/', 1) <> '__platform__' or public.is_platform_owner()));
+
+create policy "assets update for members" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'assets' and public.can_reach_storage_path(name)
+         and (split_part(name, '/', 1) <> '__platform__' or public.is_platform_owner()));
+
+create policy "assets delete for members" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'assets' and public.can_reach_storage_path(name)
+         and (split_part(name, '/', 1) <> '__platform__' or public.is_platform_owner()));
 ```
+
+Check it with `supabase/verify-storage-access.sql`, which lists every stored file
+and the school it belongs to, and flags any that no school owns.
 
 ## Step 3 — Make sure people are signed in
 

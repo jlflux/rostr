@@ -323,7 +323,7 @@ function UploadForm({ defaultType, defaultTeamId, onClose, onSave }: {
     let sizeKB = 500 + Math.floor(Math.random() * 5000)
     if (file && canUpload) {
       setBusy(true)
-      const res = await uploadToStorage(file, form.type)
+      const res = await uploadToStorage(file, form.type, state.currentOrgId)
       setBusy(false)
       if ('error' in res) { setErr(`Upload failed: ${res.error}`); return }
       storagePath = res.ref

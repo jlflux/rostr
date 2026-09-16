@@ -22,21 +22,43 @@ export function isStoredPath(value?: string): boolean {
   return !!value && value.startsWith(STORAGE_PREFIX)
 }
 
-function makePath(folder: string, file: File): string {
+/**
+ * Every file lives under the id of the school that owns it. The bucket's access
+ * rules read that first segment to decide who may touch the file, so a path
+ * without it cannot be protected — one school's staff could list and download
+ * another's uploads.
+ *
+ * Platform-wide files (the shared tab icon) use `__platform__`.
+ */
+function makePath(owner: string, folder: string, file: File): string {
   const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '')
   const slug = folder.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'misc'
   const id = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`)
-  return `${slug}/${id}.${ext}`
+  return `${owner}/${slug}/${id}.${ext}`
+}
+
+/** The school (or `__platform__`) a stored file belongs to, by its path. */
+export function ownerOfPath(ref: string): string | null {
+  if (!isStoredPath(ref)) return null
+  const first = ref.slice(STORAGE_PREFIX.length).split('/')[0]
+  return first || null
+}
+
+/** True for a file uploaded before paths carried the owning school. */
+export function isLegacyPath(ref: string, owner: string): boolean {
+  return isStoredPath(ref) && ownerOfPath(ref) !== owner
 }
 
 /**
  * Upload a file. Returns a `storage:`-prefixed reference to store on the record,
- * or an error message. `folder` groups files within the bucket (e.g. asset type).
+ * or an error message. `folder` groups files within the bucket (e.g. asset type),
+ * and `owner` is the school the file belongs to — it decides who can reach it.
  */
-export async function uploadToStorage(file: File, folder: string): Promise<{ ref: string } | { error: string }> {
+export async function uploadToStorage(file: File, folder: string, owner: string): Promise<{ ref: string } | { error: string }> {
   const sb = getSupabase()
   if (!sb) return { error: 'Storage is not configured.' }
-  const path = makePath(folder, file)
+  if (!owner) return { error: 'No school selected for this upload.' }
+  const path = makePath(owner, folder, file)
   const { error } = await sb.storage.from(bucket()).upload(path, file, {
     contentType: file.type || undefined,
     upsert: false,
@@ -114,4 +136,26 @@ export async function removeFromPublicBucket(publicPath: string): Promise<void> 
   const sb = getSupabase()
   if (!sb) return
   await sb.storage.from(publicBucket()).remove([publicPath]).catch(() => {})
+}
+
+/**
+ * Move a stored file to a new path, keeping its contents. Used to bring files
+ * uploaded before per-school paths under the owning school's folder.
+ */
+export async function movePath(fromRef: string, toPath: string): Promise<string | null> {
+  const sb = getSupabase()
+  if (!sb) return 'Storage is not configured.'
+  if (!isStoredPath(fromRef)) return 'That file was never uploaded.'
+  const from = fromRef.slice(STORAGE_PREFIX.length)
+  if (from === toPath) return null
+  const { error } = await sb.storage.from(bucket()).move(from, toPath)
+  if (error) return error.message
+  signedCache.delete(from)
+  return null
+}
+
+/** Where a legacy file should live, keeping its folder and filename. */
+export function repathFor(ref: string, owner: string): string {
+  const path = ref.slice(STORAGE_PREFIX.length)
+  return `${owner}/${path}`
 }

@@ -4,6 +4,8 @@ import { CONFIGURABLE_SECTIONS, ROLE_LABELS, SECTION_LABELS, currentOrg, current
 import { Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { StoredImage } from '../components/StoredImage'
 import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
+// The tab icon is shared by every school, so it belongs to the platform row.
+import { PLATFORM_ROW_ID } from '../lib/workspace'
 import { I } from '../components/icons'
 import type { Organization, OrgConfig } from '../types'
 
@@ -77,7 +79,7 @@ export default function PlatformPage() {
             <input type="file" accept="image/*" disabled={!storageEnabled()} onChange={async e => {
               const f = e.target.files?.[0]
               if (!f) return
-              const res = await uploadToStorage(f, 'platform')
+              const res = await uploadToStorage(f, 'platform', PLATFORM_ROW_ID)
               if ('error' in res) { toast(`Icon upload failed: ${res.error}`, 'error'); return }
               const prev = platformFavicon
               setState({ platform: { ...(state.platform ?? {}), faviconUrl: res.ref } })

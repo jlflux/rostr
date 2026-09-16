@@ -7,6 +7,7 @@ import { I } from '../components/icons'
 import { StoredImage } from '../components/StoredImage'
 import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
 import { publicLogosFor, syncPublicLogos, type SyncResult } from '../lib/publicLogos'
+import { legacyFiles, migrateLegacyFiles } from '../lib/storageMigration'
 import type { Organization, Role, SponsorTier, User } from '../types'
 
 
@@ -85,7 +86,7 @@ export default function SettingsPage() {
                   const f = e.target.files?.[0]
                   if (!f) return
                   if (storageEnabled()) {
-                    const res = await uploadToStorage(f, 'logos')
+                    const res = await uploadToStorage(f, 'logos', org.id)
                     if ('error' in res) { toast(`Logo upload failed: ${res.error}`, 'error'); return }
                     const prev = org.logoUrl
                     updateOrg({ logoUrl: res.ref })
@@ -213,6 +214,8 @@ export default function SettingsPage() {
               </p>
             </Field>
           </Card>
+
+          <StorageMigrationCard />
 
           <PublicSiteCard />
 
@@ -595,6 +598,69 @@ function PublicSiteCard() {
         <p className="tiny muted" style={{ marginBottom: 0, marginTop: 8 }}>
           Nothing to publish yet — upload a school or opponent logo in the asset library first.
         </p>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * Moving files uploaded before every path carried the school that owns it.
+ *
+ * Shown only while such files exist, because it is a one-off: once they have
+ * moved, the bucket's access rules can tell which school a file belongs to and
+ * this disappears.
+ */
+function StorageMigrationCard() {
+  const { state, setState, logActivity, toast } = useStore()
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState<{ label: string; error: string }[]>([])
+  const me = currentUser(state)
+  const pending = storageEnabled() && can(me.role, 'admin') ? legacyFiles(state) : []
+  if (pending.length === 0) return null
+
+  const run = async () => {
+    setBusy(true)
+    const res = await migrateLegacyFiles(state)
+    // Only rewrite references whose file actually moved.
+    if (res.updates.length) {
+      setState({
+        assets: state.assets.map(a => {
+          const u = res.updates.find(x => x.kind === 'asset' && x.id === a.id)
+          return u ? { ...a, storagePath: u.ref } : a
+        }),
+        orgs: state.orgs.map(o => {
+          const u = res.updates.find(x => x.kind === 'orgLogo' && x.id === o.id)
+          return u ? { ...o, logoUrl: u.ref } : o
+        }),
+      })
+      logActivity(`moved ${res.moved} files into per-school folders`)
+    }
+    setBusy(false)
+    setFailed(res.failed)
+    toast(res.failed.length
+      ? `${res.moved} moved, ${res.failed.length} failed`
+      : `${res.moved} file${res.moved === 1 ? '' : 's'} moved`,
+      res.failed.length ? 'error' : 'success')
+  }
+
+  return (
+    <Card title="Files need moving" action={<Badge tone="warn">Action needed</Badge>}>
+      <p className="small" style={{ marginTop: 0 }}>
+        <strong>{pending.length}</strong> file{pending.length === 1 ? ' was' : 's were'} uploaded before
+        files were filed by school. Until they move, the bucket cannot tell which school they belong to,
+        so its access rules cannot protect them.
+      </p>
+      <p className="tiny muted" style={{ marginBottom: 10 }}>
+        Do this <strong>before</strong> tightening the bucket policy in STORAGE_SETUP.md — the move reads
+        each file where it is now, which the new rules would refuse.
+      </p>
+      <button className="btn primary" disabled={busy} onClick={run}>
+        {busy ? 'Moving…' : `Move ${pending.length} file${pending.length === 1 ? '' : 's'}`}
+      </button>
+      {failed.length > 0 && (
+        <ul className="small" style={{ color: 'var(--danger)', marginBottom: 0 }}>
+          {failed.map((f, i) => <li key={i}>{f.label}: {f.error}</li>)}
+        </ul>
       )}
     </Card>
   )
