@@ -24,11 +24,20 @@ select 'role_in_workspace()',
        case when to_regproc('public.role_in_workspace') is not null
             then 'installed' else '*** MISSING ***' end
 union all
-select 'role check on writes',
+select 'role check on updates',
        case when exists (
          select 1 from pg_trigger
          where tgrelid = 'public.workspaces'::regclass
-           and tgname = 'workspaces_enforce_roles' and not tgisinternal)
+           and tgname = 'workspaces_enforce_roles' and not tgisinternal
+           and (tgtype::int & 16) > 0)          -- UPDATE
+       then 'installed' else '*** MISSING ***' end
+union all
+select 'role check on deletes',
+       case when exists (
+         select 1 from pg_trigger
+         where tgrelid = 'public.workspaces'::regclass
+           and tgname = 'workspaces_enforce_roles' and not tgisinternal
+           and (tgtype::int & 8) > 0)           -- DELETE
        then 'installed' else '*** MISSING ***' end
 union all
 select 'membership policy',
@@ -69,7 +78,9 @@ select w.id                                        as school,
                       where lower(po.email) = lower(u ->> 'email'))
               then 'everything, every school'
          when coalesce(u ->> 'role', 'read_only') = 'read_only' then 'read only'
-         when coalesce(u ->> 'role', 'read_only') in ('school_admin', 'platform_owner')
+         when coalesce(u ->> 'role', 'read_only') = 'school_admin'
+              then 'edit records + manage access + delete the school'
+         when coalesce(u ->> 'role', 'read_only') = 'platform_owner'
               then 'edit records + manage access'
          else 'edit records'
        end                                          as allowed

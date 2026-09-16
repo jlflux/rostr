@@ -147,6 +147,58 @@ do $$ begin
   raise notice 'admin edits sponsorship        : allowed (correct)';
 exception when insufficient_privilege then raise notice 'admin edits sponsorship        : BLOCKED <-- too strict'; end $$;
 
+\echo ''
+\echo '--- deleting a school (takes every record in it) ---'
+
+set request.jwt.claims = '{"email":"coach@school.org"}';
+do $$ begin
+  delete from workspaces where id='ws';
+  if found then raise notice 'coach deletes the school       : ALLOWED  <-- DATA LOSS';
+  else raise notice 'coach deletes the school       : blocked (policy hid the row)'; end if;
+exception when insufficient_privilege then raise notice 'coach deletes the school       : blocked'; end $$;
+
+set request.jwt.claims = '{"email":"booster@school.org"}';
+do $$ begin
+  delete from workspaces where id='ws';
+  if found then raise notice 'read-only deletes the school   : ALLOWED  <-- DATA LOSS';
+  else raise notice 'read-only deletes the school   : blocked (policy hid the row)'; end if;
+exception when insufficient_privilege then raise notice 'read-only deletes the school   : blocked'; end $$;
+
+set request.jwt.claims = '{"email":"rival@other.org"}';
+do $$ begin
+  delete from workspaces where id='ws';
+  if found then raise notice 'another school deletes it      : ALLOWED  <-- LEAK';
+  else raise notice 'another school deletes it      : blocked (not a member)'; end if;
+exception when insufficient_privilege then raise notice 'another school deletes it      : blocked'; end $$;
+
+-- Ask as the owner, who can see every row — asking as the outsider would report
+-- zero because the policy hides it, not because the deletes worked.
+set request.jwt.claims = '{"email":"jl@fluxmedia.org"}';
+select 'school survived all three attempts' as check, count(*) as rows from workspaces where id='ws';
+
+-- Only now let someone who should be able to, do it. Put it back afterwards so
+-- the checks below still have a row to work with.
+set request.jwt.claims = '{"email":"ad@school.org"}';
+do $$ begin
+  delete from workspaces where id='ws-other';
+  raise notice 'admin deletes another school   : allowed but row hidden (correct)';
+exception when insufficient_privilege then raise notice 'admin deletes another school   : blocked (correct)'; end $$;
+
+do $$
+declare keep jsonb; begin
+  select data into keep from workspaces where id='ws';
+  delete from workspaces where id='ws';
+  if found then
+    raise notice 'admin deletes own school       : allowed (correct)';
+    reset role;
+    set request.jwt.claims = '{}';
+    insert into workspaces (id, data) values ('ws', keep);
+    set role authenticated;
+  else
+    raise notice 'admin deletes own school       : BLOCKED <-- too strict';
+  end if;
+exception when insufficient_privilege then raise notice 'admin deletes own school       : BLOCKED <-- too strict'; end $$;
+
 set request.jwt.claims = '{"email":"jl@fluxmedia.org"}';
 select 'owner sees every school    ' as who, count(*) as rows from workspaces;
 

@@ -132,36 +132,16 @@ onboard a lot of people at once.
 ## Step 3 — Let the app reach data whether or not someone is logged in
 
 The original setup only allowed access for signed-out visitors. Before enabling
-logins, broaden it so signed-in users work too. In **SQL Editor**, run:
+logins, broaden it so signed-in users work too. This is deliberately open — it
+exists only so setup can't lock you out, and **Step 6 replaces it**. Do not stop
+here. In **SQL Editor**, run:
 
-Run **`supabase/role-enforcement.sql`**. It does three things:
+```sql
+drop policy if exists "workspace open access" on workspaces;
 
-- Creates a `platform_owners` table, so owners are rows you can add and remove
-  rather than an email written into the policy.
-- Replaces the membership policy with one that reads that table.
-- Adds a trigger that checks the writer's role on every write, because the
-  policy alone only answers "are you a member?" — and a member could previously
-  promote themselves, rewrite sponsorship figures, or empty the document.
-
-What it enforces, proven in `supabase/rls-policy-test.sql`:
-
-| | read | edit records | change who has access |
-|---|---|---|---|
-| platform owner | every school | yes | yes |
-| school admin | own school | yes | yes |
-| coach, comms, finance | own school | yes | **no** |
-| read-only | own school | **no** | no |
-| revoked, or not a member | **nothing** | no | no |
-
-Writes made from the SQL editor carry no signed-in identity and are treated as
-trusted maintenance, so you are never locked out of your own database.
-
-To confirm it installed, run **`supabase/verify-role-enforcement.sql`**. It only
-reads, and prints what the database would actually allow each person to do.
-
-> `supabase/rls-policy-test.sql` is a **local harness**, not for your project: it
-> drops and recreates the workspaces table against a throwaway database. It now
-> refuses to run anywhere holding real data, but use the verify script above.
+create policy "workspace transition access" on workspaces
+  for all to public using (true) with check (true);
+```
 
 ## Step 4 — Flip the login switch
 
@@ -201,47 +181,41 @@ directly. So instead, the rule below makes **your Users list the actual gate**: 
 account only gets data if its email is on the list in Settings → Users & roles and
 isn't revoked.
 
-Run this in **SQL Editor**:
+Run **`supabase/role-enforcement.sql`** in the SQL editor.
 
-```sql
-drop policy if exists "workspace open access" on workspaces;
-drop policy if exists "workspace transition access" on workspaces;
-drop policy if exists "workspace authenticated access" on workspaces;
+The policy is kept in that file rather than written out here, so this page can
+never install an older version of it, and so there is one place to change.
 
-create policy "workspace member access" on workspaces
-  for all to authenticated
-  using (
-    -- Safety valve: the platform owner can always get in, even if the user
-    -- list is ever emptied or damaged. Change this to your own email.
-    lower(auth.jwt() ->> 'email') = 'jl@fluxmedia.org'
-    or exists (
-      select 1 from jsonb_array_elements(coalesce(data -> 'users', '[]'::jsonb)) u
-      where lower(u ->> 'email') = lower(auth.jwt() ->> 'email')
-        and coalesce(u ->> 'status', 'active') <> 'revoked'
-    )
-  )
-  with check (
-    lower(auth.jwt() ->> 'email') = 'jl@fluxmedia.org'
-    or exists (
-      select 1 from jsonb_array_elements(coalesce(data -> 'users', '[]'::jsonb)) u
-      where lower(u ->> 'email') = lower(auth.jwt() ->> 'email')
-        and coalesce(u ->> 'status', 'active') <> 'revoked'
-    )
-  );
-```
+It does three things:
 
-This was tested against a real Postgres with the same table shape. Verified
-behavior:
+- Creates a `platform_owners` table. Owners are rows you add and remove, not an
+  email written into a policy. Yours is inserted when the file runs.
+- Replaces the open policy from Step 3 with one that makes your Users list the
+  gate: an account reaches a school only if its email is on that school's list
+  and isn't revoked.
+- Adds a trigger that checks the writer's role, because the policy alone only
+  answers "are you a member?" — and a member could otherwise promote themselves,
+  rewrite sponsorship figures, empty the document, or delete the school outright.
 
-| Who | Result |
-| --- | --- |
-| Signed out | No access |
-| You (the owner) | Full access, always |
-| Staff on the Users list | Full access — email matching ignores capitalization |
-| Staff added without a status set | Full access |
-| Staff you **revoked** | No access |
-| Stranger who made their own Supabase account | **No read, write, delete, or insert** |
-| Owner, if the user list were emptied or damaged | Still gets in (safety valve) |
+What it enforces:
+
+| | read | edit records | change who has access | delete the school |
+|---|---|---|---|---|
+| platform owner | every school | yes | yes | yes |
+| school admin | own school | yes | yes | yes |
+| coach, comms, finance | own school | yes | **no** | **no** |
+| read-only | own school | **no** | no | no |
+| revoked, or not a member | **nothing** | no | no | no |
+
+Work done in the SQL editor carries no signed-in identity and is treated as
+trusted maintenance, so you are never locked out of your own database.
+
+To confirm it installed, run **`supabase/verify-role-enforcement.sql`**. It only
+reads, and prints what the database would actually allow each person to do.
+
+> `supabase/rls-policy-test.sql` is a **local harness**, not for your project: it
+> drops and recreates the workspaces table against a throwaway database. It
+> refuses to run anywhere holding real data — use the verify script above.
 
 ### After running it
 

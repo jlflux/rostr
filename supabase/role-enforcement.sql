@@ -10,7 +10,7 @@
 --  This adds two things:
 --    1. A `platform_owners` table, replacing the owner's email hard-coded into
 --       the policy. Owners can be added and removed without editing SQL.
---    2. A trigger that checks the writer's role in the row they are writing.
+--    2. A trigger that checks the writer's role on every update and delete.
 --
 --  WHAT THIS CANNOT DO. A school is one JSON document, so the database can see
 --  *who* is writing but not *which part* they changed — except where it can
@@ -83,17 +83,19 @@ as $$
 declare
   caller_email text := lower(coalesce(auth.jwt() ->> 'email', ''));
   caller_role  text;
+  -- BEFORE DELETE has no `new`; every other case returns the incoming row.
+  passthrough  public.workspaces := case when tg_op = 'DELETE' then old else new end;
 begin
   -- No signed-in identity means this is the SQL editor, a migration or the
   -- service role — trusted server-side work, not a request from the app. The
   -- membership policy already stops signed-out users from matching any row, so
   -- the trigger never sees them.
   if caller_email = '' then
-    return new;
+    return passthrough;
   end if;
 
   if public.is_platform_owner() then
-    return new;
+    return passthrough;
   end if;
 
   -- Judge the role from the row as it stands, so nobody can grant themselves a
@@ -110,6 +112,16 @@ begin
       using errcode = 'insufficient_privilege';
   end if;
 
+  -- Deleting a school removes every event, roster, sponsor and agreement in it.
+  -- Membership alone must not be enough to do that.
+  if tg_op = 'DELETE' then
+    if caller_role <> 'school_admin' then
+      raise exception 'Only a school administrator or the platform owner can delete a school.'
+        using errcode = 'insufficient_privilege';
+    end if;
+    return old;
+  end if;
+
   -- Changing the user list is how someone would grant themselves more access,
   -- so it belongs to administrators alone.
   if caller_role not in ('school_admin', 'platform_owner')
@@ -123,7 +135,7 @@ end $$;
 
 drop trigger if exists workspaces_enforce_roles on public.workspaces;
 create trigger workspaces_enforce_roles
-  before update on public.workspaces
+  before update or delete on public.workspaces
   for each row
   execute function public.enforce_workspace_roles();
 
