@@ -1,3 +1,35 @@
+\set ON_ERROR_STOP on
+
+-- ============================================================
+--  LOCAL HARNESS — NOT FOR YOUR SUPABASE PROJECT
+--
+--  This file DROPS AND RECREATES the workspaces table and is meant for a
+--  throwaway Postgres database. Running it anywhere holding real data would
+--  destroy it. It also uses psql commands (\i, \echo) that the Supabase SQL
+--  editor cannot run.
+--
+--  To check a real project, run `supabase/verify-role-enforcement.sql`
+--  instead — that one only reads.
+--
+--  Run this with:  psql -f supabase/rls-policy-test.sql <scratch-db>
+-- ============================================================
+
+-- Refuse to run against anything that looks like a real project.
+do $$
+declare n bigint := 0;
+begin
+  if to_regclass('public.workspaces') is not null then
+    execute 'select count(*) from public.workspaces' into n;
+  end if;
+  if n > 0
+     or to_regclass('public.public_site') is not null
+     or to_regclass('public.workspace_snapshots') is not null then
+    raise exception
+      'Refusing to run: this harness drops tables and this database holds real data.'
+      using hint = 'Run supabase/verify-role-enforcement.sql against a real project instead.';
+  end if;
+end $$;
+
 -- Mirror Supabase: anon/authenticated roles + auth.jwt() reading request.jwt.claims
 create schema if not exists auth;
 create or replace function auth.jwt() returns jsonb language sql stable as $$

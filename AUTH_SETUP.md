@@ -156,6 +156,13 @@ What it enforces, proven in `supabase/rls-policy-test.sql`:
 Writes made from the SQL editor carry no signed-in identity and are treated as
 trusted maintenance, so you are never locked out of your own database.
 
+To confirm it installed, run **`supabase/verify-role-enforcement.sql`**. It only
+reads, and prints what the database would actually allow each person to do.
+
+> `supabase/rls-policy-test.sql` is a **local harness**, not for your project: it
+> drops and recreates the workspaces table against a throwaway database. It now
+> refuses to run anywhere holding real data, but use the verify script above.
+
 ## Step 4 — Flip the login switch
 
 In **Vercel → Settings → Environment Variables**, add:
