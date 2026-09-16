@@ -20,32 +20,25 @@ grant select, insert, update, delete on workspaces to anon, authenticated;
 alter table workspaces enable row level security;
 
 -- The app's own Users list, as it actually lives inside the JSON blob
-insert into workspaces (id, data) values ('ws', jsonb_build_object('users', jsonb_build_array(
-  jsonb_build_object('email','jl@fluxmedia.org','status','active'),
-  jsonb_build_object('email','Coach@school.org','status','active'),   -- mixed case on purpose
-  jsonb_build_object('email','old@school.org','status','revoked'),
-  jsonb_build_object('email','nostatus@school.org')                   -- status field absent
-)));
+insert into workspaces (id, data) values ('ws', jsonb_build_object(
+  'users', jsonb_build_array(
+    jsonb_build_object('email','jl@fluxmedia.org','status','active','role','platform_owner'),
+    jsonb_build_object('email','Coach@school.org','status','active','role','coach'),   -- mixed case on purpose
+    jsonb_build_object('email','ad@school.org','status','active','role','school_admin'),
+    jsonb_build_object('email','booster@school.org','status','active','role','read_only'),
+    jsonb_build_object('email','old@school.org','status','revoked','role','coach'),
+    jsonb_build_object('email','nostatus@school.org','role','coach')                   -- status field absent
+  ),
+  'events', jsonb_build_array(jsonb_build_object('id','e1','status','scheduled')),
+  'sponsors', jsonb_build_array(jsonb_build_object('id','s1','contractValue',50000))));
+
+-- A second school, to prove one school's staff cannot reach another's.
+insert into workspaces (id, data) values ('ws-other', jsonb_build_object(
+  'users', jsonb_build_array(jsonb_build_object('email','rival@other.org','status','active','role','school_admin'))));
 
 -- ===== THE POLICY UNDER TEST =====
-create policy "workspace member access" on workspaces
-  for all to authenticated
-  using (
-    lower(auth.jwt() ->> 'email') = 'jl@fluxmedia.org'
-    or exists (
-      select 1 from jsonb_array_elements(coalesce(data -> 'users', '[]'::jsonb)) u
-      where lower(u ->> 'email') = lower(auth.jwt() ->> 'email')
-        and coalesce(u ->> 'status', 'active') <> 'revoked'
-    )
-  )
-  with check (
-    lower(auth.jwt() ->> 'email') = 'jl@fluxmedia.org'
-    or exists (
-      select 1 from jsonb_array_elements(coalesce(data -> 'users', '[]'::jsonb)) u
-      where lower(u ->> 'email') = lower(auth.jwt() ->> 'email')
-        and coalesce(u ->> 'status', 'active') <> 'revoked'
-    )
-  );
+-- Loaded from the file that is actually deployed, so this cannot drift from it.
+\i supabase/role-enforcement.sql
 
 \echo '--- reads: rows visible per identity (want 1 = allowed, 0 = blocked) ---'
 \set claims_coach '{"email":"coach@school.org"}'
@@ -84,8 +77,51 @@ declare n int; begin
   raise notice 'staff UPDATE affected % row(s)', n;
 end $$;
 
+\echo ''
+\echo '--- role enforcement on writes (the app hides these; the database must too) ---'
+
+set request.jwt.claims = '{"email":"coach@school.org"}';
+do $$ begin
+  update workspaces set data = jsonb_set(data,'{users,1,role}','"school_admin"') where id='ws';
+  raise notice 'coach promotes self            : ALLOWED  <-- ESCALATION';
+exception when insufficient_privilege then raise notice 'coach promotes self            : blocked'; end $$;
+
+do $$ begin
+  update workspaces set data = jsonb_set(data,'{events,0,status}','"confirmed"') where id='ws';
+  raise notice 'coach edits an event           : allowed (correct)';
+exception when insufficient_privilege then raise notice 'coach edits an event           : BLOCKED <-- too strict'; end $$;
+
+do $$ begin
+  update workspaces set data = '{"users":[]}'::jsonb where id='ws';
+  raise notice 'coach wipes the document       : ALLOWED  <-- DATA LOSS';
+exception when insufficient_privilege then raise notice 'coach wipes the document       : blocked'; end $$;
+
+select 'coach sees other school    ' as who, count(*) as rows from workspaces where id='ws-other';
+
+set request.jwt.claims = '{"email":"booster@school.org"}';
+select 'read-only reads            ' as who, count(*) as rows from workspaces where id='ws';
+do $$ begin
+  update workspaces set data = jsonb_set(data,'{events,0,status}','"canceled"') where id='ws';
+  raise notice 'read-only changes data         : ALLOWED  <-- should be read only';
+exception when insufficient_privilege then raise notice 'read-only changes data         : blocked'; end $$;
+
+set request.jwt.claims = '{"email":"ad@school.org"}';
+do $$ begin
+  update workspaces set data = jsonb_set(data,'{users,1,role}','"comms_admin"') where id='ws';
+  raise notice 'admin changes a role           : allowed (correct)';
+exception when insufficient_privilege then raise notice 'admin changes a role           : BLOCKED <-- too strict'; end $$;
+do $$ begin
+  update workspaces set data = jsonb_set(data,'{sponsors,0,contractValue}','60000') where id='ws';
+  raise notice 'admin edits sponsorship        : allowed (correct)';
+exception when insufficient_privilege then raise notice 'admin edits sponsorship        : BLOCKED <-- too strict'; end $$;
+
+set request.jwt.claims = '{"email":"jl@fluxmedia.org"}';
+select 'owner sees every school    ' as who, count(*) as rows from workspaces;
+
+\echo ''
 \echo '--- lockout safety: owner still gets in if the users list is emptied ---'
 reset role;
+set request.jwt.claims = '{}';   -- the SQL editor carries no signed-in identity
 update workspaces set data = '{"users":[]}'::jsonb where id='ws';
 set role authenticated;
 set request.jwt.claims = '{"email":"jl@fluxmedia.org"}';
@@ -95,6 +131,7 @@ select 'staff, empty users list    ' as who, count(*) as rows from workspaces;
 
 \echo '--- and if the users key is missing entirely (malformed data) ---'
 reset role;
+set request.jwt.claims = '{}';
 update workspaces set data = '{}'::jsonb where id='ws';
 set role authenticated;
 set request.jwt.claims = '{"email":"jl@fluxmedia.org"}';

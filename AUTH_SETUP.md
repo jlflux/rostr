@@ -134,11 +134,27 @@ onboard a lot of people at once.
 The original setup only allowed access for signed-out visitors. Before enabling
 logins, broaden it so signed-in users work too. In **SQL Editor**, run:
 
-```sql
-drop policy if exists "workspace open access" on workspaces;
-create policy "workspace transition access" on workspaces
-  for all to public using (true) with check (true);
-```
+Run **`supabase/role-enforcement.sql`**. It does three things:
+
+- Creates a `platform_owners` table, so owners are rows you can add and remove
+  rather than an email written into the policy.
+- Replaces the membership policy with one that reads that table.
+- Adds a trigger that checks the writer's role on every write, because the
+  policy alone only answers "are you a member?" — and a member could previously
+  promote themselves, rewrite sponsorship figures, or empty the document.
+
+What it enforces, proven in `supabase/rls-policy-test.sql`:
+
+| | read | edit records | change who has access |
+|---|---|---|---|
+| platform owner | every school | yes | yes |
+| school admin | own school | yes | yes |
+| coach, comms, finance | own school | yes | **no** |
+| read-only | own school | **no** | no |
+| revoked, or not a member | **nothing** | no | no |
+
+Writes made from the SQL editor carry no signed-in identity and are treated as
+trusted maintenance, so you are never locked out of your own database.
 
 ## Step 4 — Flip the login switch
 
