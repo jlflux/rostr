@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore, type Skin } from '../store/store'
-import { ROLE_LABELS, benefitTemplates, can, currentOrg, currentUser, sortedByLastName, sponsorTiers, tierSettings } from '../lib/derive'
+import { ROLE_LABELS, benefitTemplates, can, currentOrg, currentUser, sortedByLastName, sponsorTiers, tierSettings, users as orgUsers } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { fmtMoney, todayISO } from '../lib/dates'
 import { I } from '../components/icons'
@@ -111,7 +111,7 @@ export default function SettingsPage() {
             <table className="tbl">
               <thead><tr><th>User</th><th>Title</th><th>Role</th>{isAdmin && <th>Access</th>}</tr></thead>
               <tbody>
-                {sortedByLastName(state.users).map(u => {
+                {sortedByLastName(orgUsers(state)).map(u => {
                   const revoked = u.status === 'revoked'
                   return (
                   <tr key={u.id} style={revoked ? { opacity: 0.55 } : undefined}>
@@ -505,7 +505,7 @@ function AddUserModal({ onClose, onSave }: { onClose: () => void; onSave: (u: Us
     if (!form.name.trim()) errs.name = 'Full name is required.'
     if (!form.email.trim()) errs.email = 'Email is required — it becomes their login.'
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) errs.email = 'Enter a valid email address.'
-    else if (state.users.some(u => u.email.toLowerCase() === form.email.trim().toLowerCase())) errs.email = 'A user with this email already exists.'
+    else if (orgUsers(state).some(u => u.email.toLowerCase() === form.email.trim().toLowerCase())) errs.email = 'A user with this email already exists.'
     if (form.role === 'coach' && form.teamIds.length === 0) errs.teams = 'Pick at least one team for a coach.'
     setErrors(errs)
     if (Object.keys(errs).length) return

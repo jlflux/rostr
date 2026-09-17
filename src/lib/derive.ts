@@ -84,6 +84,27 @@ export function currentOrg(s: AppState): Organization {
     ?? PLACEHOLDER_ORG
 }
 
+/**
+ * Whether the person at the keyboard is previewing the app as someone else.
+ *
+ * `currentUserId` is per-device and never synced, so acting as another person
+ * changes only this browser's view. It is a preview of the *interface*: the
+ * database still sees the signed-in account, so anything saved while acting as a
+ * coach is saved by whoever is actually signed in. That is why only platform
+ * owners may do it.
+ *
+ * With logins off (local demo) there is no signed-in email, so there is nobody
+ * to be "really" — the switcher is the demo's own role picker.
+ */
+export function actingAs(s: AppState, signedInEmail: string | null) {
+  const realUser = signedInEmail
+    ? s.users.find(u => u.email.toLowerCase() === signedInEmail.toLowerCase()) ?? null
+    : null
+  const canActAs = (realUser ?? currentUser(s)).role === 'platform_owner'
+  const impersonating = !!realUser && realUser.id !== s.currentUserId
+  return { realUser, canActAs, impersonating }
+}
+
 /** True while neither could be resolved — data hasn't arrived (or is unusable). */
 export function isResolving(s: AppState): boolean {
   return currentUser(s) === PLACEHOLDER_USER || currentOrg(s) === PLACEHOLDER_ORG
@@ -97,6 +118,9 @@ export const requests = (s: AppState) => orgScoped(s, s.requests)
 export const tasks = (s: AppState) => orgScoped(s, s.tasks)
 export const teams = (s: AppState) => orgScoped(s, s.teams)
 export const assets = (s: AppState) => orgScoped(s, s.assets)
+/** Staff at the school being viewed. Includes revoked accounts — callers that
+ *  shouldn't offer them filter on status themselves. */
+export const users = (s: AppState) => orgScoped(s, s.users)
 
 export function eventsThisWeek(s: AppState): SportEvent[] {
   const start = weekStart(todayISO())

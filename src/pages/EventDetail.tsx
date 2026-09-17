@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/store'
-import { ROLE_LABELS, broadcastState, can, canSee, currentUser, defaultBroadcastChecklist, eventTitle, sortedByLastName, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
+import { ROLE_LABELS, broadcastState, can, canSee, currentUser, users as orgUsers, defaultBroadcastChecklist, eventTitle, sortedByLastName, venueConflicts, visibleScore, visibleStatus } from '../lib/derive'
 import { fmtDate, fmtDateLong, fmtTime, relDue, todayISO } from '../lib/dates'
 import { resolveSignedUrl } from '../lib/storage'
 import { StoredImage } from '../components/StoredImage'
@@ -622,7 +622,7 @@ function EventTasks({ e, tasks, editable }: { e: SportEvent; tasks: Task[]; edit
             {editable ? (
               <select className="inline-select" value={t.assigneeId ?? ''} onChange={ev => update('tasks', t.id, { assigneeId: ev.target.value || null })} aria-label="Assignee">
                 <option value="">Unassigned</option>
-                {sortedByLastName(state.users.filter(u => u.role !== 'read_only' && u.role !== 'platform_owner')).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                {sortedByLastName(orgUsers(state).filter(u => u.role !== 'read_only' && u.role !== 'platform_owner' && u.status !== 'revoked')).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             ) : <span className="tiny">{assignee?.name ?? 'Unassigned'}</span>}
             <Avatar user={assignee} size="sm" />

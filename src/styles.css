@@ -85,7 +85,8 @@ input, select, textarea { font: inherit; color: inherit; }
 .shell {
   display: flex; overflow: hidden;
   height: 100vh; height: 100dvh;
-  padding-top: var(--sync-banner-h, 0px);
+  /* Both banners are fixed, so the shell drops by their combined height. */
+  padding-top: calc(var(--sync-banner-h, 0px) + var(--acting-banner-h, 0px));
   box-sizing: border-box;
 }
 .sidebar {
@@ -370,6 +371,19 @@ select.inline-select {
   box-shadow: var(--shadow-lg);
 }
 .sync-banner svg { flex-shrink: 0; }
+
+/* Sits under the sync banner when both are up. Amber rather than red: this is a
+   state to be aware of, not a failure. */
+.acting-banner {
+  position: fixed; top: var(--sync-banner-h, 0px); left: 0; right: 0; z-index: 249;
+  display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+  padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
+  background: #92400e; color: #fff;
+  font-size: 0.85rem; line-height: 1.35; text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+.acting-banner .btn { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.4); color: #fff; }
+.acting-banner .btn:hover { background: rgba(255,255,255,0.26); }
 .sync-banner-detail { opacity: 0.85; font-weight: 450; font-size: 0.8rem; width: 100%; word-break: break-word; }
 
 .toasts { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }

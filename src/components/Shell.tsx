@@ -6,7 +6,7 @@ import { StoredImage } from './StoredImage'
 import { resolveSignedUrl } from '../lib/storage'
 import { I } from './icons'
 import { Avatar } from './ui'
-import { ROLE_LABELS, SECTION_LABELS, canSee, canSwitchOrgs, currentOrg, currentUser, events as allEvents, isResolving, openRequests, overdueTasks, sectionLabel, sortedByLastName, unfilledSlots } from '../lib/derive'
+import { ROLE_LABELS, SECTION_LABELS, actingAs, canSee, canSwitchOrgs, currentOrg, currentUser, events as allEvents, users as orgUsers, isResolving, openRequests, overdueTasks, sectionLabel, sortedByLastName, unfilledSlots } from '../lib/derive'
 import { fmtDateTime, todayISO } from '../lib/dates'
 
 function useClickOutside(onClose: () => void) {
@@ -46,7 +46,7 @@ function GlobalSearch() {
     if (canSee(state, me.role, 'opponents')) for (const o of state.opponents) if (!o.deletedAt && (match(o.name) || match(o.mascot))) out.push({ kind: 'Opponent', label: o.name, sub: o.mascot ?? 'Opponent', to: `/opponents?open=${o.id}` })
     if (canSee(state, me.role, 'requests')) for (const r of state.requests) if (match(r.title)) out.push({ kind: 'Request', label: r.title, sub: r.type, to: `/requests/${r.id}` })
     for (const a of state.assets) if (match(a.name)) out.push({ kind: 'Asset', label: a.name, sub: a.type, to: '/assets' })
-    if (canSee(state, me.role, 'settings')) for (const u of state.users) if (match(u.name)) out.push({ kind: 'Person', label: u.name, sub: u.title, to: '/settings' })
+    if (canSee(state, me.role, 'settings')) for (const u of orgUsers(state)) if (match(u.name)) out.push({ kind: 'Person', label: u.name, sub: u.title, to: '/settings' })
     return out.slice(0, 12)
   }, [q, state])
 
@@ -182,6 +182,10 @@ function UserMenu() {
   const [open, setOpen] = useState(false)
   const ref = useClickOutside(() => setOpen(false))
   const user = currentUser(state)
+  const { realUser, impersonating, canActAs } = actingAs(state, authOn ? email : null)
+  // Only this school's active staff — acting as another school's user would
+  // show a view that doesn't match the school on screen.
+  const actAsUsers = sortedByLastName(orgUsers(state).filter(u => u.status !== 'revoked')).slice(0, 20)
   return (
     <div style={{ position: 'relative' }} ref={ref}>
       <button style={{ background: 'none', border: 'none', padding: 0, display: 'flex' }} onClick={() => setOpen(v => !v)} aria-label="User menu">
@@ -194,14 +198,14 @@ function UserMenu() {
             <div className="tiny">{user.title} · {ROLE_LABELS[user.role]}</div>
             {authOn && email && <div className="tiny muted">{email}</div>}
           </div>
-          {authOn ? (
-            <button className="menu-item" onClick={async () => { setOpen(false); await signOut() }}>
-              <span><div style={{ fontWeight: 600 }}>Sign out</div></span>
-            </button>
-          ) : (
+          {/* Acting as someone else previews their view of this school. It is a
+              preview only: the database still sees the signed-in account, so a
+              write made while acting as a coach is made by whoever is signed in.
+              Restricted to platform owners for that reason. */}
+          {(!authOn || canActAs) && (
             <>
-              <div className="menu-label">View as (demo)</div>
-              {sortedByLastName(state.users.filter(u => u.status !== 'revoked')).slice(0, 16).map(u => (
+              <div className="menu-label">{authOn ? 'Act as' : 'View as (demo)'}</div>
+              {actAsUsers.map(u => (
                 <button key={u.id} className={`menu-item ${u.id === state.currentUserId ? 'active' : ''}`}
                   onClick={() => { setState({ currentUserId: u.id }); setOpen(false); toast(`Now viewing as ${u.name} (${ROLE_LABELS[u.role]})`) }}>
                   <Avatar user={u} size="sm" />
@@ -211,7 +215,20 @@ function UserMenu() {
                   </span>
                 </button>
               ))}
+              {impersonating && realUser && (
+                <button className="menu-item" onClick={() => {
+                  setState({ currentUserId: realUser.id }); setOpen(false)
+                  toast(`Back to your own account (${realUser.name})`)
+                }}>
+                  <span><div style={{ fontWeight: 600 }}>← Back to my account</div></span>
+                </button>
+              )}
             </>
+          )}
+          {authOn && (
+            <button className="menu-item" onClick={async () => { setOpen(false); await signOut() }}>
+              <span><div style={{ fontWeight: 600 }}>Sign out</div></span>
+            </button>
           )}
         </div>
       )}
@@ -243,10 +260,12 @@ const NAV: NavItem[] = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { state, setState, toasts, theme, setTheme, cloudEnabled, cloudStatus, cloudError } = useStore()
+  const { enabled: authOn, email: signedInEmail } = useAuth()
   const [navOpen, setNavOpen] = useState(false)
   const location = useLocation()
   const contentRef = useRef<HTMLElement>(null)
   const syncBannerRef = useRef<HTMLDivElement>(null)
+  const actingBannerRef = useRef<HTMLDivElement>(null)
   useEffect(() => setNavOpen(false), [location.pathname])
   // Start every page at the top rather than inheriting the previous scroll position
   useEffect(() => { contentRef.current?.scrollTo(0, 0) }, [location.pathname])
@@ -270,6 +289,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   // The banner is fixed so it can outrank the mobile drawer, which means it
   // would otherwise sit on top of the header. Measure it and inset the shell by
   // exactly that much; its height varies with the length of the error text.
+  const acting = actingAs(state, authOn ? signedInEmail : null)
+
   const syncBanner = cloudEnabled && cloudStatus === 'error'
   useEffect(() => {
     const el = syncBannerRef.current
@@ -284,6 +305,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
     ro.observe(el)
     return () => { ro.disconnect(); document.documentElement.style.removeProperty('--sync-banner-h') }
   }, [syncBanner, cloudError])
+
+  // Same treatment for the "viewing as" bar, and stacked below the sync one when
+  // both are up, so neither covers the header.
+  useEffect(() => {
+    const el = actingBannerRef.current
+    if (!acting.impersonating || !el) {
+      document.documentElement.style.removeProperty('--acting-banner-h')
+      return
+    }
+    const measure = () => document.documentElement.style
+      .setProperty('--acting-banner-h', `${el.getBoundingClientRect().height}px`)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => { ro.disconnect(); document.documentElement.style.removeProperty('--acting-banner-h') }
+  }, [acting.impersonating, me.name])
 
   useEffect(() => {
     document.title = `${org.shortName} Command Center — Powered by Flux Athletics`
@@ -342,6 +379,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
             Reload the page; if this stays, don't keep entering data.
           </span>
           {cloudError && <span className="sync-banner-detail">{cloudError}</span>}
+        </div>
+      )}
+      {acting.impersonating && acting.realUser && (
+        <div className="acting-banner" role="status" ref={actingBannerRef}>
+          <span>
+            Viewing as <strong>{me.name}</strong> ({ROLE_LABELS[me.role]}) — this is a preview;
+            anything you change is still saved as {acting.realUser.name}.
+          </span>
+          <button className="btn sm" onClick={() => {
+            setState({ currentUserId: acting.realUser!.id })
+          }}>Back to my account</button>
         </div>
       )}
       {navOpen && <div className="backdrop" onClick={() => setNavOpen(false)} />}
