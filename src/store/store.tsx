@@ -38,7 +38,11 @@ export interface Store {
   removeOrg: (orgId: string) => Promise<void>
   setState: (patch: Partial<AppState>) => void
   logActivity: (text: string, link?: string) => void
-  resetDemo: () => void
+  /**
+   * Restore the seeded demo dataset. Returns a reason string when refused —
+   * which it is whenever real data has been loaded from the cloud.
+   */
+  resetDemo: () => string | null
   /** Serialize the whole dataset to a JSON string for backup. */
   exportState: () => string
   /** Replace the dataset from a backup JSON string. Returns false if it isn't valid. */
@@ -171,6 +175,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const cloudReady = useRef(false)
   /** Set only when cloud data has really been applied to this device. */
   const cloudLoadedRef = useRef(false)
+  /** Newest `updated_at` seen on a pull, so a refusal can say how fresh it is. */
+  const lastPulledAt = useRef<string | null>(null)
   const [cloudLoaded, setCloudLoaded] = useState(false)
   const pushTimer = useRef<ReturnType<typeof setTimeout>>()
   /** Record-level edits waiting to be sent, in the order they happened. */
@@ -202,6 +208,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    * used. That means reverting the deploy falls back to the untouched original.
    */
   const applyRows = useCallback((rows: WorkspaceRow[]): AppState | null => {
+    for (const r of rows) {
+      if (!lastPulledAt.current || r.updated_at > lastPulledAt.current) lastPulledAt.current = r.updated_at
+    }
     const platformRow = rows.find(r => r.id === PLATFORM_ROW_ID)
     // A per-school row is one named after the school it contains.
     const perSchool = rows.filter(r =>
@@ -414,9 +423,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     queueActivity(entry as unknown as Record<string, unknown>)
   }, [])
 
-  const resetDemo = useCallback(() => {
+  /**
+   * Restore the seeded demo dataset.
+   *
+   * Refused once real data has loaded from the cloud. Resetting replaces the
+   * state in this browser, and auto-save would then push that replacement up —
+   * so on a connected project this would overwrite a live season with demo
+   * content. Returns why it was refused, or null if it ran.
+   */
+  const resetDemo = useCallback((): string | null => {
+    if (cloudEnabled() && cloudLoadedRef.current) {
+      return lastPulledAt.current
+        ? `This school's data was loaded from the cloud (last saved ${new Date(lastPulledAt.current).toLocaleString()}). Resetting would replace it with demo content.`
+        : 'This school\u2019s data was loaded from the cloud. Resetting would replace it with demo content.'
+    }
     localStorage.removeItem(STORAGE_KEY)
     setFullState(buildSeedState())
+    return null
   }, [])
 
   const exportState = useCallback(() => JSON.stringify(state, null, 2), [state])

@@ -36,18 +36,18 @@ export const riverbendOrg: Organization = {
 // ---------- Staff ----------
 
 export const riverbendUsers: User[] = [
-  { id: 'rb-u-ad', orgId: ORG, name: 'Dana Whitfield', email: 'dwhitfield@riverbendacademy.org', role: 'school_admin', title: 'Athletic Director', initials: 'DW', color: '#0e7a5f', status: 'active' },
-  { id: 'rb-u-comms', orgId: ORG, name: 'Marcus Idowu', email: 'midowu@riverbendacademy.org', role: 'comms_admin', title: 'Communications Director', initials: 'MI', color: '#c46a1f', status: 'active' },
-  { id: 'rb-u-fin', orgId: ORG, name: 'Priya Raman', email: 'praman@riverbendacademy.org', role: 'finance', title: 'Business Manager', initials: 'PR', color: '#0369a1', status: 'active' },
-  { id: 'rb-u-fb', orgId: ORG, name: 'Tobias Crane', email: 'tcrane@riverbendacademy.org', role: 'coach', title: 'Head Football Coach', initials: 'TC', color: '#b45309', status: 'active', teamIds: ['rb-t-football-boys-varsity', 'rb-t-football-boys-jv'] },
-  { id: 'rb-u-bb', orgId: ORG, name: 'Alicia Monroe', email: 'amonroe@riverbendacademy.org', role: 'coach', title: 'Head Basketball Coach', initials: 'AM', color: '#7c3aed', status: 'active', teamIds: ['rb-t-basketball-girls-varsity', 'rb-t-basketball-boys-varsity'] },
-  { id: 'rb-u-soc', orgId: ORG, name: 'Emilio Vasquez', email: 'evasquez@riverbendacademy.org', role: 'coach', title: 'Head Soccer Coach', initials: 'EV', color: '#166534', status: 'active', teamIds: ['rb-t-soccer-boys-varsity', 'rb-t-soccer-girls-varsity'] },
-  { id: 'rb-u-vb', orgId: ORG, name: 'Sloane Petrakis', email: 'spetrakis@riverbendacademy.org', role: 'coach', title: 'Head Volleyball Coach', initials: 'SP', color: '#be185d', status: 'active', teamIds: ['rb-t-volleyball-girls-varsity', 'rb-t-volleyball-girls-jv'] },
-  { id: 'rb-u-tr', orgId: ORG, name: 'Gwen Abara', email: 'gabara@riverbendacademy.org', role: 'coach', title: 'Head Track & Cross Country Coach', initials: 'GA', color: '#0e7490', status: 'active' },
-  { id: 'rb-u-bs', orgId: ORG, name: 'Hollis Tran', email: 'htran@riverbendacademy.org', role: 'coach', title: 'Head Baseball Coach', initials: 'HT', color: '#57534e', status: 'active' },
-  { id: 'rb-u-sb', orgId: ORG, name: 'Renata Gil', email: 'rgil@riverbendacademy.org', role: 'coach', title: 'Head Softball Coach', initials: 'RG', color: '#9d174d', status: 'active' },
-  { id: 'rb-u-staff1', orgId: ORG, name: 'Owen Delacroix', email: 'odelacroix@riverbendacademy.org', role: 'event_staff', title: 'Event Staff', initials: 'OD', color: '#374151', status: 'active' },
-  { id: 'rb-u-staff2', orgId: ORG, name: 'Bea Nakamura', email: 'bnakamura@riverbendacademy.org', role: 'event_staff', title: 'Event Staff', initials: 'BN', color: '#122b3c', status: 'active' },
+  { id: 'rb-u-ad', orgId: ORG, name: 'Dana Whitfield', email: 'dwhitfield@example-academy.org', role: 'school_admin', title: 'Athletic Director', initials: 'DW', color: '#0e7a5f', status: 'active' },
+  { id: 'rb-u-comms', orgId: ORG, name: 'Marcus Idowu', email: 'midowu@example-academy.org', role: 'comms_admin', title: 'Communications Director', initials: 'MI', color: '#c46a1f', status: 'active' },
+  { id: 'rb-u-fin', orgId: ORG, name: 'Priya Raman', email: 'praman@example-academy.org', role: 'finance', title: 'Business Manager', initials: 'PR', color: '#0369a1', status: 'active' },
+  { id: 'rb-u-fb', orgId: ORG, name: 'Tobias Crane', email: 'tcrane@example-academy.org', role: 'coach', title: 'Head Football Coach', initials: 'TC', color: '#b45309', status: 'active', teamIds: ['rb-t-football-boys-varsity', 'rb-t-football-boys-jv'] },
+  { id: 'rb-u-bb', orgId: ORG, name: 'Alicia Monroe', email: 'amonroe@example-academy.org', role: 'coach', title: 'Head Basketball Coach', initials: 'AM', color: '#7c3aed', status: 'active', teamIds: ['rb-t-basketball-girls-varsity', 'rb-t-basketball-boys-varsity'] },
+  { id: 'rb-u-soc', orgId: ORG, name: 'Emilio Vasquez', email: 'evasquez@example-academy.org', role: 'coach', title: 'Head Soccer Coach', initials: 'EV', color: '#166534', status: 'active', teamIds: ['rb-t-soccer-boys-varsity', 'rb-t-soccer-girls-varsity'] },
+  { id: 'rb-u-vb', orgId: ORG, name: 'Sloane Petrakis', email: 'spetrakis@example-academy.org', role: 'coach', title: 'Head Volleyball Coach', initials: 'SP', color: '#be185d', status: 'active', teamIds: ['rb-t-volleyball-girls-varsity', 'rb-t-volleyball-girls-jv'] },
+  { id: 'rb-u-tr', orgId: ORG, name: 'Gwen Abara', email: 'gabara@example-academy.org', role: 'coach', title: 'Head Track & Cross Country Coach', initials: 'GA', color: '#0e7490', status: 'active' },
+  { id: 'rb-u-bs', orgId: ORG, name: 'Hollis Tran', email: 'htran@example-academy.org', role: 'coach', title: 'Head Baseball Coach', initials: 'HT', color: '#57534e', status: 'active' },
+  { id: 'rb-u-sb', orgId: ORG, name: 'Renata Gil', email: 'rgil@example-academy.org', role: 'coach', title: 'Head Softball Coach', initials: 'RG', color: '#9d174d', status: 'active' },
+  { id: 'rb-u-staff1', orgId: ORG, name: 'Owen Delacroix', email: 'odelacroix@example-academy.org', role: 'event_staff', title: 'Event Staff', initials: 'OD', color: '#374151', status: 'active' },
+  { id: 'rb-u-staff2', orgId: ORG, name: 'Bea Nakamura', email: 'bnakamura@example-academy.org', role: 'event_staff', title: 'Event Staff', initials: 'BN', color: '#122b3c', status: 'active' },
 ]
 
 // ---------- Teams ----------
@@ -112,26 +112,26 @@ export const riverbendTeams: Team[] = TEAM_SEEDS.flatMap(seed =>
 type OppSeed = { name: string; mascot: string; city: string; colors: string; tint: string }
 
 const OPPONENT_SEEDS: OppSeed[] = [
-  { name: 'Lookout Valley', mascot: 'Yellow Jackets', city: 'Chattanooga', colors: 'Gold & Black', tint: '#ca8a04' },
-  { name: 'Signal Mountain', mascot: 'Eagles', city: 'Signal Mountain', colors: 'Navy & Silver', tint: '#1d4ed8' },
-  { name: 'Red Bank', mascot: 'Lions', city: 'Red Bank', colors: 'Crimson & White', tint: '#b91c1c' },
-  { name: 'Soddy-Daisy', mascot: 'Trojans', city: 'Soddy-Daisy', colors: 'Purple & Gold', tint: '#7c3aed' },
-  { name: 'Sequoyah', mascot: 'Chiefs', city: 'Soddy-Daisy', colors: 'Maroon & Gray', tint: '#9d174d' },
-  { name: 'Walker Valley', mascot: 'Mustangs', city: 'Cleveland', colors: 'Royal & White', tint: '#0369a1' },
-  { name: 'Ooltewah', mascot: 'Owls', city: 'Ooltewah', colors: 'Green & Gold', tint: '#166534' },
-  { name: 'East Hamilton', mascot: 'Hurricanes', city: 'Ooltewah', colors: 'Teal & Black', tint: '#0e7490' },
-  { name: 'Hixson', mascot: 'Wildcats', city: 'Hixson', colors: 'Blue & Gold', tint: '#1e40af' },
-  { name: 'Tyner Academy', mascot: 'Rams', city: 'Chattanooga', colors: 'Orange & Black', tint: '#ea580c' },
-  { name: 'Brainerd', mascot: 'Panthers', city: 'Chattanooga', colors: 'Red & Gray', tint: '#dc2626' },
+  { name: 'Lantern Valley', mascot: 'Yellow Jackets', city: 'Chattanooga', colors: 'Gold & Black', tint: '#ca8a04' },
+  { name: 'Beacon Mountain', mascot: 'Eagles', city: 'Beacon Mountain', colors: 'Navy & Silver', tint: '#1d4ed8' },
+  { name: 'Redstone Bank', mascot: 'Lions', city: 'Redstone', colors: 'Crimson & White', tint: '#b91c1c' },
+  { name: 'Sodderly', mascot: 'Trojans', city: 'Sodderly', colors: 'Purple & Gold', tint: '#7c3aed' },
+  { name: 'Sequoia Ridge', mascot: 'Chiefs', city: 'Sodderly', colors: 'Maroon & Gray', tint: '#9d174d' },
+  { name: 'Walden Valley', mascot: 'Mustangs', city: 'Cleveland', colors: 'Royal & White', tint: '#0369a1' },
+  { name: 'Ottersley', mascot: 'Owls', city: 'Ottersley', colors: 'Green & Gold', tint: '#166534' },
+  { name: 'East Hollis', mascot: 'Hurricanes', city: 'Ottersley', colors: 'Teal & Black', tint: '#0e7490' },
+  { name: 'Hixon Creek', mascot: 'Wildcats', city: 'Hixon Creek', colors: 'Blue & Gold', tint: '#1e40af' },
+  { name: 'Tyrell Academy', mascot: 'Rams', city: 'Chattanooga', colors: 'Orange & Black', tint: '#ea580c' },
+  { name: 'Braemar', mascot: 'Panthers', city: 'Chattanooga', colors: 'Red & Gray', tint: '#dc2626' },
   { name: 'Central', mascot: 'Purple Pounders', city: 'Harrison', colors: 'Purple & Gold', tint: '#6d28d9' },
-  { name: 'Marion County', mascot: 'Warriors', city: 'Jasper', colors: 'Navy & Orange', tint: '#c2410c' },
-  { name: 'Grundy County', mascot: 'Yellow Jackets', city: 'Coalmont', colors: 'Black & Gold', tint: '#57534e' },
-  { name: 'Bledsoe County', mascot: 'Warriors', city: 'Pikeville', colors: 'Red & Black', tint: '#991b1b' },
-  { name: 'Sweetwater', mascot: 'Wildcats', city: 'Sweetwater', colors: 'Blue & White', tint: '#2563eb' },
-  { name: 'Meigs County', mascot: 'Tigers', city: 'Decatur', colors: 'Orange & Black', tint: '#f97316' },
-  { name: 'Polk County', mascot: 'Wildcats', city: 'Benton', colors: 'Maroon & Gold', tint: '#86198f' },
-  { name: 'Notre Dame', mascot: 'Fighting Irish', city: 'Chattanooga', colors: 'Navy & Gold', tint: '#1e3a8a' },
-  { name: 'Boyd-Buchanan', mascot: 'Buccaneers', city: 'Chattanooga', colors: 'Green & White', tint: '#15803d' },
+  { name: 'Marlow County', mascot: 'Warriors', city: 'Jasper', colors: 'Navy & Orange', tint: '#c2410c' },
+  { name: 'Granby County', mascot: 'Yellow Jackets', city: 'Coalmont', colors: 'Black & Gold', tint: '#57534e' },
+  { name: 'Bledsworth County', mascot: 'Warriors', city: 'Pikeville', colors: 'Red & Black', tint: '#991b1b' },
+  { name: 'Sweetbriar', mascot: 'Wildcats', city: 'Sweetwater', colors: 'Blue & White', tint: '#2563eb' },
+  { name: 'Mercer County', mascot: 'Tigers', city: 'Decatur', colors: 'Orange & Black', tint: '#f97316' },
+  { name: 'Pollard County', mascot: 'Wildcats', city: 'Benton', colors: 'Maroon & Gold', tint: '#86198f' },
+  { name: 'Trinity Prep', mascot: 'Fighting Irish', city: 'Chattanooga', colors: 'Navy & Gold', tint: '#1e3a8a' },
+  { name: 'Boyden-Clark', mascot: 'Buccaneers', city: 'Chattanooga', colors: 'Green & White', tint: '#15803d' },
 ]
 
 export const riverbendOpponents: Opponent[] = OPPONENT_SEEDS.map(o => ({
@@ -143,7 +143,7 @@ export const riverbendOpponents: Opponent[] = OPPONENT_SEEDS.map(o => ({
   state: 'TN',
   colors: o.colors,
   tint: o.tint,
-  website: `https://www.${slug(o.name)}schools.org`,
+  website: `https://www.${slug(o.name)}.example.org`,
 }))
 
 // ---------- Sponsorship ----------
@@ -187,24 +187,24 @@ type RbSponsorSeed = {
 
 const RB_SPONSORS: RbSponsorSeed[] = [
   // Headwaters
-  { id: 'rb-sp-tvfcu', name: 'Tennessee Valley Federal Credit Union', tier: 'Headwaters', contact: 'Marla Sheffield', email: 'msheffield@tvfcu.example', amount: 20000, paid: 20000, paidDate: '2026-06-12', logo: 'received', done: ['logo', 'web', 'banner', 'pa', 'stream', 'social', 'tickets', 'night'], benefit: 'Title sponsor — stadium naming, stream pre-roll, all-sport banners, 10 season passes', website: 'https://tvfcu.example' },
+  { id: 'rb-sp-tvfcu', name: 'Valley Ridge Credit Union', tier: 'Headwaters', contact: 'Marla Sheffield', email: 'msheffield@valley-credit.example', amount: 20000, paid: 20000, paidDate: '2026-06-12', logo: 'received', done: ['logo', 'web', 'banner', 'pa', 'stream', 'social', 'tickets', 'night'], benefit: 'Title sponsor — stadium naming, stream pre-roll, all-sport banners, 10 season passes', website: 'https://valley-credit.example' },
   { id: 'rb-sp-erlanger', name: 'Riverside Orthopaedics', tier: 'Headwaters', contact: 'Dr. Neil Kapoor', amount: 15000, paid: 7500, paidDate: '2026-07-02', logo: 'received', done: ['logo', 'web', 'banner', 'stream'], note: 'Second installment due at the start of basketball season.', benefit: 'Official sports medicine partner — trainer tent, stream overlay, 8 season passes' },
-  { id: 'rb-sp-volkswagen', name: 'Scenic City Volkswagen', tier: 'Headwaters', contact: 'Duane Ferris', amount: 15000, paid: 0, logo: 'needs_update', note: 'New dealership logo promised before the football opener.', benefit: 'Gameday presenting sponsor (football), stream overlay, 8 season passes' },
+  { id: 'rb-sp-volkswagen', name: 'Scenic City Motors', tier: 'Headwaters', contact: 'Duane Ferris', amount: 15000, paid: 0, logo: 'needs_update', note: 'New dealership logo promised before the football opener.', benefit: 'Gameday presenting sponsor (football), stream overlay, 8 season passes' },
   // Rapids
-  { id: 'rb-sp-chattbrew', name: 'Chattanooga Brewing Co.', tier: 'Rapids', contact: 'Iris Dunleavy', amount: 8000, paid: 8000, paidDate: '2026-06-30', logo: 'received', done: ['logo', 'web', 'banner', 'pa', 'tickets'], benefit: 'Field banner, PA reads, tailgate activation, 6 season passes' },
+  { id: 'rb-sp-chattbrew', name: 'Riverbend Brewing Co.', tier: 'Rapids', contact: 'Iris Dunleavy', amount: 8000, paid: 8000, paidDate: '2026-06-30', logo: 'received', done: ['logo', 'web', 'banner', 'pa', 'tickets'], benefit: 'Field banner, PA reads, tailgate activation, 6 season passes' },
   { id: 'rb-sp-hamiltondental', name: 'Hamilton Family Dental', tier: 'Rapids', contact: 'Dr. Shauna Reyes', amount: 7500, paid: 3750, paidDate: '2026-07-18', logo: 'received', done: ['logo', 'web'], note: 'Paying in two halves; second due 1 December.', benefit: 'Field banner, PA reads, 6 season passes' },
   { id: 'rb-sp-lookoutins', name: 'Lookout Mutual Insurance', tier: 'Rapids', contact: 'Garrett Poole', amount: 7500, paid: 0, logo: 'missing', note: 'Signed agreement returned; logo and payment still outstanding.', benefit: 'Field banner, stream overlay, 6 season passes' },
   { id: 'rb-sp-ridgeline', name: 'Ridgeline Outfitters', tier: 'Rapids', contact: 'Callie Beaumont', amount: 6000, paid: 6000, paidDate: '2026-08-04', logo: 'received', done: ['logo', 'web', 'banner', 'pa', 'social', 'tickets', 'night'], benefit: 'Cross country title sponsor, field banner, 6 season passes' },
   { id: 'rb-sp-tremontpt', name: 'Tremont Physical Therapy', tier: 'Rapids', contact: 'Andre Maksoud', amount: 7500, paid: 0, logo: 'missing', benefit: 'Field banner, PA reads, 6 season passes' },
   // Riverstone
   { id: 'rb-sp-cravens', name: 'Cravens Hardware', tier: 'Riverstone', contact: 'Bo Cravens', amount: 3500, paid: 3500, paidDate: '2026-06-22', logo: 'received', done: ['logo', 'web', 'banner', 'tickets', 'thanks'], benefit: 'Field banner, website placement, 2 season passes' },
-  { id: 'rb-sp-maplestreet', name: 'Maple Street Biscuit Co.', tier: 'Riverstone', contact: 'Store manager', amount: 3500, paid: 0, logo: 'missing', note: 'Interested in adding a post-game meal deal — waiting on corporate.', benefit: 'Field banner, website placement, 2 season passes' },
-  { id: 'rb-sp-bluffview', name: 'Bluff View Art District', tier: 'Riverstone', contact: 'Teresa Mangione', amount: 3500, paid: 1750, paidDate: '2026-07-25', logo: 'received', done: ['logo', 'web'], benefit: 'Field banner, website placement, 2 season passes' },
+  { id: 'rb-sp-maplestreet', name: 'Mill Street Biscuit Co.', tier: 'Riverstone', contact: 'Store manager', amount: 3500, paid: 0, logo: 'missing', note: 'Interested in adding a post-game meal deal — waiting on corporate.', benefit: 'Field banner, website placement, 2 season passes' },
+  { id: 'rb-sp-bluffview', name: 'Clifftop Arts Quarter', tier: 'Riverstone', contact: 'Teresa Mangione', amount: 3500, paid: 1750, paidDate: '2026-07-25', logo: 'received', done: ['logo', 'web'], benefit: 'Field banner, website placement, 2 season passes' },
   { id: 'rb-sp-hixsonauto', name: 'Hixson Auto Care', tier: 'Riverstone', contact: 'Wendell Pike', amount: 4000, paid: 4000, paidDate: '2026-07-09', logo: 'received', done: ['logo', 'web', 'banner', 'pa', 'tickets', 'thanks'], benefit: 'Field banner, PA reads, 2 season passes' },
   { id: 'rb-sp-riverpark', name: 'Riverpark Dentistry', tier: 'Riverstone', contact: 'Dr. Yvonne Lasseter', amount: 3500, paid: 0, logo: 'missing', note: 'Emailed twice — try the office manager next.', benefit: 'Field banner, website placement, 2 season passes' },
   // Gameday add-ons
   { id: 'rb-sp-signalcoffee', name: 'Signal Coffee Roasters', tier: 'Gameday Add-On', contact: 'Nate Alcorn', amount: 1200, paid: 1200, paidDate: '2026-08-14', logo: 'received', done: ['logo', 'web', 'pa'], benefit: 'Coldest-night-of-the-year hot chocolate giveaway + PA reads' },
-  { id: 'rb-sp-rivercitykia', name: 'River City Kia', tier: 'Gameday Add-On', contact: 'Sales desk', amount: 2500, paid: 0, logo: 'missing', note: 'Halftime car giveaway — needs a signed liability rider.', benefit: 'Halftime shot-for-a-car promotion' },
+  { id: 'rb-sp-rivercitykia', name: 'River City Auto', tier: 'Gameday Add-On', contact: 'Sales desk', amount: 2500, paid: 0, logo: 'missing', note: 'Halftime car giveaway — needs a signed liability rider.', benefit: 'Halftime shot-for-a-car promotion' },
   { id: 'rb-sp-mooncakes', name: 'Moon Cakes Bakery', tier: 'Gameday Add-On', contact: 'Su-Jin Park', amount: 900, paid: 900, paidDate: '2026-09-01', logo: 'received', done: ['logo', 'web', 'stream'], benefit: 'Senior night dessert table + stream mention', trade: 400 },
   // Osprey Circle — per-family level sold through the online form
   { id: 'rb-sp-hollandfam', name: 'The Holland Family', tier: 'Osprey Circle', contact: 'Beth Holland', amount: 350, paid: 350, paidDate: '2026-07-03', logo: 'received', done: ['logo', 'web', 'thanks'], benefit: 'Osprey Circle — website placement and program listing' },
@@ -215,8 +215,8 @@ const RB_SPONSORS: RbSponsorSeed[] = [
 ]
 
 const RB_PROSPECTS: { id: string; name: string; stage: Sponsor['stage']; contact: string; tier: string; est?: number; note?: string }[] = [
-  { id: 'rb-sp-pro-unum', name: 'Unum', stage: 'maybe', contact: 'Community giving office', tier: 'Headwaters', est: 15000, note: 'Wants stream viewership numbers from last season before deciding.' },
-  { id: 'rb-sp-pro-mckee', name: 'McKee Foods', stage: 'contacted', contact: 'Regional marketing', tier: 'Rapids', est: 7500, note: 'Introductory meeting set for October.' },
+  { id: 'rb-sp-pro-unum', name: 'Unity Mutual', stage: 'maybe', contact: 'Community giving office', tier: 'Headwaters', est: 15000, note: 'Wants stream viewership numbers from last season before deciding.' },
+  { id: 'rb-sp-pro-mckee', name: 'Mackery Foods', stage: 'contacted', contact: 'Regional marketing', tier: 'Rapids', est: 7500, note: 'Introductory meeting set for October.' },
   { id: 'rb-sp-pro-clumber', name: 'Clumber Creek Landscaping', stage: 'contacted', contact: 'Owner', tier: 'Riverstone', est: 3500, note: 'Parent-owned business; warm introduction from the booster board.' },
   { id: 'rb-sp-pro-southside', name: 'Southside Smokehouse', stage: 'prospect', contact: 'TBD', tier: 'Gameday Add-On', est: 1500, note: 'Would suit a pregame tailgate night — no outreach yet.' },
   { id: 'rb-sp-pro-orchard', name: 'Orchard Knob Credit Union', stage: 'declined', contact: 'Marketing director', tier: 'Rapids', note: 'Budget already committed this year; asked to be contacted next spring.' },
@@ -503,7 +503,7 @@ function dressUpEvents(events: SportEvent[], today: string): SportEvent[] {
     ],
     gameMoments: [
       { id: 'rb-gm-3', title: 'Homecoming court presentation', timing: 'Halftime', ownerId: 'rb-u-ad' },
-      { id: 'rb-gm-4', title: 'River City Kia shot-for-a-car', timing: 'Between Q3 & Q4', ownerId: 'rb-u-comms' },
+      { id: 'rb-gm-4', title: 'River City Auto shot-for-a-car', timing: 'Between Q3 & Q4', ownerId: 'rb-u-comms' },
     ],
     runOfShow: [
       { id: 'rb-ros-5', time: '17:30', item: 'Alumni tailgate opens', ownerId: 'rb-u-ad', done: false },
@@ -573,7 +573,7 @@ export const riverbendAssets: Asset[] = [
   { id: 'rb-as-wordmark', orgId: ORG, name: 'Riverbend wordmark', type: 'School Branding', fileType: 'SVG', sizeKB: 64, season: '2026–27', approvalStatus: 'approved', uploadedById: 'rb-u-comms', uploadedAt: '2026-06-02', tint: '#122b3c' },
   { id: 'rb-as-fb-photo', orgId: ORG, name: 'Varsity football team photo', type: 'Team Photo', fileType: 'JPG', sizeKB: 4200, teamId: 'rb-t-football-boys-varsity', season: '2026–27', approvalStatus: 'approved', uploadedById: 'rb-u-comms', uploadedAt: '2026-08-06', tint: '#b45309' },
   { id: 'rb-as-tvfcu', orgId: ORG, name: 'TVFCU logo', type: 'Sponsor Logo', fileType: 'PNG', sizeKB: 180, sponsorId: 'rb-sp-tvfcu', season: '2026–27', approvalStatus: 'approved', uploadedById: 'rb-u-fin', uploadedAt: '2026-06-14', tint: '#0369a1' },
-  { id: 'rb-as-brew', orgId: ORG, name: 'Chattanooga Brewing logo', type: 'Sponsor Logo', fileType: 'PNG', sizeKB: 155, sponsorId: 'rb-sp-chattbrew', season: '2026–27', approvalStatus: 'approved', uploadedById: 'rb-u-fin', uploadedAt: '2026-07-01', tint: '#ca8a04' },
+  { id: 'rb-as-brew', orgId: ORG, name: 'Riverbend Brewing logo', type: 'Sponsor Logo', fileType: 'PNG', sizeKB: 155, sponsorId: 'rb-sp-chattbrew', season: '2026–27', approvalStatus: 'approved', uploadedById: 'rb-u-fin', uploadedAt: '2026-07-01', tint: '#ca8a04' },
   { id: 'rb-as-ridgeline', orgId: ORG, name: 'Ridgeline Outfitters logo', type: 'Sponsor Logo', fileType: 'SVG', sizeKB: 48, sponsorId: 'rb-sp-ridgeline', season: '2026–27', approvalStatus: 'pending', uploadedById: 'rb-u-fin', uploadedAt: '2026-08-05', tint: '#166534' },
   { id: 'rb-as-social', orgId: ORG, name: 'Gameday post template', type: 'Social Template', fileType: 'PSD', sizeKB: 9800, season: '2026–27', approvalStatus: 'approved', uploadedById: 'rb-u-comms', uploadedAt: '2026-07-22', tint: '#c46a1f' },
 ]

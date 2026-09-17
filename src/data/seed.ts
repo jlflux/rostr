@@ -27,31 +27,31 @@ export const orgs: Organization[] = [
 ]
 
 export const users: User[] = [
-  { id: 'u-owner', orgId: 'org-hhs', name: 'Jon Lunceford', email: 'jl@fluxmedia.org', role: 'platform_owner', title: 'Platform Owner', initials: 'JL', color: '#ea1a45', status: 'active' },
-  { id: 'u-ad', orgId: 'org-hhs', name: 'Rick Baguley', email: 'rbaguley@homewood.k12.al.us', role: 'school_admin', title: 'Administrator', initials: 'RB', color: '#d60000', status: 'active' },
-  { id: 'u-comms', orgId: 'org-hhs', name: 'Debbie Chancellor', email: 'dchancellor@homewood.k12.al.us', role: 'school_admin', title: 'Administrator', initials: 'DC', color: '#0e7490', status: 'active' },
-  { id: 'u-fin', orgId: 'org-hhs', name: 'Debbie Corum', email: 'dcorum@homewood.k12.al.us', role: 'school_admin', title: 'Administrator', initials: 'DC', color: '#15803d', status: 'active' },
-  { id: 'u-fb', orgId: 'org-hhs', name: 'Ben Berguson', email: 'bberguson@homewood.k12.al.us', role: 'coach', title: 'Head Football Coach', initials: 'BB', color: '#b45309', status: 'active', teamIds: ['t-fb-v', 't-fb-jv', 't-fb-fr'] },
-  { id: 'u-vb', orgId: 'org-hhs', name: 'Grace Burgess', email: 'gburgess@homewood.k12.al.us', role: 'coach', title: 'Head Volleyball Coach', initials: 'GB', color: '#be185d', status: 'active', teamIds: ['t-vb-v', 't-vb-jv', 't-vb-fr'] },
-  { id: 'u-ffb', orgId: 'org-hhs', name: 'Latta Johnston', email: 'ljohnston@homewood.k12.al.us', role: 'coach', title: 'Head Flag Football Coach', initials: 'LJ', color: '#7c3aed', status: 'active', teamIds: ['t-ffb-v', 't-ffb-jv'] },
-  { id: 'u-xc', orgId: 'org-hhs', name: 'Kelly McNair', email: 'kmcnair@homewood.k12.al.us', role: 'coach', title: 'Head Cross Country & Cheer Coach', initials: 'KM', color: '#0369a1', status: 'active', teamIds: ['t-xc-v', 't-xc-jv', 't-cheer-v'] },
-  { id: 'u-pa', orgId: 'org-hhs', name: 'Curt Bloom', email: 'curt.bloom@gmail.com', role: 'event_staff', title: 'Event Staff', initials: 'CB', color: '#374151', status: 'active' },
-  { id: 'u-admin2', orgId: 'org-hhs', name: 'Chet Walker', email: 'chet.walker@gmail.com', role: 'event_staff', title: 'Event Staff', initials: 'CW', color: '#12223c', status: 'active' },
+  { id: 'u-owner', orgId: 'org-hhs', name: 'Alex Morgan', email: 'owner@example-platform.org', role: 'platform_owner', title: 'Platform Owner', initials: 'AM', color: '#ea1a45', status: 'active' },
+  { id: 'u-ad', orgId: 'org-hhs', name: 'Dana Reyes', email: 'dreyes@example-school.org', role: 'school_admin', title: 'Administrator', initials: 'DR', color: '#d60000', status: 'active' },
+  { id: 'u-comms', orgId: 'org-hhs', name: 'Priya Shah', email: 'pshah@example-school.org', role: 'school_admin', title: 'Administrator', initials: 'PS', color: '#0e7490', status: 'active' },
+  { id: 'u-fin', orgId: 'org-hhs', name: 'Marcus Webb', email: 'mwebb@example-school.org', role: 'school_admin', title: 'Administrator', initials: 'MW', color: '#15803d', status: 'active' },
+  { id: 'u-fb', orgId: 'org-hhs', name: 'Chris Delgado', email: 'cdelgado@example-school.org', role: 'coach', title: 'Head Football Coach', initials: 'CD', color: '#b45309', status: 'active', teamIds: ['t-fb-v', 't-fb-jv', 't-fb-fr'] },
+  { id: 'u-vb', orgId: 'org-hhs', name: 'Nina Okonkwo', email: 'nokonkwo@example-school.org', role: 'coach', title: 'Head Volleyball Coach', initials: 'NO', color: '#be185d', status: 'active', teamIds: ['t-vb-v', 't-vb-jv', 't-vb-fr'] },
+  { id: 'u-ffb', orgId: 'org-hhs', name: 'Robin Tate', email: 'rtate@example-school.org', role: 'coach', title: 'Head Flag Football Coach', initials: 'RT', color: '#7c3aed', status: 'active', teamIds: ['t-ffb-v', 't-ffb-jv'] },
+  { id: 'u-xc', orgId: 'org-hhs', name: 'Sam Whitfield', email: 'swhitfield@example-school.org', role: 'coach', title: 'Head Cross Country & Cheer Coach', initials: 'SW', color: '#0369a1', status: 'active', teamIds: ['t-xc-v', 't-xc-jv', 't-cheer-v'] },
+  { id: 'u-pa', orgId: 'org-hhs', name: 'Pat Ellison', email: 'pellison@example-school.org', role: 'event_staff', title: 'Event Staff', initials: 'PE', color: '#374151', status: 'active' },
+  { id: 'u-admin2', orgId: 'org-hhs', name: 'Lee Novak', email: 'lnovak@example-school.org', role: 'event_staff', title: 'Event Staff', initials: 'LN', color: '#12223c', status: 'active' },
 ]
 
 const ASSISTANTS: Record<string, NonNullable<Team['assistantCoaches']>> = {
   't-fb-v': [
-    { id: 'asst-fb-1', name: 'Mark Sellers', role: 'Offensive Coordinator' },
-    { id: 'asst-fb-2', name: 'Tony Reed', role: 'Defensive Coordinator' },
+    { id: 'asst-fb-1', name: 'Drew Callahan', role: 'Offensive Coordinator' },
+    { id: 'asst-fb-2', name: 'Gabe Ruiz', role: 'Defensive Coordinator' },
   ],
-  't-vb-v': [{ id: 'asst-vb-1', name: 'Hannah Pope', role: 'Assistant Coach' }],
+  't-vb-v': [{ id: 'asst-vb-1', name: 'Elise Barnard', role: 'Assistant Coach' }],
 }
 
 const SOCIALS: Record<string, Team['socials']> = {
-  't-fb-v': { instagram: 'https://instagram.com/homewoodpatriotsfb', x: 'https://x.com/HomewoodFB' },
-  't-vb-v': { instagram: 'https://instagram.com/homewoodvolleyball', x: 'https://x.com/HomewoodVB' },
-  't-xc-v': { instagram: 'https://instagram.com/homewoodxctrack' },
-  't-cheer-v': { instagram: 'https://instagram.com/homewoodcheer', facebook: 'https://facebook.com/homewoodcheer' },
+  't-fb-v': { instagram: 'https://instagram.com/example-school-football', x: 'https://x.com/example_school_fb' },
+  't-vb-v': { instagram: 'https://instagram.com/example-school-vb', x: 'https://x.com/example_school_vb' },
+  't-xc-v': { instagram: 'https://instagram.com/example-school-xc' },
+  't-cheer-v': { instagram: 'https://instagram.com/example-school-cheer', facebook: 'https://facebook.com/example-school-cheer' },
 }
 
 export const teams: Team[] = [
@@ -115,52 +115,52 @@ export const tierSettings: TierSetting[] = [
 
 const sponsorSeeds: SponsorSeed[] = [
   // Red tier
-  { id: 'sp-oncology', name: 'Alabama Oncology', tier: 'Red', contact: 'Ben Jones', amount: 17000, paid: 17000, paidDate: '2026-06-16', logo: 'received', done: ['logo', 'web', 'haf'], benefit: 'Presenting sponsor — video board, PA reads, signage, 8 season tickets' },
-  { id: 'sp-waverly', name: 'Waverly', tier: 'Red', contact: 'Justin Russell', amount: 12000, paid: 0, logo: 'missing', benefit: 'Video board + broadcast commercial, PA reads, 6 season tickets' },
-  { id: 'sp-dazzio', name: 'Dazzio & Freidman', tier: 'Red', contact: 'Lee Patterson', amount: 10000, paid: 0, logo: 'missing', benefit: 'Video board, PA reads, static signage, 6 season tickets' },
-  { id: 'sp-towncountry', name: 'Town and Country Ford', tier: 'Red', contact: 'Kyle Sain', amount: 10000, paid: 0, logo: 'needs_update', note: 'Wants updated dealership logo before video-board upload.', benefit: 'Video board, gameday activation, 6 season tickets' },
-  { id: 'sp-cotton', name: 'Cotton Construction', tier: 'Red', contact: 'Trey Cotton', amount: 15000, paid: 0, logo: 'received', done: ['logo'], note: 'Waiting on check per Trey — invoice re-sent.', benefit: 'Video board + field-level signage, 8 season tickets' },
-  { id: 'sp-soho', name: 'SoHo Social / Taco Mama', tier: 'Red', contact: 'Bridgett Alday', email: 'bridgett@sohostandard.bar', amount: 10000, paid: 5000, paidDate: '2026-07-30', logo: 'received', done: ['logo', 'vboard'], benefit: 'NFHS broadcast corner logo, video board, 4 season tickets' },
+  { id: 'sp-oncology', name: 'Summit Oncology Group', tier: 'Red', contact: 'Tom Castellano', amount: 17000, paid: 17000, paidDate: '2026-06-16', logo: 'received', done: ['logo', 'web', 'haf'], benefit: 'Presenting sponsor — video board, PA reads, signage, 8 season tickets' },
+  { id: 'sp-waverly', name: 'Fairmont Partners', tier: 'Red', contact: 'Neil Braddock', amount: 12000, paid: 0, logo: 'missing', benefit: 'Video board + broadcast commercial, PA reads, 6 season tickets' },
+  { id: 'sp-dazzio', name: 'Hartley & Cross', tier: 'Red', contact: 'Erin Haddad', amount: 10000, paid: 0, logo: 'missing', benefit: 'Video board, PA reads, static signage, 6 season tickets' },
+  { id: 'sp-towncountry', name: 'Northgate Motors', tier: 'Red', contact: 'Victor Ozuna', amount: 10000, paid: 0, logo: 'needs_update', note: 'Wants updated dealership logo before video-board upload.', benefit: 'Video board, gameday activation, 6 season tickets' },
+  { id: 'sp-cotton', name: 'Kestrel Construction', tier: 'Red', contact: 'Reid Kestrel', amount: 15000, paid: 0, logo: 'received', done: ['logo'], note: 'Waiting on check per Trey — invoice re-sent.', benefit: 'Video board + field-level signage, 8 season tickets' },
+  { id: 'sp-soho', name: 'Uptown Social / Salsa House', tier: 'Red', contact: 'Marisol Vega', email: 'marisol@example-business.org', amount: 10000, paid: 5000, paidDate: '2026-07-30', logo: 'received', done: ['logo', 'vboard'], benefit: 'NFHS broadcast corner logo, video board, 4 season tickets' },
   // White tier
-  { id: 'sp-bryant', name: 'Bryant Bank', tier: 'White', contact: 'Claire Motes', amount: 6000, paid: 1000, logo: 'received', done: ['logo', 'web'], note: 'Split pledge: $1k received, two $2.5k installments pending (Athletics / FB / Cheer).', benefit: 'Video board rotation, website, 4 season tickets' },
-  { id: 'sp-lakeshore', name: 'Lakeshore Alliance', tier: 'White', contact: 'Abe Smith', amount: 5000, paid: 0, logo: 'missing', benefit: 'Video board rotation, PA reads, 4 season tickets' },
-  { id: 'sp-paramount', name: 'Paramount / El Barrio', tier: 'White', contact: 'Front office', amount: 5000, paid: 0, logo: 'missing', note: 'Contact email still pending from restaurant group.', benefit: 'Video board rotation, 4 season tickets' },
-  { id: 'sp-piggly', name: 'Piggly Wiggly', tier: 'White', contact: 'Andy Virciglio', amount: 5000, paid: 5000, paidDate: '2026-07-12', logo: 'received', done: ['logo', 'vboard', 'web', 'tickets'], benefit: 'Video board rotation, gameday promo night, 4 season tickets' },
-  { id: 'sp-robins', name: 'Robins & Morton', tier: 'White', contact: 'Marketing office', amount: 6000, paid: 6000, paidDate: '2026-06-28', logo: 'received', done: ['logo', 'vboard', 'web', 'haf'], note: 'Paid $1,200 athletics + $4,800 football allocation.', benefit: 'Video board rotation, football program page, 4 season tickets' },
-  { id: 'sp-edge', name: 'The Edge', tier: 'White', contact: 'JJ Thomas', amount: 5000, paid: 0, logo: 'missing', benefit: 'Video board rotation, 4 season tickets' },
-  { id: 'sp-twin', name: 'Twin Construction', tier: 'White', contact: 'William Seigel', amount: 5000, paid: 0, logo: 'received', done: ['logo'], note: 'Logo in, agreement signature still out.', benefit: 'Video board rotation, 4 season tickets' },
-  { id: 'sp-aphix', name: 'Aphix', tier: 'White', contact: 'Fletcher Smith', amount: 5000, paid: 0, logo: 'missing', benefit: 'Video board rotation, 4 season tickets' },
+  { id: 'sp-bryant', name: 'Riverstone Bank', tier: 'White', contact: 'Devon Pryce', amount: 6000, paid: 1000, logo: 'received', done: ['logo', 'web'], note: 'Split pledge: $1k received, two $2.5k installments pending (Athletics / FB / Cheer).', benefit: 'Video board rotation, website, 4 season tickets' },
+  { id: 'sp-lakeshore', name: 'Lakeview Alliance', tier: 'White', contact: 'Omar Faraj', amount: 5000, paid: 0, logo: 'missing', benefit: 'Video board rotation, PA reads, 4 season tickets' },
+  { id: 'sp-paramount', name: 'Marquee / Casa Verde', tier: 'White', contact: 'Front office', amount: 5000, paid: 0, logo: 'missing', note: 'Contact email still pending from restaurant group.', benefit: 'Video board rotation, 4 season tickets' },
+  { id: 'sp-piggly', name: 'Hilltop Grocery', tier: 'White', contact: 'Gus Panetta', amount: 5000, paid: 5000, paidDate: '2026-07-12', logo: 'received', done: ['logo', 'vboard', 'web', 'tickets'], benefit: 'Video board rotation, gameday promo night, 4 season tickets' },
+  { id: 'sp-robins', name: 'Radley & Moore', tier: 'White', contact: 'Marketing office', amount: 6000, paid: 6000, paidDate: '2026-06-28', logo: 'received', done: ['logo', 'vboard', 'web', 'haf'], note: 'Paid $1,200 athletics + $4,800 football allocation.', benefit: 'Video board rotation, football program page, 4 season tickets' },
+  { id: 'sp-edge', name: 'The Ridge', tier: 'White', contact: 'RJ Hollis', amount: 5000, paid: 0, logo: 'missing', benefit: 'Video board rotation, 4 season tickets' },
+  { id: 'sp-twin', name: 'Twinbridge Construction', tier: 'White', contact: 'Walter Brannigan', amount: 5000, paid: 0, logo: 'received', done: ['logo'], note: 'Logo in, agreement signature still out.', benefit: 'Video board rotation, 4 season tickets' },
+  { id: 'sp-aphix', name: 'Aptiva', tier: 'White', contact: 'Colm Bradley', amount: 5000, paid: 0, logo: 'missing', benefit: 'Video board rotation, 4 season tickets' },
   // Blue tier
-  { id: 'sp-eskridge', name: 'Eskridge & White', tier: 'Blue', contact: 'Jon Delk / Ethan White', amount: 3000, paid: 0, logo: 'missing', benefit: 'Video board rotation, 2 season tickets' },
-  { id: 'sp-mcelheny', name: 'McElheny Law', tier: 'Blue', contact: 'John McElheny', amount: 3000, paid: 3000, paidDate: '2026-06-20', logo: 'received', done: ['logo', 'vboard', 'web'], benefit: 'Video board rotation, 2 season tickets' },
-  { id: 'sp-amfirst', name: 'AM First Bank', tier: 'Blue', contact: 'Daniel Homer', amount: 3500, paid: 3500, paidDate: '2026-06-25', logo: 'received', done: ['logo', 'vboard'], benefit: 'Video board rotation, 2 season tickets' },
-  { id: 'sp-milos', name: "Milo's", tier: 'Blue', contact: 'Corporate marketing', amount: 3000, paid: 0, logo: 'missing', note: 'Emailed 6/10 — no response yet.', benefit: 'Video board rotation, 2 season tickets' },
-  { id: 'sp-cspire', name: 'C Spire', tier: 'Blue', contact: 'Regional sponsorships', amount: 3000, paid: 0, logo: 'missing', note: 'Emailed 6/10 — following up.', benefit: 'Video board rotation, 2 season tickets' },
-  { id: 'sp-focal', name: 'Focal Point Cabinetry', tier: 'Blue', contact: 'Front office', amount: 3000, paid: 0, logo: 'missing', note: 'Emailed 6/9.', benefit: 'Video board rotation, 2 season tickets' },
-  { id: 'sp-byrom', name: 'Byrom Building', tier: 'Blue', contact: 'Scott Byrom', amount: 3000, paid: 1500, paidDate: '2026-07-07', logo: 'received', done: ['logo'], note: 'Waiting on second 50% check (Athletics/Cheer split).', benefit: 'Video board rotation, 2 season tickets' },
+  { id: 'sp-eskridge', name: 'Ashford & Blake', tier: 'Blue', contact: 'Ari Delgado / Evan Wren', amount: 3000, paid: 0, logo: 'missing', benefit: 'Video board rotation, 2 season tickets' },
+  { id: 'sp-mcelheny', name: 'Calloway Law', tier: 'Blue', contact: 'Jonah Calloway', amount: 3000, paid: 3000, paidDate: '2026-06-20', logo: 'received', done: ['logo', 'vboard', 'web'], benefit: 'Video board rotation, 2 season tickets' },
+  { id: 'sp-amfirst', name: 'First Meridian Bank', tier: 'Blue', contact: 'Desmond Hale', amount: 3500, paid: 3500, paidDate: '2026-06-25', logo: 'received', done: ['logo', 'vboard'], benefit: 'Video board rotation, 2 season tickets' },
+  { id: 'sp-milos', name: "Dockside Diner", tier: 'Blue', contact: 'Corporate marketing', amount: 3000, paid: 0, logo: 'missing', note: 'Emailed 6/10 — no response yet.', benefit: 'Video board rotation, 2 season tickets' },
+  { id: 'sp-cspire', name: 'Claronet', tier: 'Blue', contact: 'Regional sponsorships', amount: 3000, paid: 0, logo: 'missing', note: 'Emailed 6/10 — following up.', benefit: 'Video board rotation, 2 season tickets' },
+  { id: 'sp-focal', name: 'Fine Point Cabinetry', tier: 'Blue', contact: 'Front office', amount: 3000, paid: 0, logo: 'missing', note: 'Emailed 6/9.', benefit: 'Video board rotation, 2 season tickets' },
+  { id: 'sp-byrom', name: 'Bayard Building', tier: 'Blue', contact: 'Simon Bayard', amount: 3000, paid: 1500, paidDate: '2026-07-07', logo: 'received', done: ['logo'], note: 'Waiting on second 50% check (Athletics/Cheer split).', benefit: 'Video board rotation, 2 season tickets' },
   // Broadcast / videoboard add-ons
-  { id: 'sp-firstus', name: 'First US Bank', tier: 'Add-On', contact: 'Warren Giardina', amount: 2500, paid: 0, logo: 'missing', note: 'First Down sponsor — email and voicemail 6/10.', benefit: 'First Down sponsor — PA + video-board hit each first down' },
-  { id: 'sp-arc', name: 'ARC Realty — Wade Team', tier: 'Add-On', contact: 'Cindy Wade', amount: 500, paid: 500, paidDate: '2026-07-01', logo: 'received', done: ['logo'], benefit: 'PAT / Field Goal sponsor' },
-  { id: 'sp-samford', name: 'Samford University', tier: 'Add-On', contact: 'Madison Barker', amount: 5000, paid: 0, logo: 'missing', note: 'Broadcast commercial — emailed 6/10.', benefit: 'Broadcast commercial (5 spots)' },
-  { id: 'sp-alabama', name: 'University of Alabama', tier: 'Add-On', contact: 'Bradie Neighbors', amount: 5000, paid: 0, logo: 'missing', note: 'Will respond near July 1 per Bradie.', benefit: 'Broadcast commercial (5 spots)' },
+  { id: 'sp-firstus', name: 'Meridian Trust Bank', tier: 'Add-On', contact: 'Wendell Garrick', amount: 2500, paid: 0, logo: 'missing', note: 'First Down sponsor — email and voicemail 6/10.', benefit: 'First Down sponsor — PA + video-board hit each first down' },
+  { id: 'sp-arc', name: 'Arbor Realty — Weston Team', tier: 'Add-On', contact: 'Cybil Weston', amount: 500, paid: 500, paidDate: '2026-07-01', logo: 'received', done: ['logo'], benefit: 'PAT / Field Goal sponsor' },
+  { id: 'sp-samford', name: 'Sanford College', tier: 'Add-On', contact: 'Mabel Brooks', amount: 5000, paid: 0, logo: 'missing', note: 'Broadcast commercial — emailed 6/10.', benefit: 'Broadcast commercial (5 spots)' },
+  { id: 'sp-alabama', name: 'State University', tier: 'Add-On', contact: 'Brady Nesbit', amount: 5000, paid: 0, logo: 'missing', note: 'Will respond near July 1 per Bradie.', benefit: 'Broadcast commercial (5 spots)' },
   // Patriot Partners (per-family level from online form)
-  { id: 'sp-firstbank', name: 'FirstBank', tier: 'Patriot Partner', contact: 'Candice Willis', email: 'candice.willis@firstbankonline.com', phone: '205-421-7452', amount: 475.5, paid: 475.5, paidDate: '2026-06-23', logo: 'received', done: ['logo', 'vboard'], benefit: 'Cheerleading Patriot Partner — video board rotation' },
-  { id: 'sp-oliver', name: 'Oliver Trucking LLC', tier: 'Patriot Partner', contact: 'David Oly', phone: '205-965-6183', amount: 475.5, paid: 475.5, paidDate: '2026-06-23', logo: 'received', done: ['logo'], benefit: 'Cheerleading Patriot Partner — video board rotation' },
-  { id: 'sp-lawortho', name: 'Law Orthodontics', tier: 'Patriot Partner', contact: 'Maggie Law', phone: '205-855-5111', amount: 475.5, paid: 475.5, paidDate: '2026-06-24', logo: 'received', done: ['logo', 'vboard'], benefit: 'Cheerleading Patriot Partner — video board rotation' },
-  { id: 'sp-lorberbaum', name: 'Lorberbaum McNair & Associates', tier: 'Patriot Partner', contact: 'David Lorberbaum', phone: '205-834-4711', amount: 475.5, paid: 475.5, paidDate: '2026-06-26', logo: 'received', done: ['logo', 'vboard'], benefit: 'Cross Country Patriot Partner — video board rotation' },
-  { id: 'sp-skinwellness', name: 'Skin Wellness Dermatology', tier: 'Patriot Partner', contact: 'Meredith Elder', phone: '205-871-7332', amount: 475.5, paid: 475.5, paidDate: '2026-07-13', logo: 'received', done: ['logo'], benefit: 'Cheerleading Patriot Partner — video board rotation' },
-  { id: 'sp-jbr', name: 'JBR Design', tier: 'Patriot Partner', contact: 'Jennifer Routson', phone: '404-271-4403', amount: 475.5, paid: 475.5, paidDate: '2026-07-10', logo: 'received', done: ['logo', 'vboard'], benefit: 'Football Patriot Partner — video board rotation' },
-  { id: 'sp-servis', name: 'ServisFirst Bank', tier: 'Patriot Partner', contact: 'David Lee', amount: 475.5, paid: 0, logo: 'needs_update', note: 'Use last year’s logo per David Lee.', benefit: 'Cheer & Football Patriot Partner — video board rotation' },
+  { id: 'sp-firstbank', name: 'Cornerstone Bank', tier: 'Patriot Partner', contact: 'Cassidy Warner', email: 'cassidy@example-business.org', phone: '(205) 555-0142', amount: 475.5, paid: 475.5, paidDate: '2026-06-23', logo: 'received', done: ['logo', 'vboard'], benefit: 'Cheerleading Patriot Partner — video board rotation' },
+  { id: 'sp-oliver', name: 'Overland Trucking LLC', tier: 'Patriot Partner', contact: 'Dorian Ellis', phone: '(205) 555-0163', amount: 475.5, paid: 475.5, paidDate: '2026-06-23', logo: 'received', done: ['logo'], benefit: 'Cheerleading Patriot Partner — video board rotation' },
+  { id: 'sp-lawortho', name: 'Lakeside Orthodontics', tier: 'Patriot Partner', contact: 'Margot Lake', phone: '(205) 555-0111', amount: 475.5, paid: 475.5, paidDate: '2026-06-24', logo: 'received', done: ['logo', 'vboard'], benefit: 'Cheerleading Patriot Partner — video board rotation' },
+  { id: 'sp-lorberbaum', name: 'Lombard Nash & Associates', tier: 'Patriot Partner', contact: 'Dominic Lombard', phone: '(205) 555-0471', amount: 475.5, paid: 475.5, paidDate: '2026-06-26', logo: 'received', done: ['logo', 'vboard'], benefit: 'Cross Country Patriot Partner — video board rotation' },
+  { id: 'sp-skinwellness', name: 'Clearview Dermatology', tier: 'Patriot Partner', contact: 'Meara Elwood', phone: '(205) 555-0733', amount: 475.5, paid: 475.5, paidDate: '2026-07-13', logo: 'received', done: ['logo'], benefit: 'Cheerleading Patriot Partner — video board rotation' },
+  { id: 'sp-jbr', name: 'Bright Room Design', tier: 'Patriot Partner', contact: 'Jenna Rossiter', phone: '(404) 555-0440', amount: 475.5, paid: 475.5, paidDate: '2026-07-10', logo: 'received', done: ['logo', 'vboard'], benefit: 'Football Patriot Partner — video board rotation' },
+  { id: 'sp-servis', name: 'ServicePoint Bank', tier: 'Patriot Partner', contact: 'Darius Locke', amount: 475.5, paid: 0, logo: 'needs_update', note: 'Use last year’s logo per Darius Locke.', benefit: 'Cheer & Football Patriot Partner — video board rotation' },
 ]
 
 // Pre-sale pipeline prospects — no agreement yet
 const prospectSeeds: Array<{ id: string; name: string; stage: Sponsor['stage']; contact: string; tier: Sponsor['tier']; est?: number; note?: string }> = [
-  { id: 'sp-pro-regions', name: 'Regions Bank', stage: 'maybe', contact: 'Community sponsorships', tier: 'Red', est: 10000, note: 'Interested in Red tier; wants impression numbers from last season before committing.' },
-  { id: 'sp-pro-steelcity', name: 'Steel City Pops', stage: 'contacted', contact: 'Owner — Edgewood location', tier: 'Blue', est: 3000, note: 'Emailed 9/12, following up at fall festival.' },
-  { id: 'sp-pro-dentistry', name: 'Homewood Family Dentistry', stage: 'contacted', contact: 'Office manager', tier: 'Blue', est: 3000, note: 'Left voicemail 9/18.' },
-  { id: 'sp-pro-vulcan', name: 'Vulcan Termite & Pest', stage: 'prospect', contact: 'TBD', tier: 'White', est: 5000, note: 'Suggested by booster board — no outreach yet.' },
-  { id: 'sp-pro-bagels', name: 'Big Blue Bagels', stage: 'prospect', contact: 'TBD', tier: 'Patriot Partner', est: 500, note: 'Coach Tate has a parent connection.' },
-  { id: 'sp-pro-medical', name: 'Brookwood Urgent Care', stage: 'declined', contact: 'Regional marketing', tier: 'White', note: 'Passed for this year — budget spent; revisit in spring for 2027–28.' },
+  { id: 'sp-pro-regions', name: 'Regency Bank', stage: 'maybe', contact: 'Community sponsorships', tier: 'Red', est: 10000, note: 'Interested in Red tier; wants impression numbers from last season before committing.' },
+  { id: 'sp-pro-steelcity', name: 'Copper City Pops', stage: 'contacted', contact: 'Owner — Edgewood location', tier: 'Blue', est: 3000, note: 'Emailed 9/12, following up at fall festival.' },
+  { id: 'sp-pro-dentistry', name: 'Northgate Family Dentistry', stage: 'contacted', contact: 'Office manager', tier: 'Blue', est: 3000, note: 'Left voicemail 9/18.' },
+  { id: 'sp-pro-vulcan', name: 'Vantage Termite & Pest', stage: 'prospect', contact: 'TBD', tier: 'White', est: 5000, note: 'Suggested by booster board — no outreach yet.' },
+  { id: 'sp-pro-bagels', name: 'Big Sky Bagels', stage: 'prospect', contact: 'TBD', tier: 'Patriot Partner', est: 500, note: 'Coach Tate has a parent connection.' },
+  { id: 'sp-pro-medical', name: 'Brookline Urgent Care', stage: 'declined', contact: 'Regional marketing', tier: 'White', note: 'Passed for this year — budget spent; revisit in spring for 2027–28.' },
 ]
 
 export const sponsors: Sponsor[] = sponsorSeeds.map<Sponsor>(s => ({
@@ -209,7 +209,7 @@ agreements.push({
   allocations: [
     // Remaining $8,000 falls to the athletic department automatically.
     { id: 'oncology-2-a1', target: 'Football', amount: 8000 },
-    { id: 'oncology-2-a2', target: 'Cheerleading', amount: 4000, note: 'Credit: Ava Sanders (secured through her family connection)' },
+    { id: 'oncology-2-a2', target: 'Cheerleading', amount: 4000, note: 'Credit: Ada Sinclair (secured through her family connection)' },
   ],
   signedDate: '2026-08-10',
 })
@@ -475,7 +475,7 @@ const assetSeeds: Array<Partial<Asset> & { id: string; name: string; type: Asset
   { id: 'as-008', name: 'Alabama Oncology logo pack', type: 'Sponsor Logo', fileType: 'ZIP', sizeKB: 2140, sponsorId: 'sp-oncology', tint: '#15803d', approvalStatus: 'approved' },
   { id: 'as-009', name: 'Piggly Wiggly video-board slide', type: 'Video-board Ad', fileType: 'MP4', sizeKB: 48210, sponsorId: 'sp-piggly', tint: '#4d7c0f', approvalStatus: 'approved' },
   { id: 'as-010', name: 'SoHo Social broadcast commercial', type: 'Broadcast Commercial', fileType: 'MP4', sizeKB: 152400, sponsorId: 'sp-soho', tint: '#7c3aed', approvalStatus: 'pending' },
-  { id: 'as-011', name: 'McElheny Law video-board slide', type: 'Video-board Ad', fileType: 'PNG', sizeKB: 1980, sponsorId: 'sp-mcelheny', tint: '#1d4ed8', approvalStatus: 'approved' },
+  { id: 'as-011', name: 'Calloway Law video-board slide', type: 'Video-board Ad', fileType: 'PNG', sizeKB: 1980, sponsorId: 'sp-mcelheny', tint: '#1d4ed8', approvalStatus: 'approved' },
   { id: 'as-012', name: 'Robins & Morton logo', type: 'Sponsor Logo', fileType: 'EPS', sizeKB: 890, sponsorId: 'sp-robins', tint: '#374151', approvalStatus: 'approved' },
   { id: 'as-013', name: 'Bryant Bank logo — needs review', type: 'Sponsor Logo', fileType: 'JPG', sizeKB: 240, sponsorId: 'sp-bryant', tint: '#a16207', approvalStatus: 'pending' },
   { id: 'as-014', name: 'Hoover Buccaneers logo', type: 'Opponent Logo', fileType: 'PNG', sizeKB: 156, tint: '#ea580c', approvalStatus: 'approved' },
@@ -544,7 +544,7 @@ const activity: Activity[] = [
   { id: 'act-01', orgId: 'org-hhs', at: '2026-09-25T09:05:00', userId: 'u-xc', text: 'submitted request “Add competition schedule to cheer page”', link: '/requests/req-007' },
   { id: 'act-02', orgId: 'org-hhs', at: '2026-09-24T18:44:00', userId: 'u-vb', text: 'submitted request “Senior Night photographer — Oct 13”', link: '/requests/req-005' },
   { id: 'act-03', orgId: 'org-hhs', at: '2026-09-24T16:20:00', userId: 'u-comms', text: 'updated JV flag roster request — holding two names pending physicals', link: '/requests/req-004' },
-  { id: 'act-04', orgId: 'org-hhs', at: '2026-09-24T11:10:00', userId: 'u-fin', text: 'logged partial payment of $1,500 from Byrom Building', link: '/sponsors/sp-byrom' },
+  { id: 'act-04', orgId: 'org-hhs', at: '2026-09-24T11:10:00', userId: 'u-fin', text: 'logged partial payment of $1,500 from Bayard Building', link: '/sponsors/sp-byrom' },
   { id: 'act-05', orgId: 'org-hhs', at: '2026-09-23T15:32:00', userId: 'u-admin2', text: 'marked Town & Country video-board slide in progress' },
   { id: 'act-06', orgId: 'org-hhs', at: '2026-09-23T08:41:00', userId: 'u-vb', text: 'submitted request “JV/V times flipped for Oct 1 tri-match”', link: '/requests/req-001' },
   { id: 'act-07', orgId: 'org-hhs', at: '2026-09-22T13:05:00', userId: 'u-comms', text: 'approved senior spotlight request for #7 QB', link: '/requests/req-002' },

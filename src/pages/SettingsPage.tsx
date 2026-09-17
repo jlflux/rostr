@@ -300,6 +300,7 @@ export default function SettingsPage() {
             <p className="tiny" style={{ marginBottom: 0 }}>Importing replaces everything currently in this browser with the backup's data. Export first if you want to keep what's here.</p>
           </Card>
 
+          {isAdmin && (
           <Card title="Prototype controls">
             <Field label="Sample results">
               <select value={state.showSampleResults ? 'on' : 'off'} onChange={e => {
@@ -313,9 +314,14 @@ export default function SettingsPage() {
             </Field>
             <p className="tiny">Nothing has actually been played yet — scores on past dates are generated for the demo. Turning them off shows the app as it looks before a season starts. Scores you enter yourself always stay visible.</p>
             <div className="divider" />
-            <button className="btn danger" onClick={() => setConfirmReset(true)}>Reset demo data</button>
-            <p className="tiny" style={{ marginBottom: 0 }}>Clears your local changes and restores the seeded Homewood dataset.</p>
+            <button className="btn danger" disabled={cloudLoaded} onClick={() => setConfirmReset(true)}>Reset demo data</button>
+            <p className="tiny" style={{ marginBottom: 0 }}>
+              {cloudLoaded
+                ? 'Unavailable: this school\u2019s data came from the cloud, so resetting would replace a live season with demo content.'
+                : 'Clears your local changes and restores the seeded demo dataset.'}
+            </p>
           </Card>
+          )}
         </div>
       </div>
 
@@ -366,7 +372,10 @@ export default function SettingsPage() {
       {confirmReset && (
         <ConfirmDialog title="Reset demo data?" danger confirmLabel="Reset everything"
           message="This discards every change you've made in the prototype (events, payments, requests, tasks) and restores the original Homewood demo data."
-          onConfirm={() => { resetDemo(); toast('Demo data reset') }}
+          onConfirm={() => {
+            const refused = resetDemo()
+            toast(refused ?? 'Demo data reset', refused ? 'error' : 'success')
+          }}
           onClose={() => setConfirmReset(false)} />
       )}
     </>
