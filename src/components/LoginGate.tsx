@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { useStore } from '../store/store'
 
@@ -18,10 +18,17 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
     : undefined
 
   // Once matched, make that person the active user so their role takes effect.
+  // A platform owner may deliberately "act as" someone else (see the user menu),
+  // so for them we only anchor once per signed-in identity instead of snapping
+  // back on every render. Everyone else is pinned to their own record, which is
+  // what stops a saved currentUserId from granting a role they don't have.
+  const anchoredFor = useRef<string | null>(null)
   useEffect(() => {
-    if (enabled && matched && state.currentUserId !== matched.id) {
-      setState({ currentUserId: matched.id })
-    }
+    if (!enabled || !matched) return
+    const mayActAs = matched.role === 'platform_owner'
+    if (mayActAs && anchoredFor.current === matched.id) return
+    anchoredFor.current = matched.id
+    if (state.currentUserId !== matched.id) setState({ currentUserId: matched.id })
   }, [enabled, matched, state.currentUserId, setState])
 
   if (!enabled) return <>{children}</>
