@@ -7,6 +7,7 @@ import { I } from '../components/icons'
 import { StoredImage } from '../components/StoredImage'
 import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
 import { publicLogosFor, syncPublicLogos, type SyncResult } from '../lib/publicLogos'
+import { publicSiteUrl } from '../lib/publicSite'
 import { legacyFiles, migrateLegacyFiles } from '../lib/storageMigration'
 import type { Organization, Role, SponsorTier, User } from '../types'
 
@@ -590,6 +591,12 @@ function PublicSiteCard() {
       <p className="small muted" style={{ marginTop: 0 }}>
         Schedules, scores and rosters reach the public site on their own. Logos are files,
         so they have to be copied across — do this after adding or changing one.
+      </p>
+      <p className="small" style={{ marginBottom: 10 }}>
+        {org.shortName}'s public site:{' '}
+        <a href={publicSiteUrl(org)} target="_blank" rel="noreferrer" style={{ color: 'var(--app-accent)', fontWeight: 600 }}>
+          {publicSiteUrl(org)} <I.external />
+        </a>
       </p>
       <p className="small" style={{ marginBottom: 10 }}>
         <strong>{logos.length}</strong> logo{logos.length === 1 ? '' : 's'} to publish:

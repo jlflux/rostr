@@ -8,6 +8,7 @@ import { I } from './icons'
 import { Avatar } from './ui'
 import { ROLE_LABELS, SECTION_LABELS, actingAs, canSee, canSwitchOrgs, currentOrg, currentUser, events as allEvents, users as orgUsers, isResolving, openRequests, overdueTasks, sectionLabel, sortedByLastName, unfilledSlots } from '../lib/derive'
 import { fmtDateTime, todayISO } from '../lib/dates'
+import { publicSiteUrl } from '../lib/publicSite'
 
 function useClickOutside(onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null)
@@ -419,6 +420,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <GlobalSearch />
           <div style={{ flex: 1 }} />
           <OrgSelector />
+          {/* The school's public site, opened in its own tab so nothing in
+              progress here is lost. */}
+          <a className="iconbtn" href={publicSiteUrl(org)} target="_blank" rel="noreferrer"
+            aria-label={`View the ${org.shortName} public site`} title="View public site">
+            <I.globe />
+          </a>
           <button className="iconbtn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             title={theme === 'dark' ? 'Light mode' : 'Dark mode'}>

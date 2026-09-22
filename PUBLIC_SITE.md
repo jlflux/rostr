@@ -128,6 +128,17 @@ Addressing a school: the subdomain is the slug in production, `?school=<slug>`
 overrides it for previews and local work, and `VITE_PUBLIC_DEFAULT_SLUG` is the
 fallback. Real domains are Phase D.
 
+**Getting to it from the staff app.** The globe in the top bar opens the public
+site for whichever school is on screen, and Settings → Public site shows the
+address. With nothing configured it points at `/fans.html` on the staff app's
+own origin, which the staff build ships beside itself — so the link works before
+the public site has a deployment of its own. Set `VITE_PUBLIC_SITE_URL` on the
+staff app's Vercel project once it does, and the link follows.
+
+`src/lib/publicSite.ts` derives the slug, and it has to stay identical to
+`public_site_slug()` in `supabase/public-site.sql` — including the fact that
+neither trims leading or trailing dashes.
+
 ## Phase C — status
 
 **Done:** logo publishing, plus teams and rosters.
