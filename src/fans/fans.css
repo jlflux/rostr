@@ -161,6 +161,11 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 560px) {
   .gc-date { min-width: 62px; }
   .gc-sub { display: none; }
+  /* At phone width there isn't room for the opponent and the badges on one
+     line — the name wraps mid-word and the row looks broken. Drop the badges
+     onto their own line under it instead. */
+  .game-card { flex-wrap: wrap; row-gap: 6px; }
+  .gc-right { width: 100%; justify-content: flex-start; padding-left: 74px; }
   .matchup { padding: 18px 10px; }
   .matchup .side strong { font-size: 0.88rem; }
 }
@@ -185,6 +190,36 @@ a { color: inherit; text-decoration: none; }
 .tr-main { font-weight: 700; flex: 1; min-width: 0; }
 .tr-sub { font-size: 0.8rem; color: var(--fs-muted); flex-shrink: 0; }
 
+/* ---------- one team ---------- */
+
+.team-head {
+  display: flex; align-items: center; gap: 14px; margin: 0 0 14px;
+}
+.th-main { flex: 1; min-width: 0; }
+.th-main h1 { margin: 0; font-size: 1.4rem; line-height: 1.2; }
+.th-main p { margin: 4px 0 0; color: var(--fs-muted); font-size: 0.88rem; }
+.record {
+  display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0;
+  padding-left: 14px; border-left: 1px solid var(--fs-line);
+}
+.record strong { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.record span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--fs-muted); }
+
+/* Varsity / JV / Freshman, so one tap moves between levels of a program. */
+.sibs { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.sibs a, .sibs .on {
+  font-size: 0.8rem; font-weight: 700; padding: 5px 13px; border-radius: 999px;
+  border: 1px solid var(--fs-line); background: var(--fs-surface); color: var(--fs-muted);
+}
+.sibs .on { background: var(--fs-navy); border-color: var(--fs-navy); color: #fff; }
+.sibs a:hover { border-color: var(--fs-primary); color: var(--fs-primary); }
+
+.next-up { margin-bottom: 4px; }
+.next-up .game-card { border-color: var(--fs-primary); border-width: 2px; }
+
+.inline-link { color: var(--fs-primary); font-weight: 600; }
+.inline-link:hover { text-decoration: underline; }
+
 .team-meta { margin: -8px 0 16px; color: var(--fs-muted); font-size: 0.9rem; }
 
 .roster {
@@ -200,3 +235,19 @@ a { color: inherit; text-decoration: none; }
 .roster tr:last-child td { border-bottom: 0; }
 .roster .num { width: 52px; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--fs-primary); }
 .roster .nm { font-weight: 600; }
+.roster th { padding: 0; }
+.roster th button {
+  width: 100%; text-align: left; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--fs-muted); font-weight: 700; padding: 12px 14px;
+}
+.roster th button:hover { color: var(--fs-primary); }
+.roster th button.on { color: var(--fs-ink); }
+.roster .caret { font-size: 0.6rem; margin-left: 5px; color: var(--fs-primary); }
+.roster th.num-h button { padding-right: 0; }
+
+@media (max-width: 560px) {
+  .team-head { gap: 10px; }
+  .th-main h1 { font-size: 1.2rem; }
+  .record strong { font-size: 1.25rem; }
+}

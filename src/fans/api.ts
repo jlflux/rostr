@@ -55,6 +55,12 @@ export interface PublicSponsor {
 
 export interface PublicSite {
   school: PublicSchool
+  /**
+   * Mirrors the school's "sample results" setting in the app. When it is off,
+   * demo-generated scores are hidden here exactly as they are in the app.
+   * Rows built before this field existed read as true, which is the default.
+   */
+  showSampleResults: boolean
   teams: PublicTeam[]
   events: PublicEvent[]
   opponents: PublicOpponent[]
@@ -96,5 +102,7 @@ export async function loadSite(slug: string): Promise<PublicSite> {
   const rows = (await res.json()) as { data: PublicSite }[]
   // An unpublished school is filtered out by the database, so it reads as absent.
   if (!rows.length) throw new Error('notfound')
-  return rows[0].data
+  const site = rows[0].data
+  // Rows built before this field existed don't carry it; true is the default.
+  return { ...site, showSampleResults: site.showSampleResults ?? true }
 }

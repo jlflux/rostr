@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Route, Routes, useParams, useSearchParams } from 'react-router-dom'
 import { loadSite, logoUrl, slugFromLocation, type PublicEvent, type PublicSite } from './api'
-import { fmtDate, fmtTime, opponentOf, presentedBy, results, teamOf, todayISO, upcoming } from './format'
+import {
+  fmtDate, fmtTime, gradeRank, lastName, numRank, opponentOf, presentedBy, record,
+  results, teamEvents, teamOf, todayISO, upcoming, visibleScore,
+} from './format'
 
 const env = import.meta.env as Record<string, string | undefined>
+
+// Varsity down, the way a program is listed everywhere else.
+const LEVEL_ORDER: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2, '8th Grade': 3, '7th Grade': 4 }
 
 // ---------- shared bits ----------
 
@@ -29,6 +35,7 @@ function GameCard({ site, e }: { site: PublicSite; e: PublicEvent }) {
   const opp = opponentOf(site, e)
   const team = teamOf(site, e)
   const home = e.homeAway === 'home'
+  const score = visibleScore(site, e)
   return (
     <Link to={`/game/${e.id}`} className="game-card">
       <span className="gc-date">
@@ -41,13 +48,16 @@ function GameCard({ site, e }: { site: PublicSite; e: PublicEvent }) {
         <span className="gc-sub">{team?.name ?? `${e.level} ${e.sport}`}{e.venue ? ` · ${e.venue}` : ''}</span>
       </span>
       <span className="gc-right">
-        {e.score
-          ? <span className={`gc-score ${e.score.result === 'W' ? 'win' : e.score.result === 'L' ? 'loss' : ''}`}>
-              {e.score.result} {e.score.us}–{e.score.them}
+        {score
+          ? <span className={`gc-score ${score.result === 'W' ? 'win' : score.result === 'L' ? 'loss' : ''}`}>
+              {score.result} {score.us}–{score.them}
             </span>
           : <>
               {e.designation && <span className="tag">{e.designation}</span>}
-              <span className={`ha ${home ? 'home' : ''}`}>{home ? 'HOME' : 'AWAY'}</span>
+              {/* Home/away is about going to the game, so it drops off once the
+                  game has been played and no score has been posted. */}
+              {e.date >= todayISO() &&
+                <span className={`ha ${home ? 'home' : ''}`}>{home ? 'HOME' : 'AWAY'}</span>}
             </>}
       </span>
     </Link>
@@ -143,6 +153,7 @@ function Game({ site }: { site: PublicSite }) {
   const home = e.homeAway === 'home'
   const sponsor = presentedBy(site, e)
   const sponsorLogo = logoUrl(sponsor?.logo ?? null)
+  const score = visibleScore(site, e)
 
   return (
     <>
@@ -166,7 +177,7 @@ function Game({ site }: { site: PublicSite }) {
         </div>
         <div className="vs">
           <span>{home ? 'vs' : 'at'}</span>
-          {e.score && <span className={`final ${e.score.result === 'W' ? 'win' : 'loss'}`}>{e.score.us}–{e.score.them}</span>}
+          {score && <span className={`final ${score.result === 'W' ? 'win' : 'loss'}`}>{score.us}–{score.them}</span>}
         </div>
         <div className="side">
           <Crest src={opp?.logo ?? null} initials={(opp?.name ?? e.opponent).slice(0, 2).toUpperCase()} tint={opp?.tint} size={84} />
@@ -186,7 +197,8 @@ function Game({ site }: { site: PublicSite }) {
         <dt>Date</dt><dd>{fmtDate(e.date, { weekday: 'long', year: 'numeric' })}</dd>
         <dt>Time</dt><dd>{fmtTime(e.time)}</dd>
         <dt>Where</dt><dd>{e.venue}{home ? '' : ' (away)'}</dd>
-        <dt>Team</dt><dd>{team?.name ?? `${e.level} ${e.sport}`}</dd>
+        <dt>Team</dt>
+        <dd>{team ? <Link className="inline-link" to={`/team/${team.id}`}>{team.name}</Link> : `${e.level} ${e.sport}`}</dd>
       </dl>
 
       {e.moments.length > 0 && (
@@ -207,7 +219,7 @@ function Game({ site }: { site: PublicSite }) {
         </div>
       )}
 
-      {e.score?.recap && <section className="card"><h2>Recap</h2><p>{e.score.recap}</p></section>}
+      {score?.recap && <section className="card"><h2>Recap</h2><p>{score.recap}</p></section>}
     </>
   )
 }
@@ -216,7 +228,6 @@ function Teams({ site }: { site: PublicSite }) {
   // Grouped the way a school talks about its programs: sport, then boys/girls,
   // then varsity down. Two basketball teams are two programs, not one list.
   const groups = useMemo(() => {
-    const order: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2, '8th Grade': 3, '7th Grade': 4 }
     const gorder: Record<string, number> = { Boys: 0, Girls: 1, Coed: 2 }
     const by = new Map<string, { sport: string; gender?: string; teams: typeof site.teams }>()
     for (const t of site.teams) {
@@ -226,7 +237,7 @@ function Teams({ site }: { site: PublicSite }) {
       else by.set(key, { sport: t.sport, gender: t.gender, teams: [t] })
     }
     return [...by.values()]
-      .map(g => ({ ...g, teams: [...g.teams].sort((a, b) => (order[a.level] ?? 9) - (order[b.level] ?? 9)) }))
+      .map(g => ({ ...g, teams: [...g.teams].sort((a, b) => (LEVEL_ORDER[a.level] ?? 9) - (LEVEL_ORDER[b.level] ?? 9)) }))
       .sort((a, b) => a.sport.localeCompare(b.sport) ||
         (gorder[a.gender ?? ''] ?? 9) - (gorder[b.gender ?? ''] ?? 9))
   }, [site])
@@ -238,13 +249,19 @@ function Teams({ site }: { site: PublicSite }) {
         <div key={`${g.sport}${g.gender ?? ''}`} className="team-group">
           <h2>{g.sport}{g.gender && g.gender !== 'Coed' ? ` · ${g.gender}` : ''}</h2>
           <div className="list">
-            {g.teams.map(t => (
-              <Link key={t.id} to={`/team/${t.id}`} className="team-row">
-                <span className="lvl">{t.level}</span>
-                <span className="tr-main">{t.name}</span>
-                <span className="tr-sub">{t.roster.length > 0 ? `${t.roster.length} athletes` : ''}</span>
-              </Link>
-            ))}
+            {g.teams.map(t => {
+              const rec = record(site, teamEvents(site, t.id))
+              return (
+                <Link key={t.id} to={`/team/${t.id}`} className="team-row">
+                  <span className="lvl">{t.level}</span>
+                  <span className="tr-main">{t.name}</span>
+                  <span className="tr-sub">
+                    {[rec.played > 0 ? rec.text : '', t.roster.length > 0 ? `${t.roster.length} athletes` : '']
+                      .filter(Boolean).join(' \u00b7 ')}
+                  </span>
+                </Link>
+              )
+            })}
           </div>
         </div>
       ))}
@@ -252,48 +269,149 @@ function Teams({ site }: { site: PublicSite }) {
   )
 }
 
+/** Sort control for a roster column header. */
+function SortTh({ label, col, sort, onSort, className }: {
+  label: string; col: RosterCol; sort: RosterSort
+  onSort: (c: RosterCol) => void; className?: string
+}) {
+  const on = sort.col === col
+  return (
+    <th className={className} aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" className={on ? 'on' : ''} onClick={() => onSort(col)}>
+        {label}<span className="caret">{on ? (sort.dir === 'asc' ? '\u25B2' : '\u25BC') : ''}</span>
+      </button>
+    </th>
+  )
+}
+
+type RosterCol = 'number' | 'name' | 'grade' | 'position'
+type RosterSort = { col: RosterCol; dir: 'asc' | 'desc' }
+
 function TeamPage({ site }: { site: PublicSite }) {
   const { id } = useParams()
-  const [tab, setTab] = useState<'schedule' | 'roster'>('schedule')
+  const [tab, setTab] = useState<'schedule' | 'results' | 'roster' | null>(null)
+  // Numbers first, the way a program lists itself. Names sort on the surname.
+  const [sort, setSort] = useState<RosterSort>({ col: 'number', dir: 'asc' })
   const team = site.teams.find(t => t.id === id)
+
+  const games = useMemo(() => (team ? teamEvents(site, team.id) : []), [site, team])
+
+  // Split on the date, not on whether a score was posted: a game played last
+  // week with no score yet still belongs under Results, where a fan looks for
+  // it, rather than at the top of the upcoming schedule.
+  const today = todayISO()
+  const played = useMemo(
+    () => games.filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date)),
+    [games, today])
+  const scheduled = useMemo(() => games.filter(e => e.date >= today), [games, today])
+
+  const overall = record(site, played)
+  const region = record(site, played.filter(e => e.gameType === 'region' || e.gameType === 'area'))
+
+  // Other levels of the same program — a parent on the JV page is one tap from
+  // varsity, which is the single most common thing to want next.
+  const siblings = useMemo(() => (team
+    ? site.teams
+        .filter(t => t.id !== team.id && t.sport === team.sport && (t.gender ?? '') === (team.gender ?? ''))
+        .sort((a, b) => (LEVEL_ORDER[a.level] ?? 9) - (LEVEL_ORDER[b.level] ?? 9))
+    : []), [site, team])
+
+  const roster = useMemo(() => {
+    const list = [...(team?.roster ?? [])]
+    const dir = sort.dir === 'asc' ? 1 : -1
+    const cmp: Record<RosterCol, (a: typeof list[0], b: typeof list[0]) => number> = {
+      number: (a, b) => numRank(a.number) - numRank(b.number),
+      name: (a, b) => lastName(a.name).localeCompare(lastName(b.name)),
+      grade: (a, b) => gradeRank(a.grade) - gradeRank(b.grade),
+      position: (a, b) => (a.position || '\uffff').localeCompare(b.position || '\uffff'),
+    }
+    // Jersey number breaks every other tie, then the surname — cheer and cross
+    // country don't wear numbers, and without the second tie-break their roster
+    // would come out in whatever order it was entered.
+    return list.sort((a, b) =>
+      cmp[sort.col](a, b) * dir
+      || numRank(a.number) - numRank(b.number)
+      || lastName(a.name).localeCompare(lastName(b.name)))
+  }, [team, sort])
+
   if (!team) return <p className="empty">That team isn't listed.</p>
 
-  const games = site.events
-    .filter(e => e.teamId === team.id)
-    .sort((a, b) => (a.date + (a.time ?? '99')).localeCompare(b.date + (b.time ?? '99')))
-  // Jersey numbers are text but read as numbers; blanks go last.
-  const roster = [...team.roster].sort((a, b) => {
-    const n = (v?: string) => (v && Number.isFinite(Number(v)) ? Number(v) : Infinity)
-    return n(a.number) - n(b.number) || a.name.localeCompare(b.name)
-  })
+  // Land on whichever list has something in it: mid-season that's the schedule,
+  // after the last game it's the results.
+  const active = tab ?? (scheduled.length || !played.length ? 'schedule' : 'results')
+  const next = scheduled.find(e => e.status !== 'canceled')
 
   return (
     <>
       <p className="crumb"><Link to="/teams">← Teams</Link></p>
-      <h1 className="page-h1">{team.name}</h1>
-      <p className="team-meta">
-        {team.seasonLabel}
-        {team.postseasonFinish ? ` · ${team.postseasonFinish}` : ''}
-      </p>
+
+      <section className="team-head">
+        <Crest src={site.school.logo} initials={site.school.initials} size={56} />
+        <div className="th-main">
+          <h1>{team.name}</h1>
+          <p>
+            {team.seasonLabel}
+            {team.postseasonFinish ? ` \u00b7 ${team.postseasonFinish}` : ''}
+          </p>
+        </div>
+        {overall.played > 0 && (
+          <div className="record">
+            <strong>{overall.text}</strong>
+            <span>{region.played > 0 ? `${region.text} region` : 'overall'}</span>
+          </div>
+        )}
+      </section>
+
+      {siblings.length > 0 && (
+        <nav className="sibs" aria-label="Other levels">
+          <span className="on">{team.level}</span>
+          {siblings.map(t => <Link key={t.id} to={`/team/${t.id}`}>{t.level}</Link>)}
+        </nav>
+      )}
 
       <div className="seg" style={{ marginBottom: 16 }}>
-        <button className={tab === 'schedule' ? 'on' : ''} onClick={() => setTab('schedule')}>
-          Schedule
+        <button className={active === 'schedule' ? 'on' : ''} onClick={() => setTab('schedule')}>
+          Schedule{scheduled.length ? ` (${scheduled.length})` : ''}
         </button>
-        <button className={tab === 'roster' ? 'on' : ''} onClick={() => setTab('roster')}>
+        <button className={active === 'results' ? 'on' : ''} onClick={() => setTab('results')}>
+          Results{overall.played ? ` (${overall.played})` : ''}
+        </button>
+        <button className={active === 'roster' ? 'on' : ''} onClick={() => setTab('roster')}>
           Roster{roster.length ? ` (${roster.length})` : ''}
         </button>
       </div>
 
-      {tab === 'schedule' && (games.length === 0
+      {active === 'schedule' && (scheduled.length === 0
         ? <p className="empty">No games on the schedule yet.</p>
-        : <div className="list">{games.map(e => <GameCard key={e.id} site={site} e={e} />)}</div>)}
+        : <>
+            {next && (
+              <>
+                <h2 className="section-title">Next up</h2>
+                <div className="list next-up"><GameCard site={site} e={next} /></div>
+                {scheduled.length > 1 && <h2 className="section-title">Rest of the schedule</h2>}
+              </>
+            )}
+            <div className="list">
+              {scheduled.filter(e => e.id !== next?.id).map(e => <GameCard key={e.id} site={site} e={e} />)}
+            </div>
+          </>)}
 
-      {tab === 'roster' && (roster.length === 0
+      {active === 'results' && (played.length === 0
+        ? <p className="empty">No games played yet this season.</p>
+        : <div className="list">{played.map(e => <GameCard key={e.id} site={site} e={e} />)}</div>)}
+
+      {active === 'roster' && (roster.length === 0
         ? <p className="empty">The roster hasn't been posted yet.</p>
         : <div className="roster">
             <table>
-              <thead><tr><th>#</th><th>Name</th><th>Grade</th><th>Position</th></tr></thead>
+              <thead>
+                <tr>
+                  <SortTh label="#" col="number" sort={sort} onSort={onSort} className="num-h" />
+                  <SortTh label="Name" col="name" sort={sort} onSort={onSort} />
+                  <SortTh label="Grade" col="grade" sort={sort} onSort={onSort} />
+                  <SortTh label="Position" col="position" sort={sort} onSort={onSort} />
+                </tr>
+              </thead>
               <tbody>
                 {roster.map(a => (
                   <tr key={a.id}>
@@ -308,6 +426,11 @@ function TeamPage({ site }: { site: PublicSite }) {
           </div>)}
     </>
   )
+
+  // Clicking the sorted column flips it; clicking another starts that one ascending.
+  function onSort(col: RosterCol) {
+    setSort(s => (s.col === col ? { col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'asc' }))
+  }
 }
 
 // ---------- shell ----------

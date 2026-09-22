@@ -113,6 +113,10 @@ logo as (
 )
 
 select jsonb_build_object(
+  -- Whether demo-generated scores count as real results, mirroring the app's
+  -- own setting so a school never shows a fabricated record to the public.
+  'showSampleResults', coalesce((src ->> 'showSampleResults')::boolean, true),
+
   'school', (
     select jsonb_build_object(
       'id',        o ->> 'id',

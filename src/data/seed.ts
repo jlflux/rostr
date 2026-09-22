@@ -557,6 +557,7 @@ const FIRST_NAMES = ['Jack', 'Will', 'Sam', 'Eli', 'Mason', 'Carter', 'Owen', 'L
 const LAST_NAMES = ['Adams', 'Baker', 'Cooper', 'Davis', 'Ellis', 'Foster', 'Grant', 'Hayes', 'Ingram', 'Jones', 'Kelly', 'Lawson', 'Mitchell', 'Norris', 'Owens', 'Parker', 'Reed', 'Sanders', 'Turner', 'Vance', 'Walker', 'Young']
 const MOM_FIRSTS = ['Jennifer', 'Lisa', 'Karen', 'Susan', 'Amy', 'Angela', 'Melissa', 'Rebecca', 'Michelle', 'Kimberly']
 const DAD_FIRSTS = ['Michael', 'David', 'James', 'Robert', 'John', 'Brian', 'Kevin', 'Steven', 'Mark', 'Paul']
+const NUMBERS = Array.from({ length: 98 }, (_, i) => String(i + 1))
 const POSITIONS: Record<string, string[]> = {
   Football: ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'CB', 'S', 'K'],
   Volleyball: ['S', 'OH', 'MB', 'RS', 'L', 'DS'],
@@ -574,10 +575,24 @@ function buildRoster(t: Team): Athlete[] {
   const positions = POSITIONS[t.sport] ?? ['—']
   const phone = (key: string) => `(205) 555-${String(100 + Math.floor(hash(key + 'ph') * 899)).padStart(4, '0')}`
   const out: Athlete[] = []
+  // Two athletes on one roster with the same name and the same jersey number
+  // reads as a bug rather than as demo data, and picking by hash collides often
+  // at 60 athletes. Re-pick with a salt until both are free — still fully
+  // deterministic, just not colliding.
+  const takenNames = new Set<string>()
+  const takenNumbers = new Set<string>()
+  const unique = <T,>(list: T[], key: string, taken: Set<string>, str: (v: T) => string): T => {
+    for (let salt = 0; salt < 200; salt++) {
+      const v = pick(list, key + (salt || ''))
+      if (!taken.has(str(v))) { taken.add(str(v)); return v }
+    }
+    return pick(list, key)
+  }
   for (let i = 0; i < count; i++) {
     const key = `${t.id}-${i}`
-    const last = pick(LAST_NAMES, key + 'l')
-    const name = `${pick(firsts, key + 'f')} ${last}`
+    const name = unique(
+      firsts.flatMap(f => LAST_NAMES.map(l => `${f} ${l}`)), key + 'f', takenNames, n => n)
+    const last = name.slice(name.indexOf(' ') + 1)
     // Seed parent/guardian contacts so coaches can pull up a number on the sideline
     const twoParents = hash(key + 'gg') > 0.35
     const momFirst = hash(key + 'r1') > 0.5 // first listed guardian is the mother
@@ -589,7 +604,9 @@ function buildRoster(t: Team): Athlete[] {
     const guardians: Guardian[] = ordered
     out.push({
       id: `ath-${key}`,
-      number: t.sport === 'Cross Country' || t.sport === 'Cheerleading' ? undefined : String(1 + Math.floor(hash(key + 'n') * 98)),
+      number: t.sport === 'Cross Country' || t.sport === 'Cheerleading'
+        ? undefined
+        : unique(NUMBERS, key + 'n', takenNumbers, v => v),
       name,
       grade: pick(grades, key + 'g'),
       position: pick(positions, key + 'p'),

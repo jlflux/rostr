@@ -409,9 +409,17 @@ export function buildRiverbendEvents(today: string): SportEvent[] {
 
 // ---------- Rosters ----------
 
-const FIRST = ['Amara', 'Beckett', 'Cora', 'Dashiell', 'Elena', 'Finn', 'Greta', 'Hugo', 'Imani', 'Jonah',
-  'Kiara', 'Luca', 'Maeve', 'Noor', 'Otis', 'Priya', 'Quentin', 'Rosa', 'Silas', 'Tessa',
-  'Uriel', 'Vivian', 'Wren', 'Xavier', 'Yara', 'Zane', 'Adaeze', 'Bruno', 'Clementine', 'Desmond']
+// Split by pool so a boys team doesn't come out with a girls roster. Names that
+// read either way sit in BOTH and are drawn by every team.
+const FIRST_B = ['Beckett', 'Dashiell', 'Finn', 'Hugo', 'Jonah', 'Luca', 'Otis', 'Quentin', 'Silas',
+  'Uriel', 'Xavier', 'Zane', 'Bruno', 'Desmond', 'Mateo', 'Rafael', 'Theo', 'Emeka', 'Nikolai', 'Arjun']
+const FIRST_G = ['Amara', 'Cora', 'Elena', 'Greta', 'Kiara', 'Maeve', 'Priya', 'Rosa', 'Tessa',
+  'Vivian', 'Yara', 'Adaeze', 'Clementine', 'Ingrid', 'Leila', 'Marisol', 'Saoirse', 'Zola', 'Anouk', 'Delphine']
+const FIRST_N = ['Imani', 'Noor', 'Wren', 'Rowan', 'Avery', 'Sasha']
+const firstNames = (gender?: Team['gender']) =>
+  gender === 'Boys' ? [...FIRST_B, ...FIRST_N]
+  : gender === 'Girls' ? [...FIRST_G, ...FIRST_N]
+  : [...FIRST_B, ...FIRST_G, ...FIRST_N]
 const LAST = ['Alvarado', 'Brennan', 'Castellanos', 'Doyle', 'Eberhardt', 'Fontaine', 'Gallagher', 'Haverford',
   'Ibarra', 'Jankowski', 'Kowalczyk', 'Lindqvist', 'Mbeki', 'Nakashima', 'Ortega', 'Pemberton',
   'Quintero', 'Rasmussen', 'Sandoval', 'Thibodeaux', 'Underwood', 'Vandermeer', 'Whitlock', 'Yoshida', 'Zamora']
@@ -430,18 +438,27 @@ const POSITIONS: Record<string, string[]> = {
  *  in the state eligibility system, and the demo has no business inventing them. */
 function buildRoster(team: Team): Athlete[] {
   const positions = POSITIONS[team.sport]
+  const firsts = firstNames(team.gender)
   const size = Math.min(team.rosterCount, 24)
   const used = new Set<string>()
+  // Two athletes wearing the same number on one roster reads as a bug, so the
+  // draw repeats with a salt until it lands on a free one.
+  const usedNumbers = new Set<string>()
   const out: Athlete[] = []
   for (let i = 0; i < size; i++) {
     const seed = `${team.id}-${i}`
-    let name = `${pickOf(FIRST, seed + 'f')} ${pickOf(LAST, seed + 'l')}`
+    let name = `${pickOf(firsts, seed + 'f')} ${pickOf(LAST, seed + 'l')}`
     let bump = 0
-    while (used.has(name)) { bump++; name = `${pickOf(FIRST, seed + 'f' + bump)} ${pickOf(LAST, seed + 'l' + bump)}` }
+    while (used.has(name)) { bump++; name = `${pickOf(firsts, seed + 'f' + bump)} ${pickOf(LAST, seed + 'l' + bump)}` }
     used.add(name)
+    let number = String(Math.floor(rnd(seed + 'n') * 60) + 1)
+    for (let salt = 1; usedNumbers.has(number) && salt < 200; salt++) {
+      number = String(Math.floor(rnd(seed + 'n' + salt) * 60) + 1)
+    }
+    usedNumbers.add(number)
     out.push({
       id: `${team.id}-a${i}`,
-      number: String(Math.floor(rnd(seed + 'n') * 60) + 1),
+      number,
       name,
       grade: String(9 + Math.floor(rnd(seed + 'g') * 4)),
       position: positions ? pickOf(positions, seed + 'p') : undefined,
