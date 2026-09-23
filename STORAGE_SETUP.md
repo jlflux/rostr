@@ -50,10 +50,19 @@ outcomes are not failures:
   destination, finds it there, and relinks the record instead.
 - **Nothing to move.** The card disappears once every file is filed by school.
 
-A file reported as **not in the bucket** is a record pointing at something that
-was never uploaded or has since been removed. Nothing is recoverable by moving
-it — re-upload the image in the asset library and the stale reference is
-replaced.
+A file reported as **not in the bucket** means the storage API would not return
+it, which covers two different things: it isn't there, or you have no permission
+to see it (the API won't admit a file exists if you can't read it). Run
+`supabase/find-missing-files.sql` to tell them apart — it reads through the SQL
+editor, which sees everything.
+
+- **The file is listed there.** It exists and the app can't reach it. Unfiled
+  files sit under a folder that is not a school, so the access rules find no
+  school to check you against and only a platform owner may touch them. Make
+  sure `supabase/role-enforcement.sql` has been run and your email is in
+  `platform_owners`, then move the files.
+- **The file is not listed anywhere.** It really is gone. Re-upload the image in
+  the asset library and the stale reference is replaced.
 
 ```sql
 -- Members of a school may reach that school's files. Platform owners reach all.
