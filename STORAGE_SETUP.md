@@ -54,7 +54,8 @@ A file reported as **not in the bucket** means the storage API would not return
 it, which covers two different things: it isn't there, or you have no permission
 to see it (the API won't admit a file exists if you can't read it). Run
 `supabase/find-missing-files.sql` to tell them apart — it reads through the SQL
-editor, which sees everything.
+editor, which sees everything, and returns one table: the buckets, every access
+rule on stored files, and every file with whether a school owns it.
 
 - **The file is listed there.** It exists and the app can't reach it. Unfiled
   files sit under a folder that is not a school, so the access rules find no
