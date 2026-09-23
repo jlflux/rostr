@@ -73,15 +73,32 @@ export function publicLogosFor(state: AppState, orgId: string): PublicLogo[] {
 export interface SyncResult {
   copied: number
   failed: { label: string; error: string }[]
+  /** Set when every copy would fail for the same reason, with what to do. */
+  blocked?: string
 }
 
-/** Copy every public logo for a school into the public bucket. */
+/** Whether an error means the public bucket itself is missing. */
+const isMissingBucket = (error: string) => /bucket not found/i.test(error)
+
+/**
+ * Copy every public logo for a school into the public bucket.
+ *
+ * A missing bucket fails every single file with the same message, which reads
+ * as a list of broken logos rather than one thing to go and fix. So it stops at
+ * the first one and says what to do instead.
+ */
 export async function syncPublicLogos(state: AppState, orgId: string): Promise<SyncResult> {
   const result: SyncResult = { copied: 0, failed: [] }
   for (const logo of publicLogosFor(state, orgId)) {
     const error = await copyToPublicBucket(logo.ref, logo.publicPath)
-    if (error) result.failed.push({ label: logo.label, error })
-    else result.copied++
+    if (!error) { result.copied++; continue }
+    if (isMissingBucket(error)) {
+      result.blocked = 'The public bucket doesn\'t exist yet. In Supabase, go to '
+        + 'Storage → New bucket, name it "public-assets", switch Public bucket on, '
+        + 'then publish again. STORAGE_SETUP.md has the access rules to run after.'
+      return result
+    }
+    result.failed.push({ label: logo.label, error })
   }
   return result
 }

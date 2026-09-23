@@ -173,14 +173,22 @@ create policy "signed-in staff can remove public assets"
   using (bucket_id = 'public-assets');
 ```
 
+## Step 3 — Copy the files across
+
+**Settings → Public site → Publish logos**, in the app. The database names where
+each logo will live but cannot move the file — storage is outside its reach — so
+this copies them. Do it after adding or changing a logo.
+
+If this reports **"Bucket not found"**, Step 1 hasn't been done in this project:
+create the `public-assets` bucket and try again.
+
 ## How files are named
 
-A logo's public path is always `<schoolId>/<assetId>` — for example
-`org-hhs/as-2f9c1`. That's fixed, so `supabase/public-site.sql` can name the path
-when it builds a school's public data without needing to know whether the file
-has been copied across yet. An image that hasn't been copied simply doesn't
-appear; nothing breaks.
+An opponent's or sponsor's logo lives at `<schoolId>/<assetId>` — for example
+`org-hhs/as-2f9c1`. The school's own logo is not an asset record (it is a
+storage path on the school itself), so it lives at the fixed `<schoolId>/school`.
 
-**Copying the files across is not wired up yet.** It arrives with the public site
-itself (Phase B in `PUBLIC_SITE.md`), which is the first thing that needs to
-render them.
+Both are fixed, so `supabase/public-site.sql` can name the path when it builds a
+school's public data without needing to know whether the file has been copied
+across yet. An image that hasn't been copied simply doesn't appear — the site
+falls back to the school's initials, and nothing breaks.

@@ -580,13 +580,15 @@ function PublicSiteCard() {
   if (!can(me.role, 'admin') || !storageEnabled()) return null
 
   const logos = publicLogosFor(state, org.id)
+  const hasSchoolLogo = logos.some(l => l.assetId === `school:${org.id}`)
 
   const sync = async () => {
     setBusy(true)
     const r = await syncPublicLogos(state, org.id)
     setBusy(false)
     setResult(r)
-    toast(r.failed.length
+    if (r.blocked) toast('Nothing could be published — see below', 'error')
+    else toast(r.failed.length
       ? `${r.copied} published, ${r.failed.length} failed`
       : `${r.copied} logo${r.copied === 1 ? '' : 's'} published`,
       r.failed.length ? 'error' : 'success')
@@ -604,13 +606,29 @@ function PublicSiteCard() {
           {publicSiteUrl(org)} <I.external />
         </a>
       </p>
-      <p className="small" style={{ marginBottom: 10 }}>
-        <strong>{logos.length}</strong> logo{logos.length === 1 ? '' : 's'} to publish:
-        this school's, each opponent's primary logo, and the logo of any sponsor billed on a game.
+      {/* Naming what will be copied, because the usual question when a logo
+          doesn't appear publicly is whether it was ever in this list. */}
+      <p className="small" style={{ marginBottom: 6 }}>
+        <strong>{logos.length}</strong> logo{logos.length === 1 ? '' : 's'} to publish
+        {logos.length > 0 && ':'}
       </p>
+      {logos.length > 0 && (
+        <ul className="small muted" style={{ margin: '0 0 6px', paddingLeft: 18, columns: logos.length > 6 ? 2 : 1 }}>
+          {logos.map(l => <li key={l.assetId}>{l.label}</li>)}
+        </ul>
+      )}
+      {!hasSchoolLogo && (
+        <p className="tiny" style={{ color: 'var(--warn)', marginTop: 0, marginBottom: 10 }}>
+          {org.shortName}'s own logo isn't in that list. Upload it under Branding above —
+          until then the public site shows the school's initials.
+        </p>
+      )}
       <button className="btn primary" disabled={busy || logos.length === 0} onClick={sync}>
         {busy ? 'Publishing…' : 'Publish logos'}
       </button>
+      {result?.blocked && (
+        <p className="small" style={{ color: 'var(--danger)', marginBottom: 0 }}>{result.blocked}</p>
+      )}
       {result && result.failed.length > 0 && (
         <ul className="small" style={{ color: 'var(--danger)', marginBottom: 0 }}>
           {result.failed.map((f, i) => <li key={i}>{f.label}: {f.error}</li>)}
@@ -618,7 +636,8 @@ function PublicSiteCard() {
       )}
       {logos.length === 0 && (
         <p className="tiny muted" style={{ marginBottom: 0, marginTop: 8 }}>
-          Nothing to publish yet — upload a school or opponent logo in the asset library first.
+          Nothing to publish yet — upload the school's logo under Branding, or an opponent
+          logo in the asset library, first.
         </p>
       )}
     </Card>

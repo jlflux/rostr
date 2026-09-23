@@ -137,7 +137,10 @@ select jsonb_build_object(
                           or exists (
                             select 1 from jsonb_array_elements(coalesce(src -> 'assets', '[]'::jsonb)) a
                             where a ->> 'type' = 'School Branding'
-                              and a ->> 'storagePath' like 'storage:%')
+                              and a ->> 'storagePath' like 'storage:%'
+                              -- Same test the app applies, so the projection can
+                              -- never name a file the app would not publish.
+                              and a ->> 'orgId' = o ->> 'id')
                         then (o ->> 'id') || '/school' end)
     from org),
 
