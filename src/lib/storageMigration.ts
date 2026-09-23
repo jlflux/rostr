@@ -1,5 +1,5 @@
 import type { AppState } from '../types'
-import { isLegacyPath, movePath, repathFor, STORAGE_PREFIX } from './storage'
+import { fileExistsAt, isLegacyPath, movePath, repathFor, STORAGE_PREFIX } from './storage'
 
 /**
  * Moving files uploaded before paths carried the owning school.
@@ -28,6 +28,9 @@ export function legacyFiles(state: AppState): LegacyFile[] {
   const out: LegacyFile[] = []
 
   for (const a of state.assets) {
+    // Without a school there is nowhere to file it, and moving it would create
+    // a folder named after the missing value.
+    if (!a.orgId) continue
     if (!a.storagePath || !isLegacyPath(a.storagePath, a.orgId)) continue
     out.push({
       kind: 'asset', id: a.id, orgId: a.orgId, label: a.name,
@@ -49,26 +52,47 @@ export function legacyFiles(state: AppState): LegacyFile[] {
 
 export interface MigrationResult {
   moved: number
+  /** Files already in the right place, whose record just hadn't caught up. */
+  relinked: number
   failed: { label: string; error: string }[]
   /** Reference updates to apply, once the moves have succeeded. */
   updates: LegacyFile[]
 }
 
+const isMissing = (error: string) => /not found|does not exist/i.test(error)
+
 /**
  * Move each file under its school's folder. A file is only recorded for a
  * reference update once its move has actually succeeded, so a half-finished run
  * never leaves a record pointing at a file that isn't there.
+ *
+ * A move of a file that isn't there reports the same thing whether it already
+ * moved or was never uploaded. Those need telling apart: an earlier run whose
+ * reference updates never saved leaves every file already in place, and trying
+ * again would otherwise report all of them as errors forever. So when the source
+ * is missing, the destination is checked, and a file found there is relinked
+ * rather than failed.
  */
 export async function migrateLegacyFiles(state: AppState): Promise<MigrationResult> {
-  const result: MigrationResult = { moved: 0, failed: [], updates: [] }
+  const result: MigrationResult = { moved: 0, relinked: 0, failed: [], updates: [] }
   for (const file of legacyFiles(state)) {
     const error = await movePath(file.ref, file.newPath)
-    if (error) {
-      result.failed.push({ label: file.label, error })
+    if (!error) {
+      result.moved++
+      result.updates.push({ ...file, ref: STORAGE_PREFIX + file.newPath })
       continue
     }
-    result.moved++
-    result.updates.push({ ...file, ref: STORAGE_PREFIX + file.newPath })
+    if (isMissing(error) && await fileExistsAt(file.newPath)) {
+      result.relinked++
+      result.updates.push({ ...file, ref: STORAGE_PREFIX + file.newPath })
+      continue
+    }
+    result.failed.push({
+      label: file.label,
+      error: isMissing(error)
+        ? `no file at ${file.ref.slice(STORAGE_PREFIX.length)} — it was never uploaded, or was removed`
+        : error,
+    })
   }
   return result
 }

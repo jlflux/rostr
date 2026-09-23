@@ -678,9 +678,10 @@ function StorageMigrationCard() {
     }
     setBusy(false)
     setFailed(res.failed)
+    const done = res.moved + res.relinked
     toast(res.failed.length
-      ? `${res.moved} moved, ${res.failed.length} failed`
-      : `${res.moved} file${res.moved === 1 ? '' : 's'} moved`,
+      ? `${done} sorted out, ${res.failed.length} couldn't be`
+      : `${done} file${done === 1 ? '' : 's'} sorted out`,
       res.failed.length ? 'error' : 'success')
   }
 
@@ -695,13 +696,31 @@ function StorageMigrationCard() {
         Do this <strong>before</strong> tightening the bucket policy in STORAGE_SETUP.md — the move reads
         each file where it is now, which the new rules would refuse.
       </p>
+      {/* Naming each file and where it is going, because an error here is about
+          one specific path and is unreadable without seeing it. */}
+      <ul className="tiny muted" style={{ margin: '0 0 12px', paddingLeft: 18 }}>
+        {pending.map(f => (
+          <li key={`${f.kind}-${f.id}`}>
+            {f.label} — <code>{f.ref.replace('storage:', '')}</code> → <code>{f.newPath}</code>
+          </li>
+        ))}
+      </ul>
       <button className="btn primary" disabled={busy} onClick={run}>
         {busy ? 'Moving…' : `Move ${pending.length} file${pending.length === 1 ? '' : 's'}`}
       </button>
       {failed.length > 0 && (
-        <ul className="small" style={{ color: 'var(--danger)', marginBottom: 0 }}>
-          {failed.map((f, i) => <li key={i}>{f.label}: {f.error}</li>)}
-        </ul>
+        <>
+          <ul className="small" style={{ color: 'var(--danger)', marginBottom: 6 }}>
+            {failed.map((f, i) => <li key={i}>{f.label}: {f.error}</li>)}
+          </ul>
+          {failed.every(f => /no file at/.test(f.error)) && (
+            <p className="tiny muted" style={{ marginBottom: 0 }}>
+              These records point at files that aren't in the bucket. Nothing is lost by
+              re-uploading them — replace each image in the asset library and the old
+              reference is replaced with it.
+            </p>
+          )}
+        </>
       )}
     </Card>
   )

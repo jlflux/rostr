@@ -42,6 +42,19 @@ app shows a **Files need moving** card in Settings while any remain — use it
 before running the SQL below. If you have already run the SQL and files have gone
 missing, put the old policies back, move the files, then run this again.
 
+The card lists every file with where it is now and where it is going. Two
+outcomes are not failures:
+
+- **Already in place.** If an earlier run moved the files but its record updates
+  were never saved, the move reports the file as missing. The card checks the
+  destination, finds it there, and relinks the record instead.
+- **Nothing to move.** The card disappears once every file is filed by school.
+
+A file reported as **not in the bucket** is a record pointing at something that
+was never uploaded or has since been removed. Nothing is recoverable by moving
+it — re-upload the image in the asset library and the stale reference is
+replaced.
+
 ```sql
 -- Members of a school may reach that school's files. Platform owners reach all.
 create or replace function public.can_reach_storage_path(object_name text)

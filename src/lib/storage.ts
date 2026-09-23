@@ -165,6 +165,22 @@ export async function movePath(fromRef: string, toPath: string): Promise<string 
   return null
 }
 
+/**
+ * Whether a file is actually in the bucket at that path.
+ *
+ * Used to tell "this file is somewhere else" apart from "this file is gone",
+ * which are the same error from a move.
+ */
+export async function fileExistsAt(path: string): Promise<boolean> {
+  const sb = getSupabase()
+  if (!sb) return false
+  const cut = path.lastIndexOf('/')
+  const dir = cut < 0 ? '' : path.slice(0, cut)
+  const name = path.slice(cut + 1)
+  const { data, error } = await sb.storage.from(bucket()).list(dir, { limit: 100, search: name })
+  return !error && !!data?.some(f => f.name === name)
+}
+
 /** Where a legacy file should live, keeping its folder and filename. */
 export function repathFor(ref: string, owner: string): string {
   const path = ref.slice(STORAGE_PREFIX.length)
