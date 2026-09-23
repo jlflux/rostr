@@ -713,11 +713,12 @@ function StorageMigrationCard() {
           <ul className="small" style={{ color: 'var(--danger)', marginBottom: 6 }}>
             {failed.map((f, i) => <li key={i}>{f.label}: {f.error}</li>)}
           </ul>
-          {failed.every(f => /no file at/.test(f.error)) && (
+          {failed.every(f => /couldn't reach/.test(f.error)) && (
             <p className="tiny muted" style={{ marginBottom: 0 }}>
-              These records point at files that aren't in the bucket. Nothing is lost by
-              re-uploading them — replace each image in the asset library and the old
-              reference is replaced with it.
+              Storage answers the same way for a file that isn't there and one this account
+              may not read, so this doesn't say which. Run <code>supabase/find-missing-files.sql</code>
+              in the Supabase SQL editor — it sees every file regardless of the rules, and says
+              which of the two it is.
             </p>
           )}
         </>

@@ -90,7 +90,10 @@ export async function migrateLegacyFiles(state: AppState): Promise<MigrationResu
     result.failed.push({
       label: file.label,
       error: isMissing(error)
-        ? `no file at ${file.ref.slice(STORAGE_PREFIX.length)} — it was never uploaded, or was removed`
+        // Deliberately not "it was removed": the storage API answers the same
+        // way for a file you may not read, and an unfiled file is exactly the
+        // case the bucket's rules can't resolve a school for.
+        ? `couldn't reach ${file.ref.slice(STORAGE_PREFIX.length)} — it is missing, or the bucket's rules won't let this account see it`
         : error,
     })
   }
