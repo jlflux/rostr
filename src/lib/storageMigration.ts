@@ -1,5 +1,6 @@
 import type { AppState } from '../types'
 import { fileExistsAt, isLegacyPath, movePath, repathFor, STORAGE_PREFIX } from './storage'
+import { PLATFORM_ROW_ID } from './workspace'
 
 /**
  * Moving files uploaded before paths carried the owning school.
@@ -15,7 +16,7 @@ import { fileExistsAt, isLegacyPath, movePath, repathFor, STORAGE_PREFIX } from 
 
 export interface LegacyFile {
   /** Where the reference lives, so it can be rewritten after the move. */
-  kind: 'asset' | 'orgLogo'
+  kind: 'asset' | 'orgLogo' | 'platformFavicon'
   id: string
   orgId: string
   label: string
@@ -44,6 +45,17 @@ export function legacyFiles(state: AppState): LegacyFile[] {
     out.push({
       kind: 'orgLogo', id: o.id, orgId: o.id, label: `${o.shortName} school logo`,
       ref: o.logoUrl, newPath: repathFor(o.logoUrl, o.id),
+    })
+  }
+
+  // The browser tab icon belongs to the platform, not a school. Its folder is
+  // the one every signed-in user may read, so it has to be filed there too —
+  // left where it is, the tightened rules would take the tab icon away.
+  const favicon = state.platform?.faviconUrl
+  if (favicon && isLegacyPath(favicon, PLATFORM_ROW_ID)) {
+    out.push({
+      kind: 'platformFavicon', id: PLATFORM_ROW_ID, orgId: PLATFORM_ROW_ID,
+      label: 'Browser tab icon', ref: favicon, newPath: repathFor(favicon, PLATFORM_ROW_ID),
     })
   }
 

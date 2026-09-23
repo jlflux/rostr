@@ -673,6 +673,10 @@ function StorageMigrationCard() {
           const u = res.updates.find(x => x.kind === 'orgLogo' && x.id === o.id)
           return u ? { ...o, logoUrl: u.ref } : o
         }),
+        ...(() => {
+          const u = res.updates.find(x => x.kind === 'platformFavicon')
+          return u ? { platform: { ...(state.platform ?? {}), faviconUrl: u.ref } } : {}
+        })(),
       })
       logActivity(`moved ${res.moved} files into per-school folders`)
     }

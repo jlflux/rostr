@@ -159,8 +159,21 @@ export async function movePath(fromRef: string, toPath: string): Promise<string 
   if (!isStoredPath(fromRef)) return 'That file was never uploaded.'
   const from = fromRef.slice(STORAGE_PREFIX.length)
   if (from === toPath) return null
-  const { error } = await sb.storage.from(bucket()).move(from, toPath)
-  if (error) return error.message
+
+  // Copy, then delete — not the storage API's own move. A move is an UPDATE of
+  // the file's record, and a bucket set up with read/upload/delete rules but no
+  // update rule refuses it as "Object not found" on a file that is plainly
+  // there. Copy needs read + upload, delete needs delete: the rules every bucket
+  // here has had from the start.
+  const { error: copyErr } = await sb.storage.from(bucket()).copy(from, toPath)
+  // Already at the destination (an earlier run copied it but stopped short of
+  // the delete): carry on and finish the job.
+  if (copyErr && !/already exists|duplicate/i.test(copyErr.message)) return copyErr.message
+
+  const { error: removeErr } = await sb.storage.from(bucket()).remove([from])
+  // The copy is safe either way. A leftover original is clutter, not a fault,
+  // so it doesn't fail the move — the record is pointed at the new copy.
+  if (removeErr) console.warn('[storage] moved but could not remove the original', from, removeErr)
   signedCache.delete(from)
   return null
 }
