@@ -1,5 +1,6 @@
 import type { AppState, Asset } from '../types'
-import { copyToPublicBucket, isStoredPath, publicLogoPath } from './storage'
+import { schoolLogo } from './derive'
+import { copyToPublicBucket, isStoredPath, publicLogoPath, publicSchoolLogoPath } from './storage'
 
 /**
  * Publishing the images the public site shows.
@@ -35,8 +36,18 @@ export function publicLogosFor(state: AppState, orgId: string): PublicLogo[] {
     out.push({ assetId, ref: asset.storagePath!, publicPath: publicLogoPath(orgId, assetId), label })
   }
 
+  // The school's logo is a storage path on the school record rather than an
+  // asset id, so it is added directly rather than through `add`.
   const org = state.orgs.find(o => o.id === orgId)
-  add((org as { logoAssetId?: string } | undefined)?.logoAssetId, org?.shortName ?? 'School logo')
+  const orgLogo = org ? schoolLogo(state, org) : undefined
+  if (orgLogo && isStoredPath(orgLogo)) {
+    out.push({
+      assetId: `school:${orgId}`,
+      ref: orgLogo,
+      publicPath: publicSchoolLogoPath(orgId),
+      label: `${org?.shortName ?? 'School'} logo`,
+    })
+  }
 
   for (const o of state.opponents) {
     if (o.orgId !== orgId || o.deletedAt) continue

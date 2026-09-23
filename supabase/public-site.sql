@@ -127,7 +127,18 @@ select jsonb_build_object(
       'state',     o ->> 'state',
       'initials',  o ->> 'initials',
       'theme',     o -> 'theme',
-      'logo',      (select path from logo where asset_id = o ->> 'logoAssetId'))
+      -- The school's own logo is a storage path on the school record, not an
+      -- asset id, so it gets a fixed public name. `publicSchoolLogoPath()` in
+      -- src/lib/storage.ts copies the file to exactly this path.
+      -- Settings sets logoUrl; a logo left in the asset library under "School
+      -- Branding" is used when it hasn't been. Both publish to the same file,
+      -- so either way the path is the same.
+      'logo',      case when o ->> 'logoUrl' like 'storage:%'
+                          or exists (
+                            select 1 from jsonb_array_elements(coalesce(src -> 'assets', '[]'::jsonb)) a
+                            where a ->> 'type' = 'School Branding'
+                              and a ->> 'storagePath' like 'storage:%')
+                        then (o ->> 'id') || '/school' end)
     from org),
 
   'teams', coalesce((
@@ -287,23 +298,32 @@ update public.workspaces set updated_at = updated_at where data -> 'orgs' -> 0 i
 
 
 -- ---------- 5. Verify ----------
+--
+-- One row per school. The SQL editor only shows the LAST query's result, so
+-- this is deliberately a single one: counts on the left, then the privacy
+-- check, which reads "clean" when nothing private reached the projection.
+--
+--   published   false until the school is switched on in section 6
+--   logo        the school's logo, or blank until one is uploaded
+--   samples     whether demo-generated scores count as results
+--   private     must read "clean" — anything else means stop and investigate
 
--- One row per school, with its slug. `published` is false until switched on.
-select org_id, slug, published, updated_at,
-       jsonb_array_length(data -> 'events') as events,
-       jsonb_array_length(data -> 'teams')  as teams,
-       pg_size_pretty(length(data::text)::bigint) as size
-from public.public_site
-order by org_id;
-
--- Nothing private may appear anywhere in the projection. Every count must be 0.
 select org_id,
-       (data::text ilike '%medicalNotes%')::int  as medical_notes,
-       (data::text ilike '%guardians%')::int     as guardians,
-       (data::text ilike '%staffSlots%')::int    as staff_slots,
-       (data::text ilike '%runOfShow%')::int     as run_of_show,
-       (data::text ilike '%"email"%')::int       as emails,
-       (data::text ilike '%checkoutTime%')::int  as checkout_time
+       slug,
+       published,
+       jsonb_array_length(data -> 'teams')  as teams,
+       jsonb_array_length(data -> 'events') as events,
+       data -> 'school' ->> 'logo'          as logo,
+       data ->> 'showSampleResults'         as samples,
+       pg_size_pretty(length(data::text)::bigint) as size,
+       case when data::text ilike '%medicalNotes%'
+              or data::text ilike '%guardians%'
+              or data::text ilike '%staffSlots%'
+              or data::text ilike '%runOfShow%'
+              or data::text ilike '%"email"%'
+              or data::text ilike '%checkoutTime%'
+            then 'LEAK' else 'clean' end    as private,
+       updated_at
 from public.public_site
 order by org_id;
 

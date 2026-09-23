@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore, type Skin } from '../store/store'
-import { ROLE_LABELS, benefitTemplates, can, currentOrg, currentUser, sortedByLastName, sponsorTiers, tierSettings, users as orgUsers } from '../lib/derive'
+import { ROLE_LABELS, benefitTemplates, can, currentOrg, currentUser, schoolLogo, sortedByLastName, sponsorTiers, tierSettings, users as orgUsers } from '../lib/derive'
 import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/ui'
 import { fmtMoney, todayISO } from '../lib/dates'
 import { I } from '../components/icons'
@@ -43,6 +43,7 @@ export default function SettingsPage() {
   }
   const me = currentUser(state)
   const org = currentOrg(state)
+  const logo = schoolLogo(state, org)
   const isAdmin = can(me.role, 'admin')
 
   return (
@@ -78,10 +79,10 @@ export default function SettingsPage() {
                   onChange={e => updateOrg({ theme: { ...org.theme, navy: e.target.value } })} />
               </Field>
             </div>
-            <Field label="School logo (shown in the sidebar)">
+            <Field label="School logo (shown in the sidebar and on the public site)">
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className="avatar lg" style={{ background: org.theme.primary, overflow: 'hidden' }}>
-                  {org.logoUrl ? <StoredImage src={org.logoUrl} alt="School logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<>{org.initials}</>} /> : org.initials}
+                  {logo ? <StoredImage src={logo} alt="School logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} fallback={<>{org.initials}</>} /> : org.initials}
                 </span>
                 <input type="file" accept="image/*" disabled={!isAdmin} onChange={async e => {
                   const f = e.target.files?.[0]
@@ -103,7 +104,12 @@ export default function SettingsPage() {
                 {org.logoUrl && isAdmin && <button className="btn sm ghost" onClick={() => { const prev = org.logoUrl; updateOrg({ logoUrl: undefined }); removeFromStorage(prev); toast('Logo removed') }}>Remove</button>}
               </div>
             </Field>
-            {!isAdmin && <p className="tiny">Only school administrators can edit branding. Switch to an Administrator (e.g. Rick Baguley) via the profile menu to try it.</p>}
+            {!org.logoUrl && logo && (
+              <p className="tiny muted" style={{ marginTop: -6 }}>
+                Using the "School Branding" image from the asset library. Upload one here to set it explicitly.
+              </p>
+            )}
+            {!isAdmin && <p className="tiny">Only school administrators can edit branding. Switch to an Administrator via the profile menu to try it.</p>}
           </Card>
 
           <Card title="Users & roles" pad={false} action={isAdmin && (

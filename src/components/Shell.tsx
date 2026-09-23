@@ -6,7 +6,7 @@ import { StoredImage } from './StoredImage'
 import { resolveSignedUrl } from '../lib/storage'
 import { I } from './icons'
 import { Avatar } from './ui'
-import { ROLE_LABELS, SECTION_LABELS, actingAs, canSee, canSwitchOrgs, currentOrg, currentUser, events as allEvents, users as orgUsers, isResolving, openRequests, overdueTasks, sectionLabel, sortedByLastName, unfilledSlots } from '../lib/derive'
+import { ROLE_LABELS, SECTION_LABELS, actingAs, canSee, canSwitchOrgs, currentOrg, currentUser, events as allEvents, users as orgUsers, isResolving, openRequests, overdueTasks, schoolLogo, sectionLabel, sortedByLastName, unfilledSlots } from '../lib/derive'
 import { fmtDateTime, todayISO } from '../lib/dates'
 import { publicSiteUrl } from '../lib/publicSite'
 
@@ -291,6 +291,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   // would otherwise sit on top of the header. Measure it and inset the shell by
   // exactly that much; its height varies with the length of the error text.
   const acting = actingAs(state, authOn ? signedInEmail : null)
+  const orgLogo = schoolLogo(state, org)
 
   const syncBanner = cloudEnabled && cloudStatus === 'error'
   useEffect(() => {
@@ -397,7 +398,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <aside className={`sidebar ${navOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <span className="mark">
-            {org.logoUrl ? <StoredImage src={org.logoUrl} alt={`${org.shortName} logo`} fallback={<>{org.initials}</>} /> : org.initials}
+            {orgLogo ? <StoredImage src={orgLogo} alt={`${org.shortName} logo`} fallback={<>{org.initials}</>} /> : org.initials}
           </span>
           <span>{org.shortName}<small>Athletics Command Center</small></span>
         </div>

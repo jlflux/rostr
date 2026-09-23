@@ -112,6 +112,17 @@ export function publicLogoPath(orgId: string, assetId: string): string {
 }
 
 /**
+ * Where the school's own logo lives publicly.
+ *
+ * Opponent and sponsor logos are asset records, so their public path can be
+ * derived from an asset id. The school's logo is a plain storage path on the
+ * school record, so it gets a fixed name instead. Must match the same file.
+ */
+export function publicSchoolLogoPath(orgId: string): string {
+  return `${orgId}/school`
+}
+
+/**
  * Copy one stored file into the public bucket, replacing whatever is there.
  * Returns an error message, or null on success.
  */

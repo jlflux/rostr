@@ -17,14 +17,14 @@ export function publicSiteSlug(org: Organization): string {
  * The public site's address for this school.
  *
  * `VITE_PUBLIC_SITE_URL` is the public site's own deployment, once it has one.
- * Until then the staff build ships the fan page beside itself at /fans.html, so
- * the link works with nothing configured.
+ * Until then the staff build ships the fan page beside itself, served at /fans
+ * by a rewrite in vercel.json, so the link works with nothing configured.
  *
  * `?school=` is carried either way: on a per-school domain it names the school
  * already showing, so it stays correct rather than becoming redundant.
  */
 export function publicSiteUrl(org: Organization, origin = window.location.origin): string {
   const configured = (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(/\/+$/, '')
-  const root = configured || `${origin}/fans.html`
+  const root = configured || `${origin}/fans`
   return `${root}?school=${encodeURIComponent(publicSiteSlug(org))}`
 }

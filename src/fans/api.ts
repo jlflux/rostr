@@ -67,23 +67,38 @@ export interface PublicSite {
   sponsors: PublicSponsor[]
 }
 
+const SCHOOL_KEY = 'flux:fan-school'
+
+/** The school named on a hostname, or null for a host that names none. */
+function slugFromHost(host: string): string | null {
+  if (host === 'localhost' || /^[\d.]+$/.test(host)) return null   // bare hosts and IPs
+  const [first, ...rest] = host.split('.')
+  if (rest.length < 2) return null            // "fluxathletics.com" — no subdomain
+  if (first === 'www' || first === 'app') return null
+  return first
+}
+
 /**
  * Which school this page is for.
  *
  * In production each school has its own hostname, so the subdomain is the slug.
  * `?school=` overrides it, which is how previews and local development address a
  * school before any domain exists.
+ *
+ * That query only rides on the URL someone arrives at — router links drop it —
+ * so it is remembered for the tab. Without that, following a link and reloading
+ * the page lands on a site with no school. The hostname still wins when it names
+ * one, so a remembered preview can never show through on a real school's domain.
  */
 export function slugFromLocation(loc: Location = window.location): string | null {
   const override = new URLSearchParams(loc.search).get('school')
-  if (override) return override
-  const host = loc.hostname
-  // Bare hosts and IPs carry no school.
-  if (host === 'localhost' || /^[\d.]+$/.test(host)) return null
-  const [first, ...rest] = host.split('.')
-  if (rest.length < 2) return null            // "fluxathletics.com" — no subdomain
-  if (first === 'www' || first === 'app') return null
-  return first
+  if (override) {
+    try { sessionStorage.setItem(SCHOOL_KEY, override) } catch { /* private mode */ }
+    return override
+  }
+  const fromHost = slugFromHost(loc.hostname)
+  if (fromHost) return fromHost
+  try { return sessionStorage.getItem(SCHOOL_KEY) } catch { return null }
 }
 
 /** A logo's public URL. Files live at `<schoolId>/<assetId>` in the public bucket. */

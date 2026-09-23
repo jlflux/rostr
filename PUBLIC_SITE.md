@@ -130,10 +130,23 @@ fallback. Real domains are Phase D.
 
 **Getting to it from the staff app.** The globe in the top bar opens the public
 site for whichever school is on screen, and Settings → Public site shows the
-address. With nothing configured it points at `/fans.html` on the staff app's
-own origin, which the staff build ships beside itself — so the link works before
-the public site has a deployment of its own. Set `VITE_PUBLIC_SITE_URL` on the
-staff app's Vercel project once it does, and the link follows.
+address. With nothing configured it points at `/fans` on the staff app's own
+origin — the staff build ships the fan page beside itself, and `vercel.json`
+rewrites `/fans` and `/fans/*` to it — so the link works before the public site
+has a deployment of its own. Set `VITE_PUBLIC_SITE_URL` on the staff app's
+Vercel project once it does, and the link follows.
+
+The fan router reads its basename from the path, because it answers at `/` when
+deployed alone and under `/fans` when it rides along. And because router links
+drop the query string, a `?school=` override is remembered for the tab, so a
+deep link still resolves after a reload.
+
+**The school's logo** is `logoUrl` on the school record — a storage path, not an
+asset id — so it publishes to the fixed path `<orgId>/school`. A logo left in
+the asset library under "School Branding" is used when Settings has none, and
+publishes to the same path. `publicSchoolLogoPath()` in `src/lib/storage.ts`,
+`schoolLogo()` in `src/lib/derive.ts` and the `'logo'` case in
+`supabase/public-site.sql` all have to agree on this.
 
 `src/lib/publicSite.ts` derives the slug, and it has to stay identical to
 `public_site_slug()` in `supabase/public-site.sql` — including the fact that

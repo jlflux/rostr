@@ -1,7 +1,21 @@
 import type { Agreement, AppState, BroadcastCheckItem, CoachRequest, EventStatus, FulfillmentItem, Organization, Payment, PaymentStatus, PipelineStage, SponsorTier, SportEvent, Task, User } from '../types'
 import { addDays, todayISO, weekStart } from './dates'
+import { isStoredPath } from './storage'
 
 // ---------- Business/derived logic, kept out of display components ----------
+
+/**
+ * The school's logo, wherever it was uploaded.
+ *
+ * Settings → Branding sets `logoUrl`. A logo added to the asset library under
+ * "School Branding" is used when that hasn't been set, so a logo uploaded there
+ * shows up too rather than leaving the school's initials on screen.
+ */
+export function schoolLogo(s: AppState, org: Organization): string | undefined {
+  if (org.logoUrl) return org.logoUrl
+  return s.assets.find(a =>
+    a.orgId === org.id && a.type === 'School Branding' && isStoredPath(a.storagePath))?.storagePath
+}
 
 export function orgScoped<T extends { orgId: string }>(state: AppState, rows: T[]): T[] {
   return rows.filter(r => r.orgId === state.currentOrgId)
