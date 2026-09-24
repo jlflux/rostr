@@ -92,10 +92,16 @@ export async function syncPublicLogos(state: AppState, orgId: string): Promise<S
   for (const logo of publicLogosFor(state, orgId)) {
     const error = await copyToPublicBucket(logo.ref, logo.publicPath)
     if (!error) { result.copied++; continue }
+    if (/row-level security/i.test(error)) {
+      result.blocked = 'The public bucket exists, but no rule lets signed-in staff add files '
+        + 'to it. Run "Public bucket, step B" from STORAGE_SETUP.md in the Supabase SQL '
+        + 'editor, then publish again.'
+      return result
+    }
     if (isMissingBucket(error)) {
       result.blocked = 'The public bucket doesn\'t exist yet. In Supabase, go to '
         + 'Storage → New bucket, name it "public-assets", switch Public bucket on, '
-        + 'then publish again. STORAGE_SETUP.md has the access rules to run after.'
+        + 'then publish again. Then run "Public bucket, step B" from STORAGE_SETUP.md.'
       return result
     }
     result.failed.push({ label: logo.label, error })

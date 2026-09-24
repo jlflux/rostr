@@ -167,18 +167,27 @@ So the handful of images that appear publicly live in a second, **public** bucke
 Only logos go in it: the school logo, opponent logos, and sponsor logos. Athlete
 photos, team photos and documents stay in the private bucket.
 
-## Step 1 — Create it
+## Public bucket, step A — Create it
 
 Supabase dashboard → **Storage** → **New bucket**
 
 - Name: `public-assets`
 - Public bucket: **on** (this one is deliberately public)
 
-## Step 2 — Only the app may write to it
+## Public bucket, step B — Only the app may write to it
 
-Anyone may read; only signed-in staff may add or replace files.
+Anyone may read; only signed-in staff may add or replace files. Without this,
+**Publish logos** fails every file with *"new row violates row-level security
+policy"* — the bucket exists but nothing lets anyone put a file in it.
+
+Safe to run more than once.
 
 ```sql
+drop policy if exists "public assets are readable by anyone"      on storage.objects;
+drop policy if exists "signed-in staff can write public assets"   on storage.objects;
+drop policy if exists "signed-in staff can replace public assets" on storage.objects;
+drop policy if exists "signed-in staff can remove public assets"  on storage.objects;
+
 create policy "public assets are readable by anyone"
   on storage.objects for select
   using (bucket_id = 'public-assets');
@@ -196,14 +205,14 @@ create policy "signed-in staff can remove public assets"
   using (bucket_id = 'public-assets');
 ```
 
-## Step 3 — Copy the files across
+## Public bucket, step C — Copy the files across
 
 **Settings → Public site → Publish logos**, in the app. The database names where
 each logo will live but cannot move the file — storage is outside its reach — so
 this copies them. Do it after adding or changing a logo.
 
-If this reports **"Bucket not found"**, Step 1 hasn't been done in this project:
-create the `public-assets` bucket and try again.
+If this reports **"Bucket not found"**, step A hasn't been done in this project.
+If it reports **"new row violates row-level security policy"**, step B hasn't.
 
 ## How files are named
 
