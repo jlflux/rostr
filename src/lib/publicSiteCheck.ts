@@ -21,7 +21,14 @@ export interface CheckResult {
   fix?: string
 }
 
+/**
+ * The projection version this app expects — 'projectionVersion' in
+ * supabase/public-site.sql. Keep the two in step.
+ */
+const PROJECTION_VERSION = 4
+
 interface PublicData {
+  projectionVersion?: number
   school?: { logo?: string | null }
   news?: { id: string; title: string }[]
   opponents?: { name: string; logo?: string | null }[]
@@ -64,6 +71,20 @@ export async function checkPublicSite(state: AppState, org: Organization): Promi
   })
   out.push({ ok: true, label: `Public site is on — its data was last rebuilt ${rebuilt}` })
 
+  // ---- Which copy of public-site.sql built this ----
+  const version = data.projectionVersion ?? 0
+  if (version < PROJECTION_VERSION) {
+    out.push({
+      ok: false,
+      label: version
+        ? `The public data was built by an older copy of public-site.sql (version ${version}, current is ${PROJECTION_VERSION})`
+        : 'The public data was built by an older copy of public-site.sql',
+      fix: 'The Supabase SQL editor keeps earlier tabs, so re-running one runs the old version. Open a NEW query tab, '
+        + 'paste the whole current file from GitHub, and run it. The table at the end should show version '
+        + `${PROJECTION_VERSION} and a news column.`,
+    })
+  }
+
   // ---- News ----
   const today = todayISO()
   const live = (state.news ?? []).filter(n =>
@@ -71,7 +92,7 @@ export async function checkPublicSite(state: AppState, org: Organization): Promi
   if (!('news' in data)) {
     out.push({
       ok: false, label: "The public site can't receive news yet",
-      fix: 'Re-run supabase/public-site.sql in the Supabase SQL editor. Your posts are saved; the public copy just predates news.',
+      fix: 'Your posts are saved; the public copy just predates news. Running the current public-site.sql fixes it — see above.',
     })
   } else if (live.length) {
     const published = new Set((data.news ?? []).map(n => n.id))

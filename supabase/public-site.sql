@@ -114,6 +114,12 @@ logo as (
 )
 
 select jsonb_build_object(
+  -- Which copy of this file built the data. The app's site check compares it
+  -- with the version it expects, so running an old copy — easy to do, since
+  -- the SQL editor keeps earlier tabs — is reported as exactly that.
+  -- Bump it whenever this projection changes shape.
+  'projectionVersion', 4,
+
   -- Whether demo-generated scores count as real results, mirroring the app's
   -- own setting so a school never shows a fabricated record to the public.
   'showSampleResults', coalesce((src ->> 'showSampleResults')::boolean, true),
@@ -331,6 +337,7 @@ update public.workspaces set updated_at = updated_at where data -> 'orgs' -> 0 i
 -- this is deliberately a single one: counts on the left, then the privacy
 -- check, which reads "clean" when nothing private reached the projection.
 --
+--   version     must read 4 — anything else means an older copy of this file ran
 --   published   false until the school is switched on in section 6
 --   logo        the school's logo, or blank until one is uploaded
 --   samples     whether demo-generated scores count as results
@@ -338,6 +345,7 @@ update public.workspaces set updated_at = updated_at where data -> 'orgs' -> 0 i
 
 select org_id,
        slug,
+       data ->> 'projectionVersion'         as version,
        published,
        jsonb_array_length(data -> 'teams')  as teams,
        jsonb_array_length(data -> 'events') as events,
