@@ -391,11 +391,23 @@ a { color: inherit; text-decoration: none; }
 }
 .hh-school { display: flex; align-items: center; gap: 22px; }
 .hh-school .crest { box-shadow: 0 0 0 4px rgba(255,255,255,.15); }
-/* A logo on the dark hero sits on a white plate so its own dark parts don't
-   vanish into the background. Initials keep their colored circle, since white
-   letters on a white plate would vanish instead. */
-.hh-school .crest:has(img), .sp-match .crest:has(img), .nc-image.no-photo .crest:has(img),
-.sh-brand .crest:has(img), .sf-school .crest:has(img) { background: #fff !important; padding: 12%; }
+/* Logos get a backing chosen from the image itself (see src/lib/imageTone.ts):
+   a light logo on the school's dark color, a dark or colored one on white.
+   One rule everywhere — on white cards as on the navy header — because a white
+   logo vanishes on white just as a dark one vanishes on navy. */
+/* The logo's inset is sized against the circle itself. Not padding: a
+   percentage padding is measured against the SURROUNDING box, so in the wide
+   hero 12% came to 70px a side on a 141px circle and the logo had no room to
+   draw at all — a blank circle with a speck in the middle. */
+.crest.logo img { width: 78%; height: 78%; }
+.crest.logo.tone-opaque img { width: 92%; height: 92%; }
+.crest.logo.tone-dark, .crest.logo.tone-empty { background: #fff; }
+.crest.logo.tone-light { background: var(--fs-navy); }
+/* On the navy chrome a navy backing would melt into the bar; lift it with a ring. */
+.site-header .crest.logo.tone-light, .home-hero .crest.logo.tone-light,
+.site-foot .crest.logo.tone-light, .nc-image .crest.logo.tone-light {
+  box-shadow: 0 0 0 2px rgba(255,255,255,.35);
+}
 .hh-kicker {
   font-size: 0.75rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase;
   color: var(--fs-accent);

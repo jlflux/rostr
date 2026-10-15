@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { logoUrl, type PublicEvent, type PublicSite } from './api'
 import { fmtDate, fmtTime, opponentOf, teamOf, todayISO, visibleScore } from './format'
+import { analyzeLogo, type LogoInfo } from '../lib/imageTone'
 
 // Varsity down, the way a program is listed everywhere else.
 export const LEVEL_ORDER: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2, '8th Grade': 3, '7th Grade': 4 }
@@ -16,11 +17,30 @@ export function Crest({ src, initials, tint, size = 44 }: {
   const [failed, setFailed] = useState(false)
   const url = failed ? null : logoUrl(src)
   useEffect(() => setFailed(false), [src])
+
+  // The backing follows the logo: a white logo on navy, a dark one on white,
+  // and one with its own background filled out with its edge color.
+  const [info, setInfo] = useState<LogoInfo | null>(null)
+  useEffect(() => {
+    setInfo(null)
+    if (!url) return
+    let live = true
+    analyzeLogo(url).then(i => { if (live) setInfo(i) })
+    return () => { live = false }
+  }, [url])
+
+  if (!url) {
+    return (
+      <span className="crest" style={{ width: size, height: size, background: tint ?? 'var(--fs-navy)' }}>
+        <span style={{ fontSize: size * 0.36 }}>{initials}</span>
+      </span>
+    )
+  }
+  const tone = info?.tone ?? 'dark'
   return (
-    <span className="crest" style={{ width: size, height: size, background: url ? 'transparent' : (tint ?? 'var(--fs-navy)') }}>
-      {url
-        ? <img src={url} alt="" loading="lazy" onError={() => setFailed(true)} />
-        : <span style={{ fontSize: size * 0.36 }}>{initials}</span>}
+    <span className={`crest logo tone-${tone}`}
+      style={{ width: size, height: size, ...(tone === 'opaque' && info?.edge ? { background: info.edge } : {}) }}>
+      <img src={url} alt="" loading="lazy" onError={() => setFailed(true)} />
     </span>
   )
 }
