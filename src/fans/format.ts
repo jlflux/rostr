@@ -1,7 +1,15 @@
 import type { PublicEvent, PublicNews, PublicSite, PublicTeam } from './api'
 
 export const isPast = (e: PublicEvent, today: string) => e.date < today
-export const todayISO = () => new Date().toISOString().slice(0, 10)
+/**
+ * Today, where the person reading is — not in UTC. In UTC a 7 PM Friday kickoff
+ * in Alabama is already Saturday, so it would vanish from "this week" and "next
+ * up" in the very hours people look for it.
+ */
+export const todayISO = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 export function fmtDate(iso: string, opts: Intl.DateTimeFormatOptions = {}): string {
   const [y, m, d] = iso.split('-').map(Number)

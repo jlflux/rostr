@@ -106,6 +106,12 @@ function publicBucket(): string {
   return import.meta.env.VITE_PUBLIC_STORAGE_BUCKET || 'public-assets'
 }
 
+/** The address a fan's browser loads a public file from. */
+export function publicFileUrl(path: string): string | null {
+  const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/+$/, '')
+  return base ? `${base}/storage/v1/object/public/${publicBucket()}/${path}` : null
+}
+
 /** Where a logo lives publicly. Must match `supabase/public-site.sql`. */
 export function publicLogoPath(orgId: string, assetId: string): string {
   return `${orgId}/${assetId}`

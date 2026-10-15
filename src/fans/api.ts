@@ -90,9 +90,18 @@ export interface PublicSite {
 
 const SCHOOL_KEY = 'flux:fan-school'
 
+/**
+ * Hosting platforms that give every project an address of its own. Their first
+ * label is the project's name ("rostr-olive.vercel.app"), not a school, so it
+ * must never be read as one — doing that sent every page without ?school= to
+ * a school that doesn't exist.
+ */
+const PLATFORM_HOSTS = /\.(vercel\.app|netlify\.app|pages\.dev|github\.io|onrender\.com)$/i
+
 /** The school named on a hostname, or null for a host that names none. */
-function slugFromHost(host: string): string | null {
+export function slugFromHost(host: string): string | null {
   if (host === 'localhost' || /^[\d.]+$/.test(host)) return null   // bare hosts and IPs
+  if (PLATFORM_HOSTS.test(host)) return null
   const [first, ...rest] = host.split('.')
   if (rest.length < 2) return null            // "fluxathletics.com" — no subdomain
   if (first === 'www' || first === 'app') return null

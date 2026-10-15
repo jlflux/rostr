@@ -8,6 +8,7 @@ import { StoredImage } from '../components/StoredImage'
 import { isStoredPath, removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
 import { publicLogosFor, syncPublicLogos, type SyncResult } from '../lib/publicLogos'
 import { publicSiteUrl } from '../lib/publicSite'
+import { checkPublicSite, type CheckResult } from '../lib/publicSiteCheck'
 import { legacyFiles, migrateLegacyFiles } from '../lib/storageMigration'
 import type { Organization, Role, SocialLinks, SponsorTier, User } from '../types'
 
@@ -612,6 +613,8 @@ function PublicSiteCard() {
           {publicSiteUrl(org)} <I.external />
         </a>
       </p>
+      <PublicSiteCheck />
+
       <SocialAccounts />
 
       {/* Naming what will be copied, because the usual question when a logo
@@ -669,6 +672,42 @@ function PublicSiteCard() {
         </p>
       )}
     </Card>
+  )
+}
+
+/**
+ * "Is it actually on the public site?" answered from the public site itself,
+ * rather than from what this app believes it saved.
+ */
+function PublicSiteCheck() {
+  const { state } = useStore()
+  const org = currentOrg(state)
+  const [busy, setBusy] = useState(false)
+  const [results, setResults] = useState<CheckResult[] | null>(null)
+  const run = async () => {
+    setBusy(true)
+    try { setResults(await checkPublicSite(state, org)) }
+    finally { setBusy(false) }
+  }
+  return (
+    <div style={{ margin: '0 0 16px' }}>
+      <button className="btn sm" onClick={run} disabled={busy}>
+        {busy ? 'Checking…' : 'Check what the public site shows'}
+      </button>
+      {results && (
+        <ul className="site-check">
+          {results.map((r, i) => (
+            <li key={i} className={r.ok ? 'ok' : 'bad'}>
+              <span className="mark">{r.ok ? '✓' : '!'}</span>
+              <span>
+                {r.label}
+                {r.fix && <span className="tiny muted" style={{ display: 'block' }}>{r.fix}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 

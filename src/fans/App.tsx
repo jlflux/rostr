@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom'
-import { loadSite, logoUrl, slugFromLocation, type PublicSite } from './api'
+import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { loadSite, logoUrl, slugFromHost, slugFromLocation, type PublicSite } from './api'
 import {
   fmtDate, fmtTime, gradeRank, lastName, numRank, opponentOf, presentedBy, record,
   teamEvents, teamOf, todayISO, visibleNews, visibleScore,
@@ -406,6 +406,7 @@ export default function App() {
     <>
       <Header site={site} />
       <ScrollToTop />
+      <KeepSchoolInAddress slug={slug} />
       <main>
         <Routes>
           <Route path="/" element={<Home site={site} />} />
@@ -444,5 +445,25 @@ export default function App() {
 function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
+
+/**
+ * Until a school has its own domain, the school is named in the address
+ * (?school=homewood), and links inside the site would drop it. That breaks the
+ * one thing people do with a page they like: copy the address and send it.
+ * So whenever the address loses the school, it is put back — never on a
+ * school's own domain, where the hostname already says which school it is.
+ */
+function KeepSchoolInAddress({ slug }: { slug: string | null }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!slug || slugFromHost(window.location.hostname)) return
+    const params = new URLSearchParams(location.search)
+    if (params.get('school') === slug) return
+    params.set('school', slug)
+    navigate({ pathname: location.pathname, search: `?${params}` }, { replace: true })
+  }, [slug, location.pathname, location.search, navigate])
   return null
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useStore } from '../store/store'
 import { can, currentOrg, currentUser, defaultSeasonLabel, teams as allTeams } from '../lib/derive'
 import { fmtDate, todayISO } from '../lib/dates'
@@ -58,7 +59,8 @@ export default function NewsPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">News</h1>
-          <p className="page-sub">Posts for the front page of {org.shortName}'s public site. A post tied to a team shows on that team's page too.</p>
+          <p className="page-sub">Posts for the front page of {org.shortName}'s public site. A post tied to a team shows on that team's page too.
+            {' '}Not seeing a post? <Link to="/settings">Settings → Public site</Link> can check what the site is showing.</p>
         </div>
         {canPost && <button className="btn primary" onClick={() => setEditing('new')}><I.plus /> New post</button>}
       </div>
