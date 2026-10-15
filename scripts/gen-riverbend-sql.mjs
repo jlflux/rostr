@@ -23,7 +23,7 @@ const doc: any = {
   orgs: s.orgs.filter((o: any) => o.id === ORG),
 }
 for (const k of ['users','teams','events','opponents','sponsors','agreements',
-                 'benefitTemplates','tierSettings','requests','assets','tasks','activity'])
+                 'benefitTemplates','tierSettings','requests','assets','tasks','activity','news'])
   doc[k] = (s[k] ?? []).filter((r: any) => r.orgId === ORG)
 export const out = doc
 `)

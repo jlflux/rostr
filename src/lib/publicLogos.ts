@@ -10,8 +10,8 @@ import { copyToPublicBucket, isStoredPath, publicLogoPath, publicSchoolLogoPath 
  * that projection references, and nothing else.
  *
  * The two must agree on which images those are. Keep this list and the SQL in
- * step: school logo, each opponent's primary logo, and the logo of any sponsor
- * actually billed on a game. Anything else — athlete photos, team photos,
+ * step: school logo, each opponent's primary logo, the photo on each published
+ * news post, and the logo of any sponsor actually billed on a game. Anything else — athlete photos, team photos,
  * documents, an opponent's alternate logos — stays in the private bucket.
  */
 
@@ -54,6 +54,13 @@ export function publicLogosFor(state: AppState, orgId: string): PublicLogo[] {
     add(o.logoAssetId, o.name)
   }
 
+  // The photo on each published news post. A draft's photo stays private until
+  // the post goes out.
+  for (const n of state.news ?? []) {
+    if (n.orgId !== orgId || n.status !== 'published') continue
+    add(n.imageAssetId, `News: ${n.title}`)
+  }
+
   // Only sponsors actually named on a game reach the public site, so only their
   // logos are published. A pipeline prospect's logo stays private.
   const billed = new Set(
@@ -68,6 +75,18 @@ export function publicLogosFor(state: AppState, orgId: string): PublicLogo[] {
   }
 
   return out
+}
+
+/**
+ * Publish one news post's photo straight away, so posting doesn't also require
+ * a trip to Settings. Returns an error message, or null when there was nothing
+ * to do or it worked.
+ */
+export async function publishNewsImage(state: AppState, post: { orgId: string; imageAssetId?: string }): Promise<string | null> {
+  if (!post.imageAssetId) return null
+  const asset = state.assets.find(a => a.id === post.imageAssetId)
+  if (!asset || !isStoredPath(asset.storagePath)) return null
+  return copyToPublicBucket(asset.storagePath!, publicLogoPath(post.orgId, asset.id))
 }
 
 export interface SyncResult {

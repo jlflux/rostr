@@ -412,14 +412,14 @@ export function can(role: string, action: 'edit' | 'finance' | 'admin'): boolean
 
 export type Section =
   | 'dashboard' | 'calendar' | 'events' | 'opponents' | 'sponsors'
-  | 'teams' | 'requests' | 'assets' | 'reports' | 'settings'
+  | 'teams' | 'requests' | 'assets' | 'news' | 'reports' | 'settings'
   | 'platform'
 
 /** Sections a school can be given; 'platform' is the operator console, not a
  *  school feature, and 'dashboard'/'settings' are structural so can't be hidden. */
 export const SCHOOL_SECTIONS: Section[] = [
   'dashboard', 'calendar', 'events', 'opponents', 'sponsors',
-  'teams', 'requests', 'assets', 'reports', 'settings',
+  'teams', 'requests', 'assets', 'news', 'reports', 'settings',
 ]
 export const CONFIGURABLE_SECTIONS: Section[] = SCHOOL_SECTIONS.filter(
   s => s !== 'dashboard' && s !== 'settings',
@@ -429,7 +429,7 @@ export const CONFIGURABLE_SECTIONS: Section[] = SCHOOL_SECTIONS.filter(
 export const SECTION_LABELS: Record<Section, string> = {
   dashboard: 'Dashboard', calendar: 'Calendar', events: 'Events', opponents: 'Opponents',
   sponsors: 'Sponsors', teams: 'Teams', requests: 'Requests', assets: 'Assets',
-  reports: 'Reports', settings: 'Settings', platform: 'Platform',
+  news: 'News', reports: 'Reports', settings: 'Settings', platform: 'Platform',
 }
 
 /**

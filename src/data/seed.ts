@@ -674,5 +674,7 @@ export function buildSeedState(): AppState {
     assets: [...assets, ...rb.assets],
     tasks: [...buildTasks(events, demoToday), ...rb.tasks],
     activity,
+    // Homewood is a real school; its news is only ever what its staff write.
+    news: [...rb.news],
   }
 }

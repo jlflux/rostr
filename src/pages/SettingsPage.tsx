@@ -9,7 +9,7 @@ import { isStoredPath, removeFromStorage, storageEnabled, uploadToStorage } from
 import { publicLogosFor, syncPublicLogos, type SyncResult } from '../lib/publicLogos'
 import { publicSiteUrl } from '../lib/publicSite'
 import { legacyFiles, migrateLegacyFiles } from '../lib/storageMigration'
-import type { Organization, Role, SponsorTier, User } from '../types'
+import type { Organization, Role, SocialLinks, SponsorTier, User } from '../types'
 
 
 /** Visual styles offered in Settings → Appearance. Typography and spacing only —
@@ -596,14 +596,14 @@ function PublicSiteCard() {
     if (r.blocked) toast('Nothing could be published — see below', 'error')
     else toast(r.failed.length
       ? `${r.copied} published, ${r.failed.length} failed`
-      : `${r.copied} logo${r.copied === 1 ? '' : 's'} published`,
+      : `${r.copied} image${r.copied === 1 ? '' : 's'} published`,
       r.failed.length ? 'error' : 'success')
   }
 
   return (
     <Card title="Public site">
       <p className="small muted" style={{ marginTop: 0 }}>
-        Schedules, scores and rosters reach the public site on their own. Logos are files,
+        Schedules, scores, rosters and news reach the public site on their own. Images are files,
         so they have to be copied across — do this after adding or changing one.
       </p>
       <p className="small" style={{ marginBottom: 10 }}>
@@ -612,10 +612,12 @@ function PublicSiteCard() {
           {publicSiteUrl(org)} <I.external />
         </a>
       </p>
+      <SocialAccounts />
+
       {/* Naming what will be copied, because the usual question when a logo
           doesn't appear publicly is whether it was ever in this list. */}
       <p className="small" style={{ marginBottom: 6 }}>
-        <strong>{logos.length}</strong> logo{logos.length === 1 ? '' : 's'} to publish
+        <strong>{logos.length}</strong> image{logos.length === 1 ? '' : 's'} to publish
         {logos.length > 0 && ':'}
       </p>
       {logos.length > 0 && (
@@ -650,7 +652,7 @@ function PublicSiteCard() {
         </div>
       )}
       <button className="btn primary" disabled={busy || logos.length === 0} onClick={sync}>
-        {busy ? 'Publishing…' : 'Publish logos'}
+        {busy ? 'Publishing…' : 'Publish images'}
       </button>
       {result?.blocked && (
         <p className="small" style={{ color: 'var(--danger)', marginBottom: 0 }}>{result.blocked}</p>
@@ -667,6 +669,51 @@ function PublicSiteCard() {
         </p>
       )}
     </Card>
+  )
+}
+
+const SOCIAL_FIELDS: { key: keyof SocialLinks; label: string; placeholder: string }[] = [
+  { key: 'instagram', label: 'Instagram', placeholder: '@homewoodathletics' },
+  { key: 'x', label: 'X (Twitter)', placeholder: '@HHSPatriots' },
+  { key: 'facebook', label: 'Facebook', placeholder: 'facebook.com/…' },
+  { key: 'youtube', label: 'YouTube', placeholder: '@channel' },
+  { key: 'tiktok', label: 'TikTok', placeholder: '@account' },
+]
+
+/**
+ * The school's social accounts, linked from the public site's header and
+ * footer. Saved as typed — a handle or a full link — and turned into the right
+ * link on the public site, so nobody has to know which form is wanted.
+ */
+function SocialAccounts() {
+  const { state, update } = useStore()
+  const org = currentOrg(state)
+  const [form, setForm] = useState<SocialLinks>(() => ({ ...(org.socials ?? {}) }))
+  const save = () => {
+    const clean: SocialLinks = {}
+    for (const f of SOCIAL_FIELDS) {
+      const v = form[f.key]?.trim()
+      if (v) clean[f.key] = v
+    }
+    update('orgs', org.id, { socials: clean })
+  }
+  return (
+    <div style={{ margin: '4px 0 16px' }}>
+      <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Social accounts</div>
+      <div className="grid grid-2" style={{ gap: 8 }}>
+        {SOCIAL_FIELDS.map(f => (
+          <label key={f.key} className="small" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span className="tiny muted">{f.label}</span>
+            <input className="input" value={form[f.key] ?? ''} placeholder={f.placeholder}
+              onChange={e => setForm(v => ({ ...v, [f.key]: e.target.value }))}
+              onBlur={save} />
+          </label>
+        ))}
+      </div>
+      <p className="tiny muted" style={{ marginBottom: 0 }}>
+        A handle or a full link both work. Team accounts are set on each team's page.
+      </p>
+    </div>
   )
 }
 

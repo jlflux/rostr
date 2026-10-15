@@ -643,3 +643,16 @@ tr.row-selected > td { background: var(--info-bg); }
   }
   .gsearch.mobile-open input { background: var(--surface); padding-right: 40px; height: 42px; }
 }
+
+/* ---------- news (admin) ---------- */
+.news-admin-list { display: flex; flex-direction: column; }
+.news-admin-row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.news-admin-row:last-child { border-bottom: 0; }
+.news-admin-thumb {
+  width: 88px; height: 56px; border-radius: 8px; overflow: hidden; flex-shrink: 0;
+  background: var(--surface-2); display: grid; place-items: center; font-size: 1.3rem;
+}
+@media (max-width: 640px) {
+  .news-admin-row { flex-wrap: wrap; }
+  .news-admin-thumb { width: 64px; height: 44px; }
+}

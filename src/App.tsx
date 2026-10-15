@@ -15,6 +15,7 @@ import OpponentsPage from './pages/OpponentsPage'
 import RequestsPage, { RequestDetail } from './pages/RequestsPage'
 import AssetsPage from './pages/AssetsPage'
 import ReportsPage from './pages/ReportsPage'
+import NewsPage from './pages/NewsPage'
 import SettingsPage from './pages/SettingsPage'
 import PlatformPage from './pages/PlatformPage'
 
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/requests" element={<Guard section="requests"><RequestsPage /></Guard>} />
             <Route path="/requests/:id" element={<Guard section="requests"><RequestDetail /></Guard>} />
             <Route path="/assets" element={<Guard section="assets"><AssetsPage /></Guard>} />
+            <Route path="/news" element={<Guard section="news"><NewsPage /></Guard>} />
             <Route path="/reports" element={<Guard section="reports"><ReportsPage /></Guard>} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/platform" element={<Guard section="platform"><PlatformPage /></Guard>} />

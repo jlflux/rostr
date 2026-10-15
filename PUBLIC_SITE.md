@@ -178,3 +178,33 @@ number, name, grade and position — the projection never sends anything else.
   published = true where org_id = '…'`). Worth a control in the app once there
   is more than one school to manage.
 - **Social embeds and a sponsor wall** — Phase E.
+
+
+## The site, as a website — status
+
+**Done:** a real front page and navigation, news, and social accounts.
+
+- **Header.** The school's crest and name, Home / Schedule / Teams / News, and
+  the school's social accounts. **Teams** opens a panel of every program by
+  season, each with its levels (Varsity · JV · Freshman) one tap away. On a
+  phone it all folds into one menu button. A sport's gender is only named when
+  the school fields both, so it reads "Football" but "Basketball · Girls".
+- **Front page.** A hero in the school's colors with the next game given room
+  (tickets and stream buttons when the game has them); this week's games a day
+  at a time; the latest news, pinned post first; the latest results; and a
+  follow band. On a phone, this week comes before the news.
+- **News.** Written in the app under **News** by administrators and the
+  communications role. Drafts never leave the app; a post dated ahead goes live
+  on its date. A post tied to a team also shows on that team's page. Its photo
+  is published as it's saved.
+- **Social accounts.** The school's in **Settings → Public site**, each team's on
+  its team page. A handle or a full link both work.
+
+What the projection sends for a post: title, teaser, story, team, date, pin and
+photo path. Never the author, and never a draft. The privacy check now matches
+field names rather than bare words, so a post that mentions "parents and
+guardians" can't raise a false alarm.
+
+**To turn it on:** re-run `supabase/public-site.sql`. To give the Riverbend demo
+its news and social accounts, re-run `supabase/riverbend-demo.sql` too — that
+replaces the demo school's data with a fresh copy.

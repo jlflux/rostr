@@ -19,6 +19,7 @@ export const PLATFORM_ROW_ID = '__platform__'
 export const ORG_COLLECTIONS = [
   'users', 'teams', 'events', 'opponents', 'sponsors', 'agreements',
   'benefitTemplates', 'tierSettings', 'requests', 'assets', 'tasks', 'activity',
+  'news',
 ] as const
 
 type OrgCollection = (typeof ORG_COLLECTIONS)[number]

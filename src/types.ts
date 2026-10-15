@@ -39,6 +39,47 @@ export interface Organization {
   logoUrl?: string
   /** Platform-owner configuration for this school. */
   config?: OrgConfig
+  /** The school's athletics social accounts, shown on the public site. */
+  socials?: SocialLinks
+}
+
+/**
+ * Social accounts, each a handle ("@homewoodpatriots") or a full link. The
+ * public site turns a handle into the right link for its network.
+ */
+export interface SocialLinks {
+  instagram?: string
+  x?: string
+  facebook?: string
+  youtube?: string
+  tiktok?: string
+}
+
+/**
+ * A news post for the public site's front page.
+ *
+ * Drafts never leave the app. A published post dated in the future stays off
+ * the public site until that date.
+ */
+export interface NewsPost {
+  id: string
+  orgId: string
+  title: string
+  /** Optional teaser for the front page; otherwise the start of the body is used. */
+  summary?: string
+  body: string
+  /** An image from the asset library, shown above the post. */
+  imageAssetId?: string
+  /** Ties the post to one team, so it also appears on that team's page. */
+  teamId?: string
+  status: 'draft' | 'published'
+  /** YYYY-MM-DD — the date shown on the post, and when it goes live. */
+  publishedAt: string
+  /** Kept at the top of the front page regardless of date. */
+  pinned?: boolean
+  authorId: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface User {
@@ -387,6 +428,7 @@ export type AssetType =
   | 'Sponsor Logo'
   | 'Athlete Headshot'
   | 'Team Photo'
+  | 'News Photo'
   | 'Social Template'
   | 'Video-board Ad'
   | 'Broadcast Commercial'
@@ -484,6 +526,7 @@ export interface AppState {
   assets: Asset[]
   tasks: Task[]
   activity: Activity[]
+  news: NewsPost[]
 }
 
 export type Collection =
@@ -500,3 +543,4 @@ export type Collection =
   | 'assets'
   | 'tasks'
   | 'activity'
+  | 'news'

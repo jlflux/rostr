@@ -23,8 +23,8 @@ export function publicSiteSlug(org: Organization): string {
  * `?school=` is carried either way: on a per-school domain it names the school
  * already showing, so it stays correct rather than becoming redundant.
  */
-export function publicSiteUrl(org: Organization, origin = window.location.origin): string {
+export function publicSiteUrl(org: Organization, origin = window.location.origin, path = ''): string {
   const configured = (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.replace(/\/+$/, '')
   const root = configured || `${origin}/fans`
-  return `${root}?school=${encodeURIComponent(publicSiteSlug(org))}`
+  return `${root}${path}?school=${encodeURIComponent(publicSiteSlug(org))}`
 }

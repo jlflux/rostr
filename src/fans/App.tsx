@@ -1,99 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Route, Routes, useParams, useSearchParams } from 'react-router-dom'
-import { loadSite, logoUrl, slugFromLocation, type PublicEvent, type PublicSite } from './api'
+import { Link, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { loadSite, logoUrl, slugFromLocation, type PublicSite } from './api'
 import {
   fmtDate, fmtTime, gradeRank, lastName, numRank, opponentOf, presentedBy, record,
-  results, teamEvents, teamOf, todayISO, upcoming, visibleScore,
+  teamEvents, teamOf, todayISO, visibleNews, visibleScore,
 } from './format'
+import { Header } from './Header'
+import { Home } from './Home'
+import { Article, NewsCard, NewsIndex } from './News'
+import { SocialRow } from './social'
+import { Crest, GameCard, LEVEL_ORDER } from './ui'
 
 const env = import.meta.env as Record<string, string | undefined>
 
-// Varsity down, the way a program is listed everywhere else.
-const LEVEL_ORDER: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2, '8th Grade': 3, '7th Grade': 4 }
-
-// ---------- shared bits ----------
-
-function Crest({ src, initials, tint, size = 44 }: {
-  src: string | null; initials: string; tint?: string; size?: number
-}) {
-  // A school may have no logo yet, and a logo may not have been copied into the
-  // public bucket. Either way fall back to initials rather than an empty hole.
-  const [failed, setFailed] = useState(false)
-  const url = failed ? null : logoUrl(src)
-  useEffect(() => setFailed(false), [src])
-  return (
-    <span className="crest" style={{ width: size, height: size, background: url ? 'transparent' : (tint ?? 'var(--fs-navy)') }}>
-      {url
-        ? <img src={url} alt="" loading="lazy" onError={() => setFailed(true)} />
-        : <span style={{ fontSize: size * 0.36 }}>{initials}</span>}
-    </span>
-  )
-}
-
-/** One game, as it appears in any list. */
-function GameCard({ site, e }: { site: PublicSite; e: PublicEvent }) {
-  const opp = opponentOf(site, e)
-  const team = teamOf(site, e)
-  const home = e.homeAway === 'home'
-  const score = visibleScore(site, e)
-  return (
-    <Link to={`/game/${e.id}`} className="game-card">
-      <span className="gc-date">
-        <strong>{fmtDate(e.date)}</strong>
-        <span>{fmtTime(e.time)}</span>
-      </span>
-      <Crest src={opp?.logo ?? null} initials={(opp?.name ?? e.opponent).slice(0, 2).toUpperCase()} tint={opp?.tint} size={36} />
-      <span className="gc-main">
-        <span className="gc-match">{home ? 'vs' : 'at'} {e.opponent}</span>
-        <span className="gc-sub">{team?.name ?? `${e.level} ${e.sport}`}{e.venue ? ` · ${e.venue}` : ''}</span>
-      </span>
-      <span className="gc-right">
-        {score
-          ? <span className={`gc-score ${score.result === 'W' ? 'win' : score.result === 'L' ? 'loss' : ''}`}>
-              {score.result} {score.us}–{score.them}
-            </span>
-          : <>
-              {e.designation && <span className="tag">{e.designation}</span>}
-              {/* Home/away is about going to the game, so it drops off once the
-                  game has been played and no score has been posted. */}
-              {e.date >= todayISO() &&
-                <span className={`ha ${home ? 'home' : ''}`}>{home ? 'HOME' : 'AWAY'}</span>}
-            </>}
-      </span>
-    </Link>
-  )
-}
-
 // ---------- pages ----------
-
-function Home({ site }: { site: PublicSite }) {
-  const next = upcoming(site, 6)
-  const recent = results(site, 6)
-  return (
-    <>
-      <section className="hero">
-        <Crest src={site.school.logo} initials={site.school.initials} size={72} />
-        <div>
-          <h1>{site.school.name}</h1>
-          <p>{site.school.mascot} · {site.school.city}, {site.school.state}</p>
-        </div>
-      </section>
-
-      <h2 className="section-title">Next up</h2>
-      {next.length === 0
-        ? <p className="empty">No upcoming games on the schedule.</p>
-        : <div className="list">{next.map(e => <GameCard key={e.id} site={site} e={e} />)}</div>}
-      <p className="more"><Link to="/schedule">Full schedule →</Link></p>
-
-      {recent.length > 0 && (
-        <>
-          <h2 className="section-title">Recent results</h2>
-          <div className="list">{recent.map(e => <GameCard key={e.id} site={site} e={e} />)}</div>
-        </>
-      )}
-    </>
-  )
-}
 
 function Schedule({ site }: { site: PublicSite }) {
   const [params, setParams] = useSearchParams()
@@ -293,6 +213,8 @@ function TeamPage({ site }: { site: PublicSite }) {
   // Numbers first, the way a program lists itself. Names sort on the surname.
   const [sort, setSort] = useState<RosterSort>({ col: 'number', dir: 'asc' })
   const team = site.teams.find(t => t.id === id)
+  // Moving between levels keeps this page mounted; start each team fresh.
+  useEffect(() => { setTab(null) }, [id])
 
   const games = useMemo(() => (team ? teamEvents(site, team.id) : []), [site, team])
 
@@ -336,6 +258,8 @@ function TeamPage({ site }: { site: PublicSite }) {
 
   if (!team) return <p className="empty">That team isn't listed.</p>
 
+  const teamNews = visibleNews(site, { teamId: team.id, limit: 3 })
+
   // Land on whichever list has something in it: mid-season that's the schedule,
   // after the last game it's the results.
   const active = tab ?? (scheduled.length || !played.length ? 'schedule' : 'results')
@@ -353,6 +277,7 @@ function TeamPage({ site }: { site: PublicSite }) {
             {team.seasonLabel}
             {team.postseasonFinish ? ` \u00b7 ${team.postseasonFinish}` : ''}
           </p>
+          <SocialRow socials={team.socials} className="team-social" label={team.name} />
         </div>
         {overall.played > 0 && (
           <div className="record">
@@ -424,6 +349,15 @@ function TeamPage({ site }: { site: PublicSite }) {
               </tbody>
             </table>
           </div>)}
+
+      {/* After the schedule and roster, which are what people open a team page
+          for; news is the extra. */}
+      {teamNews.length > 0 && (
+        <section className="team-news">
+          <h2 className="section-title">{team.name} news</h2>
+          <div className="news-list">{teamNews.map(n => <NewsCard key={n.id} site={site} n={n} />)}</div>
+        </section>
+      )}
     </>
   )
 
@@ -470,31 +404,45 @@ export default function App() {
 
   return (
     <>
-      <header className="topbar">
-        <Link to="/" className="brand">
-          <Crest src={site.school.logo} initials={site.school.initials} size={34} />
-          <span>{site.school.shortName} Athletics</span>
-        </Link>
-        <nav>
-          <Link to="/">Home</Link>
-          <Link to="/schedule">Schedule</Link>
-          <Link to="/teams">Teams</Link>
-        </nav>
-      </header>
-      <main className="wrap">
+      <Header site={site} />
+      <ScrollToTop />
+      <main>
         <Routes>
           <Route path="/" element={<Home site={site} />} />
-          <Route path="/schedule" element={<Schedule site={site} />} />
-          <Route path="/teams" element={<Teams site={site} />} />
-          <Route path="/team/:id" element={<TeamPage site={site} />} />
-          <Route path="/game/:id" element={<Game site={site} />} />
-          <Route path="*" element={<p className="empty">Page not found.</p>} />
+          <Route path="/schedule" element={<div className="wrap"><Schedule site={site} /></div>} />
+          <Route path="/teams" element={<div className="wrap"><Teams site={site} /></div>} />
+          <Route path="/team/:id" element={<div className="wrap"><TeamPage site={site} /></div>} />
+          <Route path="/game/:id" element={<div className="wrap"><Game site={site} /></div>} />
+          <Route path="/news" element={<NewsIndex site={site} />} />
+          <Route path="/news/:id" element={<Article site={site} />} />
+          <Route path="*" element={<div className="wrap"><p className="empty">Page not found.</p></div>} />
         </Routes>
       </main>
-      <footer className="foot">
-        <span>{site.school.name}</span>
-        <span>Powered by Flux Athletics</span>
+      <footer className="site-foot">
+        <div className="sf-inner">
+          <div className="sf-school">
+            <Crest src={site.school.logo} initials={site.school.initials} size={40} />
+            <div>
+              <strong>{site.school.name}</strong>
+              <span>{site.school.city}, {site.school.state}</span>
+            </div>
+          </div>
+          <nav className="sf-links" aria-label="Footer">
+            <Link to="/schedule">Schedule</Link>
+            <Link to="/teams">Teams</Link>
+            {site.news.length > 0 && <Link to="/news">News</Link>}
+          </nav>
+          <SocialRow socials={site.school.socials} className="sf-social" label={site.school.shortName} />
+        </div>
+        <div className="sf-power">Powered by Flux Athletics</div>
       </footer>
     </>
   )
+}
+
+/** A new page starts at the top, the way a website is expected to behave. */
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
 }

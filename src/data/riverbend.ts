@@ -8,7 +8,7 @@
  * and a year-round schedule covering all three seasons instead of one fall.
  */
 import type {
-  Agreement, Asset, Athlete, BenefitTemplate, CoachRequest, FulfillmentItem, Opponent,
+  Agreement, Asset, Athlete, BenefitTemplate, CoachRequest, FulfillmentItem, NewsPost, Opponent,
   Organization, Sponsor, SportEvent, StaffRole, StaffSlot, Task, Team, TierSetting, User,
 } from '../types'
 
@@ -31,6 +31,14 @@ export const riverbendOrg: Organization = {
   state: 'TN',
   initials: 'RA',
   theme: { primary: '#0e7a5f', navy: '#122b3c', accent: '#c46a1f' },
+  // Deliberately implausible handles: the demo links to real networks, so these
+  // must not land on someone's actual account.
+  socials: {
+    instagram: 'riverbend.demo.athletics',
+    x: 'RiverbendDemoAth',
+    facebook: 'riverbend.demo.athletics',
+    youtube: '@RiverbendDemoAthletics',
+  },
 }
 
 // ---------- Staff ----------
@@ -596,6 +604,40 @@ export const riverbendAssets: Asset[] = [
 ]
 
 /** Everything Riverbend, ready to merge into the app state. */
+// ---------- News ----------
+
+/** Front-page posts, dated relative to today so the demo always looks current. */
+export function buildRiverbendNews(today: string): NewsPost[] {
+  const at = (n: number) => addDays(today, n)
+  const post = (id: string, days: number, p: Omit<NewsPost, 'id' | 'orgId' | 'status' | 'publishedAt' | 'authorId' | 'createdAt' | 'updatedAt'>): NewsPost => ({
+    id: `rb-news-${id}`, orgId: ORG, status: 'published', publishedAt: at(days),
+    authorId: 'rb-u-comms', createdAt: `${at(days)}T09:00:00`, updatedAt: `${at(days)}T09:00:00`, ...p,
+  })
+  return [
+    post('homecoming', -1, {
+      pinned: true,
+      title: 'Homecoming week: everything you need to know',
+      summary: 'Spirit days, the parade route, and parking for Friday night at Osprey Field.',
+      body: 'Homecoming week kicks off Monday with spirit days all week long. Monday is pajama day, Tuesday is decades day, Wednesday is jersey day, and Thursday is class color day.\n\nThe parade leaves the academy circle at 4:30 PM Friday and ends at Osprey Field. Gates open at 5:30 PM, and the homecoming court will be presented at halftime.\n\nParking in the main lot fills early. Overflow parking is available at the riverside lot, with a shuttle running every ten minutes from 5:00 PM.',
+    }),
+    post('xc-invite', -3, {
+      teamId: 'rb-t-cross-country-girls-varsity',
+      title: 'Girls cross country takes second at the Lookout Invitational',
+      body: 'The Ospreys placed four runners in the top twenty on a muddy course Saturday, finishing second of fourteen teams. Senior captain led the way with a season-best time, and two freshmen ran personal records in their first varsity invitational.\n\nThe team runs next at the regional preview meet in two weeks.',
+    }),
+    post('season-passes', -6, {
+      title: 'Fall season passes are on sale',
+      summary: 'One pass covers every home football, volleyball and soccer game this fall.',
+      body: 'Season passes for the fall are on sale now through the athletics office and online. A family pass covers up to four people at every regular-season home event.\n\nPasses do not cover postseason games, which are ticketed by the state association.',
+    }),
+    post('vb-dig-pink', -9, {
+      teamId: 'rb-t-volleyball-girls-varsity',
+      title: 'Volleyball hosts Dig Pink night next week',
+      body: 'Wear pink and join us in the main gym as the Ospreys raise money for breast cancer research. Concessions proceeds from the night go to the cause, and there will be a serve-a-thon between sets.',
+    }),
+  ]
+}
+
 export function buildRiverbend(today: string) {
   const events = dressUpEvents(buildRiverbendEvents(today), today)
   const teams = riverbendTeams.map(t => ({ ...t, roster: buildRoster(t) }))
@@ -612,5 +654,6 @@ export function buildRiverbend(today: string) {
     requests: RB_REQUESTS,
     assets: riverbendAssets,
     tasks: buildRiverbendTasks(events, today),
+    news: buildRiverbendNews(today),
   }
 }

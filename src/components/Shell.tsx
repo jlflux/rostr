@@ -254,6 +254,7 @@ const NAV: NavItem[] = [
   { to: '/teams', label: 'Teams', icon: I.team, section: 'teams' },
   { to: '/requests', label: 'Requests', icon: I.request, section: 'requests' },
   { to: '/assets', label: 'Assets', icon: I.asset, section: 'assets' },
+  { to: '/news', label: 'News', icon: I.news, section: 'news' },
   { to: '/reports', label: 'Reports', icon: I.report, section: 'reports' },
   { to: '/settings', label: 'Settings', icon: I.settings, section: 'settings' },
   { to: '/platform', label: 'Platform', icon: I.sponsor, section: 'platform' },

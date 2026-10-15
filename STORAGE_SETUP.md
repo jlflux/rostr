@@ -177,7 +177,7 @@ Supabase dashboard → **Storage** → **New bucket**
 ## Public bucket, step B — Only the app may write to it
 
 Anyone may read; only signed-in staff may add or replace files. Without this,
-**Publish logos** fails every file with *"new row violates row-level security
+**Publish images** fails every file with *"new row violates row-level security
 policy"* — the bucket exists but nothing lets anyone put a file in it.
 
 Safe to run more than once.
@@ -207,7 +207,7 @@ create policy "signed-in staff can remove public assets"
 
 ## Public bucket, step C — Copy the files across
 
-**Settings → Public site → Publish logos**, in the app. The database names where
+**Settings → Public site → Publish images**, in the app. The database names where
 each logo will live but cannot move the file — storage is outside its reach — so
 this copies them. Do it after adding or changing a logo.
 

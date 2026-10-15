@@ -1,4 +1,4 @@
-import type { PublicEvent, PublicSite, PublicTeam } from './api'
+import type { PublicEvent, PublicNews, PublicSite, PublicTeam } from './api'
 
 export const isPast = (e: PublicEvent, today: string) => e.date < today
 export const todayISO = () => new Date().toISOString().slice(0, 10)
@@ -102,4 +102,102 @@ export function results(site: PublicSite, limit?: number): PublicEvent[] {
 export function presentedBy(site: PublicSite, e: PublicEvent) {
   const act = e.sponsors.find(s => /present/i.test(s.activation))
   return act ? site.sponsors.find(s => s.id === act.sponsorId) ?? null : null
+}
+
+// ---------- news ----------
+
+/**
+ * Posts a fan should see: pinned first, then newest. A post dated after today
+ * is held back — the public data is only rebuilt when something changes, so
+ * the site itself has to notice the day a scheduled post goes live.
+ */
+export function visibleNews(site: PublicSite, opts: { teamId?: string; limit?: number } = {}): PublicNews[] {
+  const t = todayISO()
+  const list = site.news
+    .filter(n => n.publishedAt <= t && (!opts.teamId || n.teamId === opts.teamId))
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.publishedAt.localeCompare(a.publishedAt))
+  return opts.limit ? list.slice(0, opts.limit) : list
+}
+
+/** The front-page teaser: the post's own summary, or the start of the story. */
+export function excerpt(n: PublicNews, max = 170): string {
+  if (n.summary?.trim()) return n.summary.trim()
+  const flat = n.body.replace(/\s+/g, ' ').trim()
+  if (flat.length <= max) return flat
+  const cut = flat.slice(0, max)
+  return cut.slice(0, cut.lastIndexOf(' ') > 80 ? cut.lastIndexOf(' ') : max).replace(/[,.;:]$/, '') + '…'
+}
+
+/** A story as paragraphs: a blank line starts a new one. */
+export const paragraphs = (body: string) =>
+  body.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
+
+// ---------- this week ----------
+
+const addDaysISO = (iso: string, n: number) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y, m - 1, d + n)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+/** The next `days` days of games, grouped by date, soonest first. */
+export function thisWeek(site: PublicSite, days = 7): { date: string; games: PublicEvent[] }[] {
+  const from = todayISO()
+  const to = addDaysISO(from, days - 1)
+  const games = site.events
+    .filter(e => e.date >= from && e.date <= to && e.status !== 'canceled')
+    .sort(byDate)
+  const out: { date: string; games: PublicEvent[] }[] = []
+  for (const e of games) {
+    const last = out[out.length - 1]
+    if (last?.date === e.date) last.games.push(e)
+    else out.push({ date: e.date, games: [e] })
+  }
+  return out
+}
+
+// ---------- teams, as a school lists them ----------
+
+export const SEASONS = ['Fall', 'Winter', 'Spring'] as const
+const LEVELS: Record<string, number> = { Varsity: 0, JV: 1, Freshman: 2, '8th Grade': 3, '7th Grade': 4 }
+const GENDERS: Record<string, number> = { Boys: 0, Girls: 1, Coed: 2 }
+
+export interface Program {
+  key: string
+  /** "Basketball · Girls", or just "Football" when there is only one. */
+  label: string
+  teams: PublicTeam[]
+}
+
+/**
+ * Teams grouped the way a school talks about them: by season, then by program
+ * (sport and gender), with each program's levels varsity down.
+ */
+export function programsBySeason(site: PublicSite): { season: string; programs: Program[] }[] {
+  const genderedSports = new Set<string>()
+  const seen = new Map<string, Set<string>>()
+  for (const t of site.teams) {
+    const g = seen.get(t.sport) ?? new Set<string>()
+    g.add(t.gender ?? '')
+    seen.set(t.sport, g)
+  }
+  // Only worth saying "Boys" or "Girls" when the school fields both — a lone
+  // football or softball program is just "Football" or "Softball".
+  for (const [sport, gs] of seen) if (gs.size > 1) genderedSports.add(sport)
+
+  return SEASONS.map(season => {
+    const by = new Map<string, Program>()
+    for (const t of site.teams.filter(t => t.season === season)) {
+      const key = `${t.sport}::${t.gender ?? ''}`
+      const showGender = genderedSports.has(t.sport) && t.gender && t.gender !== 'Coed'
+      const p = by.get(key) ?? { key, label: showGender ? `${t.sport} · ${t.gender}` : t.sport, teams: [] }
+      p.teams.push(t)
+      by.set(key, p)
+    }
+    const programs = [...by.values()]
+      .map(p => ({ ...p, teams: p.teams.sort((a, b) => (LEVELS[a.level] ?? 9) - (LEVELS[b.level] ?? 9)) }))
+      .sort((a, b) => a.label.localeCompare(b.label)
+        || (GENDERS[a.teams[0].gender ?? ''] ?? 9) - (GENDERS[b.teams[0].gender ?? ''] ?? 9))
+    return { season, programs }
+  }).filter(s => s.programs.length > 0)
 }

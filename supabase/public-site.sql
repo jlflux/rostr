@@ -78,6 +78,7 @@ $$;
 --   events    - staffSlots, runOfShow, broadcastChecklist, checkoutTime, notes
 --   moments   - ownerId and notes (only the title and timing go out)
 --   athletes  - phone, email, medicalNotes, guardians
+--   news      - drafts entirely; the author of every post
 --   entirely  - users, requests, tasks, activity, agreements, tier settings,
 --               benefit templates, and any sponsor not actually appearing on a
 --               game (a pipeline prospect must not become public knowledge)
@@ -127,6 +128,7 @@ select jsonb_build_object(
       'state',     o ->> 'state',
       'initials',  o ->> 'initials',
       'theme',     o -> 'theme',
+      'socials',   o -> 'socials',
       -- The school's own logo is a storage path on the school record, not an
       -- asset id, so it gets a fixed public name. `publicSchoolLogoPath()` in
       -- src/lib/storage.ts copies the file to exactly this path.
@@ -157,6 +159,7 @@ select jsonb_build_object(
       'season',      t ->> 'season',
       'seasonLabel', t ->> 'seasonLabel',
       'postseasonFinish', t ->> 'postseasonFinish',
+      'socials',     t -> 'socials',
       -- Roster: playing details only. An athlete flagged hidePublic is omitted.
       'roster', coalesce((
         select jsonb_agg(jsonb_build_object(
@@ -214,6 +217,25 @@ select jsonb_build_object(
         from jsonb_array_elements(coalesce(e -> 'sponsorActivations', '[]'::jsonb)) a
       ), '[]'::jsonb)))
     from ev
+  ), '[]'::jsonb),
+
+  -- News: published posts only. Drafts and the author never leave the app. A
+  -- post dated in the future is included and held back by the site until its
+  -- date, because this projection is only rebuilt when something changes and
+  -- would otherwise miss the day it goes live.
+  'news', coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'id',          n ->> 'id',
+      'title',       n ->> 'title',
+      'summary',     n ->> 'summary',
+      'body',        n ->> 'body',
+      'teamId',      n ->> 'teamId',
+      'publishedAt', n ->> 'publishedAt',
+      'pinned',      coalesce((n ->> 'pinned')::boolean, false),
+      'image',       (select path from logo where asset_id = n ->> 'imageAssetId'))
+      order by n ->> 'publishedAt' desc)
+    from jsonb_array_elements(coalesce(src -> 'news', '[]'::jsonb)) n
+    where n ->> 'status' = 'published'
   ), '[]'::jsonb),
 
   'opponents', coalesce((
@@ -319,15 +341,20 @@ select org_id,
        published,
        jsonb_array_length(data -> 'teams')  as teams,
        jsonb_array_length(data -> 'events') as events,
+       jsonb_array_length(coalesce(data -> 'news', '[]'::jsonb)) as news,
        data -> 'school' ->> 'logo'          as logo,
        data ->> 'showSampleResults'         as samples,
        pg_size_pretty(length(data::text)::bigint) as size,
-       case when data::text ilike '%medicalNotes%'
-              or data::text ilike '%guardians%'
-              or data::text ilike '%staffSlots%'
-              or data::text ilike '%runOfShow%'
-              or data::text ilike '%"email"%'
-              or data::text ilike '%checkoutTime%'
+       -- Matched as field names ("guardians": …), not bare words, so a news post
+       -- that mentions parents and guardians can't raise a false alarm.
+       case when data::text ilike '%"medicalNotes":%'
+              or data::text ilike '%"guardians":%'
+              or data::text ilike '%"staffSlots":%'
+              or data::text ilike '%"runOfShow":%'
+              or data::text ilike '%"email":%'
+              or data::text ilike '%"phone":%'
+              or data::text ilike '%"checkoutTime":%'
+              or data::text ilike '%"authorId":%'
             then 'LEAK' else 'clean' end    as private,
        updated_at
 from public.public_site

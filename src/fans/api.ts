@@ -21,12 +21,31 @@ export interface PublicSchool {
   initials: string
   theme: { primary: string; navy: string; accent: string }
   logo: string | null
+  socials?: PublicSocials | null
+}
+
+/** Each a handle or a full link, exactly as the school typed it. */
+export interface PublicSocials {
+  instagram?: string; x?: string; facebook?: string; youtube?: string; tiktok?: string
+}
+
+export interface PublicNews {
+  id: string
+  title: string
+  summary?: string | null
+  body: string
+  teamId?: string | null
+  /** YYYY-MM-DD. Posts dated after today are held back by the site. */
+  publishedAt: string
+  pinned: boolean
+  image: string | null
 }
 
 export interface PublicTeam {
   id: string; name: string; sport: string; level: string
   gender?: string; season: string; seasonLabel: string
   postseasonFinish?: string
+  socials?: PublicSocials | null
   roster: { id: string; number?: string; name: string; grade?: string; position?: string }[]
 }
 
@@ -65,6 +84,8 @@ export interface PublicSite {
   events: PublicEvent[]
   opponents: PublicOpponent[]
   sponsors: PublicSponsor[]
+  /** Rows built before news existed don't carry it; read as none. */
+  news: PublicNews[]
 }
 
 const SCHOOL_KEY = 'flux:fan-school'
@@ -119,5 +140,5 @@ export async function loadSite(slug: string): Promise<PublicSite> {
   if (!rows.length) throw new Error('notfound')
   const site = rows[0].data
   // Rows built before this field existed don't carry it; true is the default.
-  return { ...site, showSampleResults: site.showSampleResults ?? true }
+  return { ...site, showSampleResults: site.showSampleResults ?? true, news: site.news ?? [] }
 }

@@ -137,6 +137,10 @@ function migrate(input: AppState): AppState {
     assets: s.assets ?? seed.assets,
     tasks: s.tasks ?? seed.tasks,
     activity: s.activity ?? seed.activity,
+    // Never the seed's: a saved state without news predates news, and filling
+    // it from the seed would publish demo posts onto a real school's site.
+    // That is the same seed-into-live-data path behind the August data loss.
+    news: s.news ?? [],
     currentOrgId: s.currentOrgId ?? seed.currentOrgId,
     currentUserId: s.currentUserId ?? seed.currentUserId,
     showSampleResults: s.showSampleResults ?? seed.showSampleResults,
