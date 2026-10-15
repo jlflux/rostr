@@ -133,7 +133,10 @@ select jsonb_build_object(
       -- Settings sets logoUrl; a logo left in the asset library under "School
       -- Branding" is used when it hasn't been. Both publish to the same file,
       -- so either way the path is the same.
+      -- An embedded image (data:image/...) is a logo uploaded before file storage
+      -- existed; the app publishes those too, straight from the record.
       'logo',      case when o ->> 'logoUrl' like 'storage:%'
+                          or o ->> 'logoUrl' like 'data:image/%'
                           or exists (
                             select 1 from jsonb_array_elements(coalesce(src -> 'assets', '[]'::jsonb)) a
                             where a ->> 'type' = 'School Branding'

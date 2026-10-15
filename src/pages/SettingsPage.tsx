@@ -5,7 +5,7 @@ import { Avatar, Badge, Card, ConfirmDialog, Field, Modal } from '../components/
 import { fmtMoney, todayISO } from '../lib/dates'
 import { I } from '../components/icons'
 import { StoredImage } from '../components/StoredImage'
-import { removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
+import { isStoredPath, removeFromStorage, storageEnabled, uploadToStorage } from '../lib/storage'
 import { publicLogosFor, syncPublicLogos, type SyncResult } from '../lib/publicLogos'
 import { publicSiteUrl } from '../lib/publicSite'
 import { legacyFiles, migrateLegacyFiles } from '../lib/storageMigration'
@@ -572,7 +572,7 @@ function AddUserModal({ onClose, onSave }: { onClose: () => void; onSave: (u: Us
  * copied here, on demand, from the private bucket into the public one.
  */
 function PublicSiteCard() {
-  const { state, toast } = useStore()
+  const { state, toast, update } = useStore()
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<SyncResult | null>(null)
   const me = currentUser(state)
@@ -581,6 +581,12 @@ function PublicSiteCard() {
 
   const logos = publicLogosFor(state, org.id)
   const hasSchoolLogo = logos.some(l => l.assetId === `school:${org.id}`)
+  // This school's uploaded images, school branding first, for choosing the logo.
+  const libraryImages = state.assets
+    .filter(a => a.orgId === org.id && isStoredPath(a.storagePath)
+      && /^(png|jpe?g|gif|webp|svg)$/i.test(a.fileType ?? ''))
+    .sort((a, b) => Number(b.type === 'School Branding') - Number(a.type === 'School Branding')
+      || a.name.localeCompare(b.name))
 
   const sync = async () => {
     setBusy(true)
@@ -618,10 +624,30 @@ function PublicSiteCard() {
         </ul>
       )}
       {!hasSchoolLogo && (
-        <p className="tiny" style={{ color: 'var(--warn)', marginTop: 0, marginBottom: 10 }}>
-          {org.shortName}'s own logo isn't in that list. Upload it under Branding above —
-          until then the public site shows the school's initials.
-        </p>
+        <div style={{ marginBottom: 10 }}>
+          <p className="tiny" style={{ color: 'var(--warn)', marginTop: 0, marginBottom: 6 }}>
+            {org.shortName}'s own logo isn't in that list — until it is, the public site shows the
+            school's initials.
+            {libraryImages.length > 0
+              ? ' Pick it from the asset library, or upload it under Branding above.'
+              : ' Upload it under Branding above.'}
+          </p>
+          {/* Whatever the reason the logo wasn't found — filed under a different
+              type, saved before file storage existed — choosing it here settles
+              it, without needing to know which. */}
+          {libraryImages.length > 0 && (
+            <select className="input" defaultValue="" style={{ maxWidth: 360 }}
+              onChange={e => {
+                const a = libraryImages.find(x => x.id === e.target.value)
+                if (!a?.storagePath) return
+                update('orgs', org.id, { logoUrl: a.storagePath })
+                toast(`School logo set to "${a.name}" — now publish logos`)
+              }}>
+              <option value="" disabled>Use an image from the asset library…</option>
+              {libraryImages.map(a => <option key={a.id} value={a.id}>{a.name} ({a.type})</option>)}
+            </select>
+          )}
+        </div>
       )}
       <button className="btn primary" disabled={busy || logos.length === 0} onClick={sync}>
         {busy ? 'Publishing…' : 'Publish logos'}

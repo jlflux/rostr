@@ -1,5 +1,5 @@
 import type { AppState, Asset } from '../types'
-import { schoolLogo } from './derive'
+import { isEmbeddedImage, schoolLogo } from './derive'
 import { copyToPublicBucket, isStoredPath, publicLogoPath, publicSchoolLogoPath } from './storage'
 
 /**
@@ -40,7 +40,7 @@ export function publicLogosFor(state: AppState, orgId: string): PublicLogo[] {
   // asset id, so it is added directly rather than through `add`.
   const org = state.orgs.find(o => o.id === orgId)
   const orgLogo = org ? schoolLogo(state, org) : undefined
-  if (orgLogo && isStoredPath(orgLogo)) {
+  if (orgLogo && (isStoredPath(orgLogo) || isEmbeddedImage(orgLogo))) {
     out.push({
       assetId: `school:${orgId}`,
       ref: orgLogo,

@@ -129,11 +129,20 @@ export function publicSchoolLogoPath(orgId: string): string {
 export async function copyToPublicBucket(ref: string, publicPath: string): Promise<string | null> {
   const sb = getSupabase()
   if (!sb) return 'Storage is not configured.'
-  if (!isStoredPath(ref)) return 'That file was never uploaded.'
-  const path = ref.slice(STORAGE_PREFIX.length)
 
-  const { data: file, error: readErr } = await sb.storage.from(bucket()).download(path)
-  if (readErr || !file) return readErr?.message ?? 'Could not read the file.'
+  let file: Blob
+  if (/^data:image\//i.test(ref)) {
+    // A logo uploaded before file storage existed is the image itself, carried
+    // as text on the record. There is no stored file to read — the bytes are
+    // right here — so it is decoded and published directly.
+    try { file = await (await fetch(ref)).blob() }
+    catch { return 'Could not read the embedded image.' }
+  } else {
+    if (!isStoredPath(ref)) return 'That file was never uploaded.'
+    const { data, error: readErr } = await sb.storage.from(bucket()).download(ref.slice(STORAGE_PREFIX.length))
+    if (readErr || !data) return readErr?.message ?? 'Could not read the file.'
+    file = data
+  }
 
   const { error: writeErr } = await sb.storage.from(publicBucket()).upload(publicPath, file, {
     contentType: file.type || undefined,

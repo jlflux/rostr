@@ -12,9 +12,19 @@ import { isStoredPath } from './storage'
  * shows up too rather than leaving the school's initials on screen.
  */
 export function schoolLogo(s: AppState, org: Organization): string | undefined {
-  if (org.logoUrl) return org.logoUrl
-  return s.assets.find(a =>
+  // A logo set in Settings is either a stored file or — uploaded before file
+  // storage existed — the image itself, embedded as text. Both can be shown and
+  // both can be published; anything else on that field can only be shown, so a
+  // library image is preferred over it.
+  if (org.logoUrl && (isStoredPath(org.logoUrl) || isEmbeddedImage(org.logoUrl))) return org.logoUrl
+  const library = s.assets.find(a =>
     a.orgId === org.id && a.type === 'School Branding' && isStoredPath(a.storagePath))?.storagePath
+  return library ?? org.logoUrl
+}
+
+/** An image carried inside the record itself (a `data:image/...` URL). */
+export function isEmbeddedImage(value?: string): boolean {
+  return !!value && /^data:image\//i.test(value)
 }
 
 export function orgScoped<T extends { orgId: string }>(state: AppState, rows: T[]): T[] {
