@@ -1,4 +1,5 @@
 import type { PublicEvent, PublicNews, PublicSite, PublicTeam } from './api'
+import { toPlainText } from '../lib/RichText'
 
 export const isPast = (e: PublicEvent, today: string) => e.date < today
 /**
@@ -130,15 +131,12 @@ export function visibleNews(site: PublicSite, opts: { teamId?: string; limit?: n
 /** The front-page teaser: the post's own summary, or the start of the story. */
 export function excerpt(n: PublicNews, max = 170): string {
   if (n.summary?.trim()) return n.summary.trim()
-  const flat = n.body.replace(/\s+/g, ' ').trim()
+  const flat = toPlainText(n.body).replace(/\s+/g, ' ').trim()
   if (flat.length <= max) return flat
   const cut = flat.slice(0, max)
   return cut.slice(0, cut.lastIndexOf(' ') > 80 ? cut.lastIndexOf(' ') : max).replace(/[,.;:]$/, '') + '…'
 }
 
-/** A story as paragraphs: a blank line starts a new one. */
-export const paragraphs = (body: string) =>
-  body.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
 
 // ---------- this week ----------
 

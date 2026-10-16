@@ -6,6 +6,7 @@ import { fmtDate, todayISO } from '../lib/dates'
 import { Badge, Card, ConfirmDialog, Empty, Field, Modal } from '../components/ui'
 import { I } from '../components/icons'
 import { StoredImage } from '../components/StoredImage'
+import { RichEditor } from '../components/RichEditor'
 import { isStoredPath, storageEnabled, uploadToStorage } from '../lib/storage'
 import { publishNewsImage } from '../lib/publicLogos'
 import { publicSiteUrl } from '../lib/publicSite'
@@ -230,8 +231,9 @@ function PostEditor({ post, onClose, onSave }: {
       {future && <p className="tiny muted" style={{ marginTop: -6 }}>Dated in the future: it goes live on the public site on {fmtDate(form.publishedAt)}.</p>}
 
       <Field label="Story" required error={tried && !form.body.trim() ? 'Write something for the post' : undefined}>
-        <textarea rows={9} value={form.body} onChange={e => set('body', e.target.value)}
-          placeholder={'Write the story here.\n\nLeave a blank line between paragraphs.'} />
+        <RichEditor value={form.body} onChange={v => set('body', v)}
+          placeholder="Write the story here. Select words to make them bold, italic, underlined, or a link."
+          invalid={tried && !form.body.trim()} />
       </Field>
 
       <Field label="Front-page teaser (optional)">

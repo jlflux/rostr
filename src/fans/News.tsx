@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { logoUrl, type PublicNews, type PublicSite } from './api'
-import { excerpt, fmtDate, paragraphs, visibleNews } from './format'
+import { excerpt, fmtDate, visibleNews } from './format'
+import { RichBody } from '../lib/RichText'
 import { Crest } from './ui'
 
 /** A news photo, or the school's crest on its colors when the post has none. */
@@ -72,9 +73,7 @@ export function Article({ site }: { site: PublicSite }) {
         </div>
         <h1>{n.title}</h1>
         {photo && <img className="article-photo" src={photo} alt="" />}
-        {paragraphs(n.body).map((p, i) => (
-          <p key={i}>{p.split('\n').map((line, j) => <span key={j}>{j > 0 && <br />}{line}</span>)}</p>
-        ))}
+        <RichBody body={n.body} />
       </article>
       {more.length > 0 && (
         <section className="article-more">

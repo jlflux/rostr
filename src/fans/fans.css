@@ -552,6 +552,8 @@ a { color: inherit; text-decoration: none; }
 .article h1 { font-size: clamp(1.6rem, 3.6vw, 2.3rem); line-height: 1.15; letter-spacing: -0.02em; margin: 10px 0 18px; }
 .article-photo { width: 100%; border-radius: var(--fs-radius); margin-bottom: 20px; display: block; }
 .article p { font-size: 1.06rem; line-height: 1.7; margin: 0 0 1.1em; }
+.article p:not(.crumb) a { color: var(--fs-primary); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.article p:not(.crumb) a:hover { text-decoration-thickness: 2px; }
 .article-more { max-width: 960px; margin: 40px auto 0; }
 
 /* ======================================================================
